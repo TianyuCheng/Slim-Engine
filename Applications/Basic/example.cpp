@@ -41,7 +41,6 @@ int main() {
 
     // create ui handle
     auto ui = SlimPtr<DearImGui>(context.get());
-    uint32_t index = 0;
     FPS fps;
 
     // window
@@ -124,9 +123,6 @@ int main() {
         ui->End();
 
         graph.Execute();
-
-        // if (index >= 6) break;
-        index++;
     }
 
     context->WaitIdle();

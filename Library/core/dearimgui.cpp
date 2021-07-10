@@ -3,6 +3,7 @@
 #include "core/dearimgui.h"
 #include "core/renderframe.h"
 #include "core/vkutils.h"
+#include "imnodes.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
 
@@ -143,9 +144,11 @@ void DearImGui::Begin() const {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
+    ImNodes::CreateContext();
 }
 
 void DearImGui::End() const {
+    ImNodes::DestroyContext();
     ImGui::EndFrame();
 }
 

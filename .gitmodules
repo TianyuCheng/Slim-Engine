@@ -16,3 +16,6 @@
 [submodule "deps/stb"]
 	path = Dependencies/stb
 	url = git@github.com:nothings/stb.git
+[submodule "Dependencies/imnodes"]
+	path = Dependencies/imnodes
+	url = git@github.com:Nelarius/imnodes.git

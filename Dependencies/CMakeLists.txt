@@ -10,10 +10,19 @@ add_subdirectory(glfw)
 # ---------------------------------------------------------------
 set(IMGUI_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/imgui/
-    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends PARENT_SCOPE)
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends)
+set(IMGUI_INCLUDE_DIRS ${IMGUI_INCLUDE_DIRS} PARENT_SCOPE)
 file(GLOB IMGUI_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp)
 add_library(imgui SHARED ${IMGUI_SOURCES})
-target_include_directories(imgui PRIVATE ${Vulkan_INCLUDE_DIRS})
+
+# imnodes
+# ---------------------------------------------------------------
+set(IMNODES_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/imnodes PARENT_SCOPE)
+file(GLOB IMNODES_SOURCES  ${CMAKE_CURRENT_SOURCE_DIR}/imnodes/*.cpp)
+add_library(imnodes SHARED ${IMNODES_SOURCES})
+target_link_libraries(imnodes imgui)
+target_include_directories(imnodes PUBLIC ${IMGUI_INCLUDE_DIRS} ${IMNODES_INCLUDE_DIRS})
 
 # glm
 # ---------------------------------------------------------------

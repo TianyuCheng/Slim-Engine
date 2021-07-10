@@ -19,6 +19,7 @@
 
 // third party
 #include <imgui.h>
+#include <imnodes.h>
 
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>

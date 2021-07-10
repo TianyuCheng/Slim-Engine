@@ -82,6 +82,7 @@ add_library(slim SHARED
 target_include_directories(slim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${IMGUI_INCLUDE_DIRS}
+    ${IMNODES_INCLUDE_DIRS}
     ${VULKAN_INCLUDES}
 )
-target_link_libraries(slim PUBLIC glm glfw imgui stb tinygltf ${VULKAN_LIBS})
+target_link_libraries(slim PUBLIC glm glfw imgui imnodes stb tinygltf ${VULKAN_LIBS})
