@@ -1,0 +1,441 @@
+#include "core/debug.h"
+#include "core/commands.h"
+#include "core/vkutils.h"
+
+using namespace slim;
+
+CommandBuffer::CommandBuffer(Context *context, VkQueue queue, VkCommandBuffer commandBuffer)
+    : context(context), queue(queue) {
+    handle = commandBuffer;
+}
+
+CommandBuffer::~CommandBuffer() {
+    Reset();
+    queue = VK_NULL_HANDLE;
+    handle = VK_NULL_HANDLE;
+}
+
+void CommandBuffer::Reset() {
+    stagingBuffers.clear();
+}
+
+void CommandBuffer::Begin() {
+    #ifndef NDEBUG
+    // for validation purpose
+    if (started) {
+        throw std::runtime_error("CommandBuffer has already begun when calling Begin()! Need to call End()");
+    }
+    started = true;
+    #endif
+
+    // only use one time submit
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+
+    ErrorCheck(vkBeginCommandBuffer(handle, &beginInfo), "begin command buffer");
+}
+
+void CommandBuffer::End() {
+    #ifndef NDEBUG
+    // for validation purpose
+    if (!started) {
+        throw std::runtime_error("CommandBuffer has not begun when calling End()! Need to call Begin()");
+    }
+    started = false;
+    #endif
+    ErrorCheck(vkEndCommandBuffer(handle), "end command buffer")
+}
+
+void CommandBuffer::Submit() {
+    // prepare submit info
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+
+    // wait semaphores
+    submitInfo.waitSemaphoreCount = waitSemaphores.size();
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.pWaitDstStageMask = waitStages.data();
+
+    // signal semaphores
+    submitInfo.signalSemaphoreCount = signalSemaphores.size();
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
+
+    // command buffer
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &handle;
+
+    ErrorCheck(vkQueueSubmit(queue, 1, &submitInfo, signalFence), "submit command buffer");
+
+    // clean up
+    waitSemaphores.clear();
+    waitStages.clear();
+    signalSemaphores.clear();
+    signalFence = VK_NULL_HANDLE;
+}
+
+void CommandBuffer::Wait(Semaphore *semaphore, VkPipelineStageFlags stages) {
+    waitSemaphores.push_back(*semaphore);
+    waitStages.push_back(stages);
+}
+
+void CommandBuffer::Signal(Semaphore *semaphore) {
+    signalSemaphores.push_back(*semaphore);
+}
+
+void CommandBuffer::Signal(Fence *fence) {
+    signalFence = *fence;
+}
+
+void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset) {
+    if (buffer->HostVisible()) {
+        buffer->SetData(data, size, offset);
+    } else {
+        // copy buffer to buffer
+        stagingBuffers.emplace_back(new StagingBuffer(GetContext(), size));
+        auto staging = stagingBuffers.back().get();
+        staging->SetData(data, size);
+        CopyBufferToBuffer(staging, 0, buffer, offset, size);
+    }
+}
+
+void CommandBuffer::CopyDataToImage(void *data, size_t size, Image *image,
+                                    const VkOffset3D &offset, const VkExtent3D &extent,
+                                    uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel,
+                                    VkImageAspectFlags aspectMask) {
+
+    stagingBuffers.emplace_back(new StagingBuffer(GetContext(), size));
+    auto stagingBuffer = stagingBuffers.back().get();
+    stagingBuffer->SetData(data, size);
+    CopyBufferToImage(stagingBuffer, 0, 0, extent.height, image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
+}
+
+void CommandBuffer::CopyBufferToBuffer(Buffer *srcBuffer, size_t srcOffset, Buffer *dstBuffer, size_t dstOffset, size_t size) {
+    VkBufferCopy copy = {};
+    copy.srcOffset = srcOffset;
+    copy.dstOffset = dstOffset;
+    copy.size = size;
+    vkCmdCopyBuffer(handle, *srcBuffer, *dstBuffer, 1, &copy);
+}
+
+void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight,
+                                      Image *dstImage, const VkOffset3D &offset, const VkExtent3D &extent,
+                                      uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask) {
+    VkBufferImageCopy copy = {};
+    copy.bufferOffset = bufferOffset;
+    copy.bufferRowLength = bufferRowLength;
+    copy.bufferImageHeight = bufferImageHeight;
+    copy.imageOffset = offset;
+    copy.imageExtent = extent;
+    copy.imageSubresource.aspectMask = aspectMask;
+    copy.imageSubresource.baseArrayLayer = baseLayer;
+    copy.imageSubresource.layerCount = layerCount;
+    copy.imageSubresource.mipLevel = mipLevel;
+
+    vkCmdCopyBufferToImage(handle, *srcBuffer, *dstImage, dstImage->layouts[baseLayer][mipLevel], 1, &copy);
+}
+
+void CommandBuffer::CopyImageToBuffer(Image *srcImage, const VkOffset3D &offset, const VkExtent3D &extent,
+                                      uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask,
+                                      Buffer *dstBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight) {
+    VkBufferImageCopy copy = {};
+    copy.bufferOffset = bufferOffset;
+    copy.bufferRowLength = bufferRowLength;
+    copy.bufferImageHeight = bufferImageHeight;
+    copy.imageOffset = offset;
+    copy.imageExtent = extent;
+    copy.imageSubresource.aspectMask = aspectMask;
+    copy.imageSubresource.baseArrayLayer = baseLayer;
+    copy.imageSubresource.layerCount = layerCount;
+    copy.imageSubresource.mipLevel = mipLevel;
+
+    vkCmdCopyImageToBuffer(handle, *srcImage, srcImage->layouts[baseLayer][mipLevel], *dstBuffer, 1, &copy);
+}
+
+void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffset,
+                                     uint32_t srcBaseLayer, uint32_t srcLayerCount,
+                                     uint32_t srcMipLevel, VkImageAspectFlags srcAspectMask,
+                                     Image *dstImage, const VkOffset3D &dstOffset,
+                                     uint32_t dstBaseLayer, uint32_t dstLayerCount,
+                                     uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask) {
+    VkImageCopy copy = {};
+    copy.srcOffset = srcOffset;
+    copy.srcSubresource.aspectMask = srcAspectMask;
+    copy.srcSubresource.baseArrayLayer = srcBaseLayer;
+    copy.srcSubresource.layerCount = srcLayerCount;
+    copy.srcSubresource.mipLevel = srcMipLevel;
+    copy.dstOffset = dstOffset;
+    copy.dstSubresource.aspectMask = dstAspectMask;
+    copy.dstSubresource.baseArrayLayer = dstBaseLayer;
+    copy.dstSubresource.layerCount = dstLayerCount;
+    copy.dstSubresource.mipLevel = dstMipLevel;
+    vkCmdCopyImage(handle,
+                   *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   *dstImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   1, &copy);
+}
+
+void CommandBuffer::BlitImage(Image *srcImage, const VkOffset3D &srcOffset1, const VkOffset3D &srcOffset2,
+                              uint32_t srcBaseLayer, uint32_t srcLayerCount, uint32_t srcMipLevel, VkImageAspectFlags srcAspectMask,
+                              Image *dstImage, const VkOffset3D &dstOffset1, const VkOffset3D &dstOffset2,
+                              uint32_t dstBaseLayer, uint32_t dstLayerCount, uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask,
+                              VkFilter filter) {
+    VkImageBlit blit = {};
+    blit.srcOffsets[0] = srcOffset1;
+    blit.srcOffsets[1] = srcOffset2;
+    blit.srcSubresource.aspectMask = srcAspectMask;
+    blit.srcSubresource.baseArrayLayer = srcBaseLayer;
+    blit.srcSubresource.layerCount = srcLayerCount;
+    blit.srcSubresource.mipLevel = srcMipLevel;
+    blit.dstOffsets[0] = dstOffset1;
+    blit.dstOffsets[1] = dstOffset2;
+    blit.dstSubresource.aspectMask = dstAspectMask;
+    blit.dstSubresource.baseArrayLayer = dstBaseLayer;
+    blit.dstSubresource.layerCount = dstLayerCount;
+    blit.dstSubresource.mipLevel = dstMipLevel;
+    vkCmdBlitImage(handle,
+                   *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   *dstImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   1, &blit, filter);
+}
+
+void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
+    // no need to generate mipmaps
+    if (image->MipLevels() <= 1) return;
+
+    int32_t mipW = image->Width();
+    int32_t mipH = image->Height();
+
+    for (uint32_t layer = 0; layer < image->Layers(); layer++) {
+        for (uint32_t i = 0; i < image->MipLevels() - 1; i++) {
+            // transit mip-level {i} to transfer src
+            PrepareLayoutTransition(handle, image,
+                                    image->layouts[layer][i],
+                                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                    layer, 1, i, 1);
+
+            // transit mip-level {i+1} to transfer dst
+            PrepareLayoutTransition(handle, image,
+                                    image->layouts[layer][i + 1],
+                                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                    layer, 1, i + 1, 1);
+
+            // blit image
+            int32_t mipWNext = (mipW >> 1) > 0 ? (mipW >> 1) : 1;
+            int32_t mipHNext = (mipH >> 1) > 0 ? (mipH >> 1) : 1;
+
+            BlitImage(image, VkOffset3D { 0, 0, 0 }, VkOffset3D { mipW,     mipH,     1 }, layer, 1, i, VK_IMAGE_ASPECT_COLOR_BIT,
+                      image, VkOffset3D { 0, 0, 0 }, VkOffset3D { mipWNext, mipHNext, 1 }, layer, 1, i, VK_IMAGE_ASPECT_COLOR_BIT,
+                      filter);
+
+            mipW = mipWNext;
+            mipH = mipHNext;
+        }
+
+        // transit mip-level mipCount-1 to transfer src
+        uint32_t mip = image->MipLevels() - 1;
+        PrepareLayoutTransition(handle, image,
+                                image->layouts[layer][mip],
+                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                layer, 1, mip, 1);
+    }
+}
+
+void CommandBuffer::PrepareForShaderRead(Image *image) {
+    // transit dst image layout
+    PrepareLayoutTransition(handle, image,
+        image->layouts[0][0],
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, image->createInfo.arrayLayers,
+        0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::PrepareForTransferSrc(Image *image) {
+    // transit dst image layout
+    PrepareLayoutTransition(handle, image,
+        image->layouts[0][0],
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, image->createInfo.arrayLayers,
+        0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::PrepareForTransferDst(Image *image) {
+    // transit dst image layout
+    PrepareLayoutTransition(handle, image,
+        image->layouts[0][0],
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, image->createInfo.arrayLayers,
+        0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::PrepareForPresentSrc(Image *image) {
+    // transit dst image layout
+    PrepareLayoutTransition(handle, image,
+        image->layouts[0][0],
+        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0, image->createInfo.arrayLayers,
+        0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::PrepareForMemoryMapping(Image *image) {
+    // transit dst image layout
+    PrepareLayoutTransition(handle, image,
+        image->layouts[0][0],
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_ACCESS_MEMORY_READ_BIT,
+        0, image->createInfo.arrayLayers,
+        0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
+    vkCmdDispatch(handle, x, y, z);
+}
+
+void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
+    vkCmdDraw(handle, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance) {
+    vkCmdDrawIndexed(handle, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+}
+
+void CommandBuffer::BindPipeline(Pipeline *pipeline) {
+    vkCmdBindPipeline(handle, pipeline->Type(), *pipeline);
+}
+
+void CommandBuffer::BindDescriptor(Descriptor *descriptor) {
+    descriptor->Update();
+
+    VkPipelineBindPoint bindPoint = descriptor->pipeline->Type();
+    VkPipelineLayout layout = *descriptor->pipeline->Layout();
+
+    // bind descriptor set individually (need to optimize it later)
+    // TODO: batch descriptor sets binding if possible
+    for (uint32_t i = 0; i < descriptor->descriptorSets.size(); i++)
+        if (descriptor->descriptorSets[i] != VK_NULL_HANDLE)
+            vkCmdBindDescriptorSets(handle, bindPoint, layout, i, 1, &descriptor->descriptorSets[i], 0, nullptr);
+}
+
+void CommandBuffer::BindIndexBuffer(IndexBuffer *buffer, size_t offset) {
+    vkCmdBindIndexBuffer(handle, *buffer, offset, buffer->indexType);
+}
+
+void CommandBuffer::BindVertexBuffer(uint32_t binding, VertexBuffer *buffer, uint64_t offset) {
+    VkBuffer vBuffer = *buffer;
+    vkCmdBindVertexBuffers(handle, binding, 1, &vBuffer, &offset);
+}
+
+void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffers, const std::vector<uint64_t> &offsets) {
+    std::vector<VkBuffer> vBuffers;
+    for (auto buffer : buffers)
+        vBuffers.push_back(*buffer);
+    vkCmdBindVertexBuffers(handle, binding, vBuffers.size(), vBuffers.data(), offsets.data());
+}
+
+CommandPool::CommandPool(Context *context, uint32_t queueFamilyIndex) : context(context) {
+    // get device queue
+    vkGetDeviceQueue(context->GetDevice(), queueFamilyIndex, 0, &queue);
+
+    // create command pool
+    VkCommandPoolCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    createInfo.flags = 0;
+    createInfo.queueFamilyIndex = queueFamilyIndex;
+    createInfo.pNext = nullptr;
+
+    // error checking
+    ErrorCheck(vkCreateCommandPool(context->GetDevice(), &createInfo, nullptr, &handle), "create command pool");
+}
+
+CommandPool::~CommandPool() {
+    Reset();
+
+    primaryCommandBuffers.clear();
+    secondaryCommandBuffers.clear();
+
+    if (handle) {
+        vkDestroyCommandPool(context->GetDevice(), handle, nullptr);
+        handle = nullptr;
+    }
+}
+
+void CommandPool::Reset() {
+    // always use pool to reset all command buffers
+    ErrorCheck(vkResetCommandPool(context->GetDevice(), handle, 0), "reset command pool");
+
+    // clearing staging buffers
+    for (auto commandBuffer : primaryCommandBuffers) commandBuffer->Reset();
+    for (auto commandBuffer : secondaryCommandBuffers) commandBuffer->Reset();
+
+    activePrimaryCommandBuffers = 0;
+    activeSecondaryCommandBuffers = 0;
+}
+
+CommandBuffer* CommandPool::Request(VkCommandBufferLevel level) {
+    CommandBuffer *commandBuffer = level == VK_COMMAND_BUFFER_LEVEL_PRIMARY
+                                 ? RequestPrimaryCommandBufer()
+                                 : RequestSecondaryCommandBufer();
+    return commandBuffer;
+}
+
+CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
+    if (activePrimaryCommandBuffers < primaryCommandBuffers.size()) {
+        return primaryCommandBuffers[activePrimaryCommandBuffers].get();
+    }
+
+    // command buffer allocation info
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;
+    allocInfo.commandPool = handle;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandBufferCount = 1;
+
+    // allocate command buffer
+    VkCommandBuffer commandBuffer;
+    ErrorCheck(vkAllocateCommandBuffers(context->GetDevice(), &allocInfo, &commandBuffer), "allocate command buffer");
+
+    // adding a new command buffer
+    primaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(context.get(), queue, commandBuffer));
+    return primaryCommandBuffers.back().get();
+}
+
+CommandBuffer* CommandPool::RequestSecondaryCommandBufer() {
+    if (activeSecondaryCommandBuffers < secondaryCommandBuffers.size()) {
+        return secondaryCommandBuffers[activeSecondaryCommandBuffers].get();
+    }
+
+    // command buffer allocation info
+    VkCommandBufferAllocateInfo allocInfo = {};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.pNext = nullptr;
+    allocInfo.commandPool = handle;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+    allocInfo.commandBufferCount = 1;
+
+    // allocate command buffer
+    VkCommandBuffer commandBuffer;
+    ErrorCheck(vkAllocateCommandBuffers(context->GetDevice(), &allocInfo, &commandBuffer), "allocate command buffer")
+
+    // adding a new command buffer
+    secondaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(context.get(), queue, commandBuffer));
+    return secondaryCommandBuffers.back().get();
+}

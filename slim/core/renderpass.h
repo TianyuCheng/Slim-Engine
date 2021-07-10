@@ -1,0 +1,58 @@
+#ifndef SLIM_CORE_RENDERPASS_H
+#define SLIM_CORE_RENDERPASS_H
+
+#include <string>
+#include <vector>
+#include <vulkan/vulkan.h>
+
+#include "core/context.h"
+#include "utility/interface.h"
+
+namespace slim {
+
+    class ClearValue final : public TriviallyConvertible<VkClearValue> {
+    public:
+        ClearValue(float r, float g, float b, float a = 1.0f);
+        ClearValue(float depth, uint32_t stencil = 0U);
+        ~ClearValue() = default;
+    };
+
+    // RenderPassDesc should hold the data for all configurations needed for renderpass.
+    // When renderpass is initialized, nothing should be changeable.
+    class RenderPassDesc final {
+        friend class RenderPass;
+    public:
+        RenderPassDesc& AddColorAttachment(VkFormat format, VkSampleCountFlagBits samples,
+                                           VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                           VkImageLayout initialLayout, VkImageLayout finalLayout);
+
+        RenderPassDesc& AddDepthAttachment(VkFormat format, VkSampleCountFlagBits samples,
+                                           VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                           VkImageLayout initialLayout, VkImageLayout finalLayout);
+
+        RenderPassDesc& AddStencilAttachment(VkFormat format, VkSampleCountFlagBits samples,
+                                             VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                             VkImageLayout initialLayout, VkImageLayout finalLayout);
+
+        RenderPassDesc& AddDepthStencilAttachment(VkFormat format, VkSampleCountFlagBits samples,
+                                                  VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                                  VkImageLayout initialLayout, VkImageLayout finalLayout);
+
+    private:
+        std::vector<VkAttachmentDescription> attachments;
+        std::vector<VkAttachmentReference> colorAttachments;
+        std::vector<VkAttachmentReference> depthStencilAttachments;
+    };
+
+    class RenderPass final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkRenderPass> {
+    public:
+        RenderPass(Context *context, const RenderPassDesc &desc);
+        ~RenderPass();
+
+    private:
+        SmartPtr<Context> context;
+    };
+
+} // end of namespace slim
+
+#endif // end of SLIM_CORE_RENDERPASS_H
