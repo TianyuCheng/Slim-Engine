@@ -58,10 +58,10 @@ set(SLIM_CORE_SOURCES
 
 # vulkan-specific class modules
 set(SLIM_IMGUI_SOURCES
-    ${PROJECT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_vulkan.h
-    ${PROJECT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_vulkan.cpp
-    ${PROJECT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_glfw.h
-    ${PROJECT_SOURCE_DIR}/deps/imgui/backends/imgui_impl_glfw.cpp
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_vulkan.h
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_vulkan.cpp
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.h
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
 
 # utility class modules

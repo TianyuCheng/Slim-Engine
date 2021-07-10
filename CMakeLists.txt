@@ -16,7 +16,7 @@ project(slim LANGUAGES CXX)
 # |____/ \___| .__/ \___|_| |_|\__,_|\___|_| |_|\___|_|\___||___/
 #            |_|
 # ---------------------------------------------------------------
-add_subdirectory(deps)
+add_subdirectory(Dependencies)
 if (${VULKAN_SUPPORT})
     add_definitions(-DSLIM_VULKAN_SUPPORT)
 endif()
@@ -48,7 +48,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # | |___| | |_) | | | (_| | |  | |  __/\__ \
 # |_____|_|_.__/|_|  \__,_|_|  |_|\___||___/
 # ---------------------------------------------------------------
-add_subdirectory(slim)
+add_subdirectory(Library)
 
 #  ____  _               _
 # / ___|| |__   __ _  __| | ___ _ __
@@ -91,7 +91,7 @@ endfunction()
 # |_____/_/\_\__,_|_| |_| |_| .__/|_|\___||___/
 #                           |_|
 # ---------------------------------------------------------------
-add_subdirectory(examples/Transfer)
-add_subdirectory(examples/Compute)
-add_subdirectory(examples/DearImGui)
-add_subdirectory(apps/Basic)
+add_subdirectory(Examples/Transfer)
+add_subdirectory(Examples/Compute)
+add_subdirectory(Examples/DearImGui)
+add_subdirectory(Applications/Basic)
