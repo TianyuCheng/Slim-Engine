@@ -6,6 +6,14 @@
 
 using namespace slim;
 
+bool IsDepthStencil(VkFormat format) {
+    return format == VK_FORMAT_D16_UNORM
+         | format == VK_FORMAT_D16_UNORM_S8_UINT
+         | format == VK_FORMAT_D24_UNORM_S8_UINT
+         | format == VK_FORMAT_D32_SFLOAT
+         | format == VK_FORMAT_D32_SFLOAT_S8_UINT;
+}
+
 RenderGraph::Resource::Resource(GPUImage2D* image)
     : image(image), retained(true) {
     VkExtent3D ext = image->GetExtent();
@@ -19,10 +27,15 @@ RenderGraph::Resource::Resource(VkFormat format, VkExtent2D extent, VkSampleCoun
 }
 
 void RenderGraph::Resource::Allocate(RenderFrame* renderFrame) {
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                            | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-                            | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
+    VkImageUsageFlags usage = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
                             | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+    if (IsDepthStencil(format)) {
+        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    } else {
+        usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    }
+
     if (!image.get()) {
         image = renderFrame->RequestGPUImage2D(format, extent, mipLevels, samples, usage);
     }
@@ -95,6 +108,8 @@ void RenderGraph::Pass::Execute(std::function<void(const RenderGraph &renderGrap
 void RenderGraph::Pass::Execute() {
     RenderFrame* renderFrame = graph->GetRenderFrame();
 
+    // allocate resource if necessary
+    // no need to allocate texture, because it should already have been allocated
     for (auto &attachment : usedAsColorAttachment)        attachment.resource->Allocate(renderFrame);
     for (auto &attachment : usedAsDepthAttachment)        attachment.resource->Allocate(renderFrame);
     for (auto &attachment : usedAsStencilAttachment)      attachment.resource->Allocate(renderFrame);
@@ -105,6 +120,20 @@ void RenderGraph::Pass::Execute() {
     } else {
         ExecuteGraphics();
     }
+
+    // update reference counts
+    for (auto &attachment : usedAsTexture)                attachment.resource->rdCount--;
+    for (auto &attachment : usedAsColorAttachment)        attachment.resource->wrCount--;
+    for (auto &attachment : usedAsDepthAttachment)        attachment.resource->wrCount--;
+    for (auto &attachment : usedAsStencilAttachment)      attachment.resource->wrCount--;
+    for (auto &attachment : usedAsDepthStencilAttachment) attachment.resource->wrCount--;
+
+    // clean up resources not used anymore
+    for (auto &attachment : usedAsTexture)                if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    for (auto &attachment : usedAsColorAttachment)        if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    for (auto &attachment : usedAsDepthAttachment)        if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    for (auto &attachment : usedAsStencilAttachment)      if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    for (auto &attachment : usedAsDepthStencilAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
 }
 
 void RenderGraph::Pass::ExecuteCompute() {
@@ -165,7 +194,7 @@ void RenderGraph::Pass::ExecuteGraphics() {
 
     // depth stencil attachment
     for (auto &attachment : usedAsDepthStencilAttachment) {
-        renderPassDesc.AddStencilAttachment(attachment.resource->format,
+        renderPassDesc.AddDepthStencilAttachment(attachment.resource->format,
                                             attachment.resource->samples,
                                             attachment.clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
                                             VK_ATTACHMENT_STORE_OP_STORE,
@@ -191,6 +220,9 @@ void RenderGraph::Pass::ExecuteGraphics() {
     RenderFrame* renderFrame = graph->GetRenderFrame();
     RenderPass* renderPass = renderFrame->RequestRenderPass(name, renderPassDesc);
     Framebuffer* framebuffer = renderFrame->RequestFramebuffer(framebufferDesc.SetRenderPass(renderPass));
+
+    // update render pass
+    graph->renderPass.reset(renderPass);
 
     // begin render pass
     VkRenderPassBeginInfo beginInfo = {};
@@ -224,6 +256,10 @@ RenderFrame* RenderGraph::GetRenderFrame() const {
     return renderFrame.get();
 }
 
+RenderPass* RenderGraph::GetRenderPass() const {
+    return renderPass.get();
+}
+
 CommandBuffer* RenderGraph::GetGraphicsCommandBuffer() const {
     if (!graphicsCommandBuffer.get()) {
         graphicsCommandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
@@ -255,12 +291,18 @@ RenderGraph::Resource* RenderGraph::CreateResource(GPUImage2D* image) {
     return resources.back().get();
 }
 
-RenderGraph::Resource* RenderGraph::CreateResource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples) {
+RenderGraph::Resource* RenderGraph::CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples) {
     resources.push_back(SlimPtr<Resource>(format, extent, samples));
     return resources.back().get();
 }
 
 void RenderGraph::Compile() {
+    // initialize resource status
+    for (auto &resource : resources) {
+        resource->rdCount = resource->readers.size();
+        resource->wrCount = resource->writers.size();
+    }
+
     // initialize pass status
     for (auto &pass : passes) {
         pass->visited = false;

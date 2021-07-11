@@ -48,6 +48,8 @@ namespace slim {
             std::vector<Pass*> writers = {};
 
             bool retained = false;
+            int rdCount = 0;
+            int wrCount = 0;
         };
 
         // -------------------------------------------------------------------------------
@@ -111,11 +113,12 @@ namespace slim {
         RenderGraph::Pass*     CreateRenderPass(const std::string &name);
         RenderGraph::Pass*     CreateComputePass(const std::string &name);                                         // async compute
         RenderGraph::Resource* CreateResource(GPUImage2D* image);                                                  // for retained resource
-        RenderGraph::Resource* CreateResource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);  // for transient resource
+        RenderGraph::Resource* CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples);  // for transient resource
         void                   Compile();
         void                   Execute();
         void                   Visualize();
 
+        RenderPass*            GetRenderPass() const;
         RenderFrame*           GetRenderFrame() const;
         CommandBuffer*         GetComputeCommandBuffer() const;
         CommandBuffer*         GetGraphicsCommandBuffer() const;
@@ -128,6 +131,7 @@ namespace slim {
         SmartPtr<RenderFrame> renderFrame;
         mutable SmartPtr<CommandBuffer> computeCommandBuffer;
         mutable SmartPtr<CommandBuffer> graphicsCommandBuffer;
+        mutable SmartPtr<RenderPass> renderPass;
         std::vector<SmartPtr<RenderGraph::Pass>> passes = {};
         std::vector<SmartPtr<RenderGraph::Resource>> resources = {};
         std::vector<RenderGraph::Pass*> timeline = {};

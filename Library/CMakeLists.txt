@@ -28,6 +28,9 @@ set(SLIM_CORE_SOURCES
     core/image.cpp
     core/image.h
 
+    core/texture.cpp
+    core/texture.h
+
     core/sampler.cpp
     core/sampler.h
 

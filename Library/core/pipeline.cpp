@@ -13,12 +13,12 @@ using namespace slim;
 //         |_|                                   |___/
 
 PipelineLayoutDesc& PipelineLayoutDesc::AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                                   VkDescriptorType descriptorType, VkPipelineShaderStageCreateFlags stages) {
+                                                   VkDescriptorType descriptorType, VkShaderStageFlags stages) {
     return AddBindingArray(name, set, binding, 1, descriptorType, stages);
 }
 
 PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                                        VkDescriptorType descriptorType, VkPipelineShaderStageCreateFlags stages) {
+                                                        VkDescriptorType descriptorType, VkShaderStageFlags stages) {
     auto it = bindings.find(set);
     if (it == bindings.end()) {
         bindings.insert(std::make_pair(set, std::vector<DescriptorSetLayoutBinding>()));
@@ -150,6 +150,8 @@ void Descriptor::SetStorage(const std::string &name, Buffer *buffer, size_t offs
 }
 
 void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size) {
+    buffer->Flush();
+
     auto info = FindDescriptorSet(name);
 
     VkDescriptorBufferInfo bufferInfo = {};
@@ -327,6 +329,7 @@ ComputePipelineDesc& ComputePipelineDesc::SetComputeShader(Shader* shader) {
 //                 |_|
 
 GraphicsPipelineDesc::GraphicsPipelineDesc() {
+    handle = {};
     InitInputAssemblyState();
     InitRasterizationState();
     InitColorBlendState();
@@ -428,6 +431,13 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetRasterizationDiscard(bool enable,
     return *this;
 }
 
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthTest(VkCompareOp compare) {
+    depthStencilStateCreateInfo.depthTestEnable = true;
+    depthStencilStateCreateInfo.depthWriteEnable = true;
+    depthStencilStateCreateInfo.depthCompareOp = compare;
+    return *this;
+}
+
 GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthClamp(bool enable) {
     rasterizationStateCreateInfo.depthClampEnable = enable;
     return *this;
@@ -478,9 +488,21 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetRenderPass(RenderPass *rp) {
     return *this;
 }
 
-GraphicsPipelineDesc& GraphicsPipelineDesc::ViewportScissors(const std::vector<VkViewport> &viewports,
-                                                             const std::vector<VkRect2D> &scissors,
-                                                             bool dynamic) {
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetViewport(const VkExtent2D &extent, bool dynamic) {
+    return SetViewport(VkViewport {
+        0.0f, 0.0f,
+        static_cast<float>(extent.width),
+        static_cast<float>(extent.height),
+        0.0f, 1.0f }, dynamic);
+}
+
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetViewport(const VkViewport &viewport, bool dynamic) {
+    return SetViewportScissors({ viewport }, {}, dynamic);
+}
+
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetViewportScissors(const std::vector<VkViewport> &viewports,
+                                                                const std::vector<VkRect2D> &scissors,
+                                                                bool dynamic) {
     this->viewports.clear();
     this->scissors.clear();
 
@@ -526,10 +548,31 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::ViewportScissors(const std::vector<V
 Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
     layout = SlimPtr<PipelineLayout>(context, desc.pipelineLayoutDesc);
 
+    // vertex attributes & input bindings
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
+    vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputStateCreateInfo.vertexAttributeDescriptionCount = desc.vertexAttributes.size();
+    vertexInputStateCreateInfo.pVertexAttributeDescriptions = desc.vertexAttributes.data();
+    vertexInputStateCreateInfo.vertexBindingDescriptionCount = desc.inputBindings.size();
+    vertexInputStateCreateInfo.pVertexBindingDescriptions = desc.inputBindings.data();
+    vertexInputStateCreateInfo.flags = 0;
+    vertexInputStateCreateInfo.pNext = nullptr;
 
+    // color blend state
+    desc.colorBlendStateCreateInfo.attachmentCount = desc.colorBlendAttachments.size();
+    desc.colorBlendStateCreateInfo.pAttachments = desc.colorBlendAttachments.data();
+
+    // viewport & scissors
     VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+    viewportStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    viewportStateCreateInfo.viewportCount = desc.viewports.size();
+    viewportStateCreateInfo.pViewports = desc.viewports.data();
+    viewportStateCreateInfo.scissorCount = desc.scissors.size();
+    viewportStateCreateInfo.pScissors = desc.scissors.data();
+    viewportStateCreateInfo.flags = 0;
+    viewportStateCreateInfo.pNext = nullptr;
 
+    desc.handle.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     desc.handle.basePipelineHandle = handle;
     desc.handle.basePipelineIndex = 0;
     desc.handle.pColorBlendState = &desc.colorBlendStateCreateInfo;

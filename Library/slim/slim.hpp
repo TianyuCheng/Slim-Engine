@@ -6,6 +6,7 @@
 #include "core/commands.h"
 #include "core/context.h"
 #include "core/image.h"
+#include "core/texture.h"
 #include "core/pipeline.h"
 #include "core/renderpass.h"
 #include "core/rendergraph.h"

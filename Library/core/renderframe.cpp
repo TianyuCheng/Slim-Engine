@@ -43,6 +43,7 @@ void RenderFrame::Reset() {
     if (computeCommandPools.get())  computeCommandPools->Reset();
     if (graphicsCommandPools.get()) graphicsCommandPools->Reset();
     if (transferCommandPools.get()) transferCommandPools->Reset();
+    uniformBufferPool->Reset();
 }
 
 void RenderFrame::Invalidate() {

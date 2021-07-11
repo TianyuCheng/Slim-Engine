@@ -80,6 +80,9 @@ namespace slim {
 
         T& operator*() const { return *ptr; }
 
+        operator T*() { return ptr; }
+        operator T*() const { return ptr; }
+
         void reset() {
             Decrement(ptr);
             ptr = nullptr;

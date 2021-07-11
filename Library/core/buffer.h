@@ -21,21 +21,17 @@ namespace slim {
 
     template <typename Buffer>
     class BufferPool final {
-        friend class Transient<Buffer>;
-        using List = std::list<Buffer>;
-        using Dictionary = std::unordered_map<size_t, List>;
+        using List = std::list<SmartPtr<Buffer>>;
     public:
         explicit BufferPool(Context *context);
         virtual ~BufferPool();
         void Reset();
-        Transient<Buffer> Request(size_t size);
+        Buffer* Request(size_t size);
     private:
         Buffer* AllocateBuffer(size_t size);
-        void Recycle(Buffer *buffer, size_t size);
     private:
         SmartPtr<Context> context;
-        Dictionary allAllocations;
-        Dictionary availableLists;
+        List allAllocations;
     };
 
     template <typename Buffer>
@@ -45,59 +41,22 @@ namespace slim {
     template <typename Buffer>
     BufferPool<Buffer>::~BufferPool() {
         allAllocations.clear();
-        availableLists.clear();
     }
 
     template <typename Buffer>
     void BufferPool<Buffer>::Reset() {
-        // NOTE: never release allocations unless the pool is destroyed.
-        // Usually the usage of buffers inside a frame is very regular,
-        // it is possible to reuse the existing buffers as much as possible.
-        availableLists = allAllocations;
+        allAllocations.clear();
     }
 
     template <typename Buffer>
-    Transient<Buffer> BufferPool<Buffer>::Request(size_t size) {
-        // check if buffer of requested size exists at all
-        auto it = availableLists.find(size);
-        if (it == availableLists.end()) {
-            return Transient<Buffer>(this, AllocateBuffer(size), size);
-        }
-
-        // check if any existing buffer of request sizes is available
-        auto &list = it->second;
-        if (list.empty()) {
-            return Transient<Buffer>(this, AllocateBuffer(size), size);
-        }
-
-        // use an existing buffer from
-        Buffer *buffer = list.back();
-        list.pop_back();
-
-        // it will recycle itself on destruction
-        return Transient<Buffer>(this, buffer, size);
+    Buffer* BufferPool<Buffer>::Request(size_t size) {
+        return AllocateBuffer(size);
     }
 
     template <typename Buffer>
     Buffer* BufferPool<Buffer>::AllocateBuffer(size_t size) {
-        Buffer *buffer = new Buffer(context, size);
-        auto it = allAllocations.find(size);
-        if (it == allAllocations.end()) {
-            allAllocations.push_back(std::make_pair(size, List()));
-            it = allAllocations.find(size);
-        }
-        it->second.push_back(buffer);
-        return buffer;
-    }
-
-    template <typename Buffer>
-    void BufferPool<Buffer>::Recycle(Buffer *buffer, size_t size) {
-        auto it = availableLists.find(size);
-        if (it == availableLists.end()) {
-            availableLists.push_back(std::make_pair(size, List()));
-            it = availableLists.find(size);
-        }
-        it->second.push_back(buffer);
+        Buffer *buffer = new Buffer(context.get(), size);
+        allAllocations.push_back(SmartPtr<Buffer>(buffer));
         return buffer;
     }
 

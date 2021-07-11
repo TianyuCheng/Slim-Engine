@@ -34,6 +34,7 @@
 # Build directories
 build/
 Build/
+BuildXcode/
 
 # Editor stuff
 .vim

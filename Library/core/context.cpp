@@ -154,7 +154,7 @@ void Context::PrepareForValidation() {
 
 void Context::InitInstance(const ContextDesc &desc) {
     // prepare application info
-    VkApplicationInfo appInfo {};
+    VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Slim Application";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -163,7 +163,7 @@ void Context::InitInstance(const ContextDesc &desc) {
     appInfo.apiVersion = VK_API_VERSION_1_2;
 
     // prepare instance info
-    VkInstanceCreateInfo createInfo {};
+    VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
@@ -308,7 +308,7 @@ void Context::InitLogicalDevice(const ContextDesc &desc) {
     float queuePriority = 1.0f;
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     for (uint32_t index : uniqueQueueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo {};
+        VkDeviceQueueCreateInfo queueCreateInfo = {};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
         queueCreateInfo.queueFamilyIndex = index;
         queueCreateInfo.queueCount = 1;
@@ -317,10 +317,10 @@ void Context::InitLogicalDevice(const ContextDesc &desc) {
     }
 
     // prepare device features
-    VkPhysicalDeviceFeatures deviceFeatures {};
+    VkPhysicalDeviceFeatures deviceFeatures = {};
 
     // prepare device info
-    VkDeviceCreateInfo createInfo {};
+    VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.queueCreateInfoCount = queueCreateInfos.size();
@@ -336,6 +336,18 @@ void Context::InitLogicalDevice(const ContextDesc &desc) {
     } else {
         createInfo.enabledLayerCount = 0;
     }
+
+    // // TODO: support separate depth stencil layout
+    // // query separate depth stencil layout
+    // VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures dsf = {};
+    // {
+    //     dsf.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
+    //     VkPhysicalDeviceFeatures2 query = {};
+    //     query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    //     query.pNext = &dsf;
+    //     vkGetPhysicalDeviceFeatures2(physicalDevice, &query);
+    //     createInfo.pNext = &dsf;
+    // }
 
     // create logical device
     ErrorCheck(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "create logical device");

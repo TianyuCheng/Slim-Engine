@@ -38,9 +38,9 @@ namespace slim {
         friend class std::hash<PipelineLayoutDesc>;
     public:
         PipelineLayoutDesc& AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                       VkDescriptorType descriptorType, VkPipelineShaderStageCreateFlags stages);
+                                       VkDescriptorType descriptorType, VkShaderStageFlags stages);
         PipelineLayoutDesc& AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                            VkDescriptorType descriptorType, VkPipelineShaderStageCreateFlags stages);
+                                            VkDescriptorType descriptorType, VkShaderStageFlags stages);
     private:
         mutable std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> bindings;
     };
@@ -162,6 +162,7 @@ namespace slim {
         GraphicsPipelineDesc& SetPolygonMode(VkPolygonMode polygonMode);
         GraphicsPipelineDesc& SetLineWidth(float lineWidth, bool dynamic = false);
         GraphicsPipelineDesc& SetRasterizationDiscard(bool enable, bool dynamic = false);
+        GraphicsPipelineDesc& SetDepthTest(VkCompareOp compare);
         GraphicsPipelineDesc& SetDepthClamp(bool enable);
         GraphicsPipelineDesc& SetDepthBias(float depthBiasConstantFactor,
                                            float depthBiasSlopeFactor,
@@ -172,9 +173,11 @@ namespace slim {
         GraphicsPipelineDesc& SetFragmentShader(Shader* shader);
         GraphicsPipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layoutBuilder);
         GraphicsPipelineDesc& SetRenderPass(RenderPass *renderPass);
-        GraphicsPipelineDesc& ViewportScissors(const std::vector<VkViewport> &viewports,
-                                               const std::vector<VkRect2D> &scissors = {},
-                                               bool dynamic = true);
+        GraphicsPipelineDesc& SetViewport(const VkExtent2D &extent, bool dynamic = false);
+        GraphicsPipelineDesc& SetViewport(const VkViewport &viewport, bool dynamic = false);
+        GraphicsPipelineDesc& SetViewportScissors(const std::vector<VkViewport> &viewports,
+                                                  const std::vector<VkRect2D> &scissors = {},
+                                                  bool dynamic = true);
     private:
         void InitInputAssemblyState();
         void InitRasterizationState();

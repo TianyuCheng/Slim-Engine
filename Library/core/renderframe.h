@@ -31,33 +31,36 @@ namespace slim {
         explicit RenderFrame(Context *context, GPUImage2D *backbuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
         virtual ~RenderFrame();
 
-        Context*              GetContext() const { return context.get(); }
-        GPUImage2D*           GetBackbuffer() const { return backbuffer.get(); };
-        VkExtent2D            GetExtent() const { VkExtent3D extent = backbuffer->GetExtent(); return { extent.width, extent.height }; };
+        Context*                 GetContext() const { return context.get(); }
+        GPUImage2D*              GetBackbuffer() const { return backbuffer.get(); };
+        VkExtent2D               GetExtent() const { VkExtent3D extent = backbuffer->GetExtent(); return { extent.width, extent.height }; };
 
-        Pipeline*             RequestPipeline(const std::string &name, const ComputePipelineDesc &desc);
-        Pipeline*             RequestPipeline(const std::string &name, const GraphicsPipelineDesc &desc);
-        Pipeline*             RequestPipeline(const std::string &name, const RayTracingPipelineDesc &desc);
-        RenderPass*           RequestRenderPass(const std::string &name, const RenderPassDesc &renderPassDesc);
-        Framebuffer*          RequestFramebuffer(const FramebufferDesc &framebufferDesc);
-        CommandBuffer*        RequestCommandBuffer(VkQueueFlagBits queue, VkCommandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        VkDescriptorSet       RequestDescriptorSet(VkDescriptorSetLayout layout);
-        Transient<GPUImage2D> RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
+        Pipeline*                RequestPipeline(const std::string &name, const ComputePipelineDesc &desc);
+        Pipeline*                RequestPipeline(const std::string &name, const GraphicsPipelineDesc &desc);
+        Pipeline*                RequestPipeline(const std::string &name, const RayTracingPipelineDesc &desc);
+        RenderPass*              RequestRenderPass(const std::string &name, const RenderPassDesc &renderPassDesc);
+        Framebuffer*             RequestFramebuffer(const FramebufferDesc &framebufferDesc);
+        CommandBuffer*           RequestCommandBuffer(VkQueueFlagBits queue, VkCommandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        VkDescriptorSet          RequestDescriptorSet(VkDescriptorSetLayout layout);
+        Transient<GPUImage2D>    RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
 
-        void                  Reset();
-        void                  Invalidate();
-        void                  Present(CommandBuffer *commandBuffer);
-        void                  SetBackbuffer(GPUImage2D *backbuffer);
+        template <typename T>
+        UniformBuffer*           RequestUniformBuffer(const T &value);
+
+        void                     Reset();
+        void                     Invalidate();
+        void                     Present(CommandBuffer *commandBuffer);
+        void                     SetBackbuffer(GPUImage2D *backbuffer);
 
     private:
-        SmartPtr<Context>     context;
-        SmartPtr<GPUImage2D>  backbuffer;
-        QueueFamilyIndices    queueFamilyIndices;
+        SmartPtr<Context>        context;
+        SmartPtr<GPUImage2D>     backbuffer;
+        QueueFamilyIndices       queueFamilyIndices;
 
         // queues
-        SmartPtr<CommandPool> computeCommandPools;
-        SmartPtr<CommandPool> graphicsCommandPools;
-        SmartPtr<CommandPool> transferCommandPools;
+        SmartPtr<CommandPool>    computeCommandPools;
+        SmartPtr<CommandPool>    graphicsCommandPools;
+        SmartPtr<CommandPool>    transferCommandPools;
 
         // pools
         std::unique_ptr<Image2DPool<CPUImage2D>>   cpuImagePool;
@@ -80,6 +83,13 @@ namespace slim {
         uint32_t              swapchainIndex     = 0;
         VkSwapchainKHR        swapchain          = VK_NULL_HANDLE;
     };
+
+    template <typename T>
+    UniformBuffer* RenderFrame::RequestUniformBuffer(const T &value) {
+        UniformBuffer* uniform = uniformBufferPool->Request(sizeof(T));
+        uniform->SetData(value);
+        return uniform;
+    }
 
 } // end of namespace slim
 

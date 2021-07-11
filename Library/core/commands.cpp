@@ -106,6 +106,7 @@ void CommandBuffer::CopyDataToImage(void *data, size_t size, Image *image,
                                     const VkOffset3D &offset, const VkExtent3D &extent,
                                     uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel,
                                     VkImageAspectFlags aspectMask) {
+    PrepareForTransferDst(image);
 
     stagingBuffers.emplace_back(new StagingBuffer(GetContext(), size));
     auto stagingBuffer = stagingBuffers.back().get();
@@ -124,6 +125,8 @@ void CommandBuffer::CopyBufferToBuffer(Buffer *srcBuffer, size_t srcOffset, Buff
 void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight,
                                       Image *dstImage, const VkOffset3D &offset, const VkExtent3D &extent,
                                       uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask) {
+    PrepareForTransferDst(dstImage);
+
     VkBufferImageCopy copy = {};
     copy.bufferOffset = bufferOffset;
     copy.bufferRowLength = bufferRowLength;
@@ -141,6 +144,8 @@ void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, si
 void CommandBuffer::CopyImageToBuffer(Image *srcImage, const VkOffset3D &offset, const VkExtent3D &extent,
                                       uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask,
                                       Buffer *dstBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight) {
+    PrepareForTransferSrc(srcImage);
+
     VkBufferImageCopy copy = {};
     copy.bufferOffset = bufferOffset;
     copy.bufferRowLength = bufferRowLength;
@@ -161,6 +166,9 @@ void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffse
                                      Image *dstImage, const VkOffset3D &dstOffset,
                                      uint32_t dstBaseLayer, uint32_t dstLayerCount,
                                      uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask) {
+    PrepareForTransferSrc(srcImage);
+    PrepareForTransferDst(dstImage);
+
     VkImageCopy copy = {};
     copy.srcOffset = srcOffset;
     copy.srcSubresource.aspectMask = srcAspectMask;
@@ -198,7 +206,7 @@ void CommandBuffer::BlitImage(Image *srcImage, const VkOffset3D &srcOffset1, con
     blit.dstSubresource.mipLevel = dstMipLevel;
     vkCmdBlitImage(handle,
                    *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
-                   *dstImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   *dstImage, dstImage->layouts[dstBaseLayer][dstMipLevel],
                    1, &blit, filter);
 }
 
@@ -206,10 +214,10 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
     // no need to generate mipmaps
     if (image->MipLevels() <= 1) return;
 
-    int32_t mipW = image->Width();
-    int32_t mipH = image->Height();
-
     for (uint32_t layer = 0; layer < image->Layers(); layer++) {
+        int32_t mipW = image->Width();
+        int32_t mipH = image->Height();
+
         for (uint32_t i = 0; i < image->MipLevels() - 1; i++) {
             // transit mip-level {i} to transfer src
             PrepareLayoutTransition(handle, image,
@@ -232,7 +240,7 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
             int32_t mipHNext = (mipH >> 1) > 0 ? (mipH >> 1) : 1;
 
             BlitImage(image, VkOffset3D { 0, 0, 0 }, VkOffset3D { mipW,     mipH,     1 }, layer, 1, i, VK_IMAGE_ASPECT_COLOR_BIT,
-                      image, VkOffset3D { 0, 0, 0 }, VkOffset3D { mipWNext, mipHNext, 1 }, layer, 1, i, VK_IMAGE_ASPECT_COLOR_BIT,
+                      image, VkOffset3D { 0, 0, 0 }, VkOffset3D { mipWNext, mipHNext, 1 }, layer, 1, i + 1, VK_IMAGE_ASPECT_COLOR_BIT,
                       filter);
 
             mipW = mipWNext;
