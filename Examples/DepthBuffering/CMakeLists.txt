@@ -1,0 +1,4 @@
+compile_glsl(depthbuffering_glsl_shaders shaders/)
+add_executable(depthbuffering depthbuffering.cpp)
+target_link_libraries(depthbuffering PRIVATE slim)
+add_dependencies(depthbuffering depthbuffering_glsl_shaders)
