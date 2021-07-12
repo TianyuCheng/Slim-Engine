@@ -16,7 +16,7 @@ int main() {
     );
 
     // create ui handle
-    auto ui = SlimPtr<DearImGui>(context.get());
+    auto ui = SlimPtr<DearImGui>(context);
 
     // window
     auto window = context->GetWindow();
@@ -37,7 +37,7 @@ int main() {
         // rendergraph-based design
         RenderGraph graph(frame);
         {
-            auto backbuffer = graph.CreateResource(frame->GetBackbuffer());
+            auto backbuffer = graph.CreateResource(frame->GetBackBuffer());
 
             auto uiPass = graph.CreateRenderPass("ui");
             uiPass->SetColor(backbuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));

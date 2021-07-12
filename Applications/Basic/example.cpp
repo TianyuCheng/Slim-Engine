@@ -18,19 +18,19 @@ int main() {
     );
 
     // create vertex and index buffers
-    auto vBuffer = SlimPtr<VertexBuffer>(context.get(), 256);
-    auto iBuffer = SlimPtr<IndexBuffer>(context.get(), 256);
+    auto vBuffer = SlimPtr<VertexBuffer>(context, 256);
+    auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context.get(), "main", "shaders/textured_vertex.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context.get(), "main", "shaders/textured_fragment.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/textured_vertex.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/textured_fragment.frag.spv");
 
     // create texture
     SmartPtr<GPUImage2D> texture;
-    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(context.get(), SamplerDesc());
+    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(context, SamplerDesc());
 
     // initialize
-    auto renderFrame = SlimPtr<RenderFrame>(context.get());
+    auto renderFrame = SlimPtr<RenderFrame>(context);
     auto commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_TRANSFER_BIT);
     commandBuffer->Begin();
     {
@@ -68,8 +68,8 @@ int main() {
             // 1, 0, 4
         };
 
-        commandBuffer->CopyDataToBuffer(positions, vBuffer.get());
-        commandBuffer->CopyDataToBuffer(indices, iBuffer.get());
+        commandBuffer->CopyDataToBuffer(positions, vBuffer);
+        commandBuffer->CopyDataToBuffer(indices, iBuffer);
 
         texture.reset(TextureLoader::Load2D(commandBuffer, "/Users/tcheng/Pictures/miku.png", VK_FILTER_LINEAR));
     }
@@ -78,7 +78,7 @@ int main() {
     context->WaitIdle();
 
     // create ui handle
-    auto ui = SlimPtr<DearImGui>(context.get());
+    auto ui = SlimPtr<DearImGui>(context);
     FPS fps;
     float angle = 0.0f;
 
@@ -97,11 +97,12 @@ int main() {
         // rendergraph-based design
         RenderGraph graph(frame);
         {
-            auto backbuffer = graph.CreateResource(frame->GetBackbuffer());
+            auto backBuffer = graph.CreateResource(frame->GetBackBuffer());
+            auto colorBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
 
             auto colorPass = graph.CreateRenderPass("color");
-            colorPass->SetColor(backbuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->Execute([=](const RenderGraph &graph) {
                 auto renderFrame = graph.GetRenderFrame();
@@ -111,8 +112,8 @@ int main() {
                         .AddVertexBinding(0, sizeof(glm::vec3) + sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX)
                         .AddVertexAttrib(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0)
                         .AddVertexAttrib(0, 1, VK_FORMAT_R32G32_SFLOAT, sizeof(glm::vec3))
-                        .SetVertexShader(vShader.get())
-                        .SetFragmentShader(fShader.get())
+                        .SetVertexShader(vShader)
+                        .SetFragmentShader(fShader)
                         .SetViewport(frame->GetExtent())
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
@@ -140,9 +141,9 @@ int main() {
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
                     descriptor->SetTexture("Albedo", texture, sampler);
 
-                    commandBuffer->BindDescriptor(descriptor.get());
-                    commandBuffer->BindVertexBuffer(0, vBuffer.get(), 0);
-                    commandBuffer->BindIndexBuffer(iBuffer.get());
+                    commandBuffer->BindDescriptor(descriptor);
+                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                    commandBuffer->BindIndexBuffer(iBuffer);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 
@@ -155,31 +156,50 @@ int main() {
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
                     descriptor->SetTexture("Albedo", texture, sampler);
 
-                    commandBuffer->BindDescriptor(descriptor.get());
-                    commandBuffer->BindVertexBuffer(0, vBuffer.get(), 0);
-                    commandBuffer->BindIndexBuffer(iBuffer.get());
+                    commandBuffer->BindDescriptor(descriptor);
+                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                    commandBuffer->BindIndexBuffer(iBuffer);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
             });
 
             auto uiPass = graph.CreateRenderPass("ui");
-            uiPass->SetColor(backbuffer);
+            uiPass->SetTexture(colorBuffer);
+            uiPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             uiPass->Execute([=](const RenderGraph &graph) {
+                auto renderFrame = graph.GetRenderFrame();
                 auto commandBuffer = graph.GetGraphicsCommandBuffer();
+
+                ui->Begin();
+                {
+                    ImVec2 wsize = ImVec2(200, 200);
+                    ImTextureID texId = slim::imgui::AddTexture(renderFrame, colorBuffer->GetImage()->AsTexture());
+                    // ImTextureID texId = slim::imgui::AddTexture(renderFrame, texture->AsTexture());
+                    ImGui::Image(texId, wsize);
+
+                    ImGui::Text("FPS: %f", fps.GetValue());
+                }
+                ui->End();
+
                 ui->Draw(commandBuffer);
             });
         }
 
-        ui->Begin();
-        {
-            ImGui::Text("FPS: %f", fps.GetValue());
-            ImGui::Begin("Render Graph");
-            {
-                graph.Visualize();
-            }
-            ImGui::End();
-        }
-        ui->End();
+        // ui->Begin();
+        // {
+        //     ImGui::Begin("FPS");
+        //     {
+        //         ImGui::Text("FPS: %f", fps.GetValue());
+        //     }
+        //     ImGui::End();
+        //
+        //     ImGui::Begin("Render Graph");
+        //     {
+        //         graph.Visualize();
+        //     }
+        //     ImGui::End();
+        // }
+        // ui->End();
 
         graph.Execute();
     }

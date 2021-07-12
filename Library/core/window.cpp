@@ -182,9 +182,9 @@ RenderFrame* Window::AcquireNext() {
         if (result == VK_SUCCESS) {
             frame->swapchain = swapchain;
             frame->swapchainIndex = imageIndex;
-            frame->backbuffer = swapchainImages[imageIndex];
+            frame->backBuffer = swapchainImages[imageIndex];
             frame->inflightFence = inflightFences[currentFrame].get();
-            frame->backbuffer->layouts[0][0] = VK_IMAGE_LAYOUT_UNDEFINED; // reset backbuffer layout
+            frame->backBuffer->layouts[0][0] = VK_IMAGE_LAYOUT_UNDEFINED; // reset backbuffer layout
         } else if (result == VK_SUBOPTIMAL_KHR) {
             OnResize();
             return AcquireNext();
@@ -226,6 +226,6 @@ void Window::OnResize() {
         frame->inflightFence = nullptr;
         frame->imageAvailableSemaphore = SlimPtr<Semaphore>(context);
         frame->renderFinishesSemaphore = SlimPtr<Semaphore>(context);
-        frame->SetBackbuffer(swapchainImages[i].get());
+        frame->SetBackBuffer(swapchainImages[i].get());
     }
 }

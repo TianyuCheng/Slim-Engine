@@ -28,12 +28,12 @@ namespace slim {
         friend class Window;
     public:
         explicit RenderFrame(Context *context, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
-        explicit RenderFrame(Context *context, GPUImage2D *backbuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
+        explicit RenderFrame(Context *context, GPUImage2D *backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
         virtual ~RenderFrame();
 
         Context*                 GetContext() const { return context.get(); }
-        GPUImage2D*              GetBackbuffer() const { return backbuffer.get(); };
-        VkExtent2D               GetExtent() const { VkExtent3D extent = backbuffer->GetExtent(); return { extent.width, extent.height }; };
+        GPUImage2D*              GetBackBuffer() const { return backBuffer.get(); };
+        VkExtent2D               GetExtent() const { VkExtent3D extent = backBuffer->GetExtent(); return { extent.width, extent.height }; };
 
         Pipeline*                RequestPipeline(const std::string &name, const ComputePipelineDesc &desc);
         Pipeline*                RequestPipeline(const std::string &name, const GraphicsPipelineDesc &desc);
@@ -50,11 +50,11 @@ namespace slim {
         void                     Reset();
         void                     Invalidate();
         void                     Present(CommandBuffer *commandBuffer);
-        void                     SetBackbuffer(GPUImage2D *backbuffer);
+        void                     SetBackBuffer(GPUImage2D *backBuffer);
 
     private:
         SmartPtr<Context>        context;
-        SmartPtr<GPUImage2D>     backbuffer;
+        SmartPtr<GPUImage2D>     backBuffer;
         QueueFamilyIndices       queueFamilyIndices;
 
         // queues

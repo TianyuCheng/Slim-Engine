@@ -22,12 +22,12 @@ int main() {
     );
 
     // create vertex and index buffers
-    auto vBuffer = SlimPtr<VertexBuffer>(context.get(), 4 * sizeof(Vertex));
-    auto iBuffer = SlimPtr<IndexBuffer>(context.get(), 256);
+    auto vBuffer = SlimPtr<VertexBuffer>(context, 4 * sizeof(Vertex));
+    auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context.get(), "main", "shaders/simple_vertex.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context.get(), "main", "shaders/simple_fragment.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple_vertex.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple_fragment.frag.spv");
 
     // initialize
     context->Execute([=](CommandBuffer *commandBuffer) {
@@ -43,12 +43,12 @@ int main() {
             2, 3, 0,
         };
 
-        commandBuffer->CopyDataToBuffer(positions, vBuffer.get());
-        commandBuffer->CopyDataToBuffer(indices, iBuffer.get());
+        commandBuffer->CopyDataToBuffer(positions, vBuffer);
+        commandBuffer->CopyDataToBuffer(indices, iBuffer);
     });
 
     // create ui handle
-    auto ui = SlimPtr<DearImGui>(context.get());
+    auto ui = SlimPtr<DearImGui>(context);
 
     // window
     auto window = context->GetWindow();
@@ -63,7 +63,7 @@ int main() {
         // rendergraph-based design
         RenderGraph graph(frame);
         {
-            auto backbuffer = graph.CreateResource(frame->GetBackbuffer());
+            auto backbuffer = graph.CreateResource(frame->GetBackBuffer());
             auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
 
             auto colorPass = graph.CreateRenderPass("color");
@@ -77,8 +77,8 @@ int main() {
                         .AddVertexBinding(0, sizeof(glm::vec3) + sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
                         .AddVertexAttrib(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0)
                         .AddVertexAttrib(0, 1, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3))
-                        .SetVertexShader(vShader.get())
-                        .SetFragmentShader(fShader.get())
+                        .SetVertexShader(vShader)
+                        .SetFragmentShader(fShader)
                         .SetViewport(frame->GetExtent())
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
@@ -101,9 +101,9 @@ int main() {
                     glm::mat4 mvp = proj * view * m;
                     auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                    commandBuffer->BindDescriptor(descriptor.get());
-                    commandBuffer->BindVertexBuffer(0, vBuffer.get(), 0);
-                    commandBuffer->BindIndexBuffer(iBuffer.get());
+                    commandBuffer->BindDescriptor(descriptor);
+                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                    commandBuffer->BindIndexBuffer(iBuffer);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 
@@ -113,9 +113,9 @@ int main() {
                     glm::mat4 mvp = proj * view * m;
                     auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                    commandBuffer->BindDescriptor(descriptor.get());
-                    commandBuffer->BindVertexBuffer(0, vBuffer.get(), 0);
-                    commandBuffer->BindIndexBuffer(iBuffer.get());
+                    commandBuffer->BindDescriptor(descriptor);
+                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                    commandBuffer->BindIndexBuffer(iBuffer);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
             });

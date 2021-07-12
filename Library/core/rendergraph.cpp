@@ -156,11 +156,19 @@ void RenderGraph::Pass::ExecuteGraphics() {
 
     CommandBuffer* commandBuffer = graph->GetGraphicsCommandBuffer();
 
+    auto inferLoadOp = [](const ResourceMetadata &attachment) -> VkAttachmentLoadOp {
+        if (attachment.clearValue.has_value())
+            return VK_ATTACHMENT_LOAD_OP_CLEAR;
+        if (attachment.resource->layout == VK_IMAGE_LAYOUT_UNDEFINED)
+            return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        return VK_ATTACHMENT_LOAD_OP_LOAD;
+    };
+
     // color attachments
     for (auto &attachment : usedAsColorAttachment) {
         renderPassDesc.AddColorAttachment(attachment.resource->format,
                                           attachment.resource->samples,
-                                          attachment.clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                          inferLoadOp(attachment),
                                           VK_ATTACHMENT_STORE_OP_STORE,
                                           attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
@@ -172,7 +180,7 @@ void RenderGraph::Pass::ExecuteGraphics() {
     for (auto &attachment : usedAsDepthAttachment) {
         renderPassDesc.AddDepthAttachment(attachment.resource->format,
                                           attachment.resource->samples,
-                                          attachment.clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                          inferLoadOp(attachment),
                                           VK_ATTACHMENT_STORE_OP_STORE,
                                           attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsDepthBuffer());
@@ -184,7 +192,7 @@ void RenderGraph::Pass::ExecuteGraphics() {
     for (auto &attachment : usedAsStencilAttachment) {
         renderPassDesc.AddStencilAttachment(attachment.resource->format,
                                             attachment.resource->samples,
-                                            attachment.clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                            inferLoadOp(attachment),
                                             VK_ATTACHMENT_STORE_OP_STORE,
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsStencilBuffer());
@@ -196,7 +204,7 @@ void RenderGraph::Pass::ExecuteGraphics() {
     for (auto &attachment : usedAsDepthStencilAttachment) {
         renderPassDesc.AddDepthStencilAttachment(attachment.resource->format,
                                             attachment.resource->samples,
-                                            attachment.clearValue.has_value() ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD,
+                                            inferLoadOp(attachment),
                                             VK_ATTACHMENT_STORE_OP_STORE,
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
@@ -206,7 +214,14 @@ void RenderGraph::Pass::ExecuteGraphics() {
 
     // texture layout transition
     for (auto &texture : usedAsTexture) {
-        commandBuffer->PrepareForShaderRead(texture.resource->image);
+        // transit dst image layout
+        PrepareLayoutTransition(*commandBuffer, texture.resource->image,
+            texture.resource->layout,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+            0, texture.resource->image->Layers(),
+            0, texture.resource->image->MipLevels());
     }
 
     VkExtent2D extent;
@@ -361,7 +376,7 @@ void RenderGraph::Execute() {
 
     if (graphicsCommandBuffer.get()) {
         // trans
-        GPUImage2D* backbuffer = renderFrame->GetBackbuffer();
+        GPUImage2D* backbuffer = renderFrame->GetBackBuffer();
         graphicsCommandBuffer->PrepareForPresentSrc(backbuffer);
         graphicsCommandBuffer->End();
         renderFrame->Present(GetGraphicsCommandBuffer());

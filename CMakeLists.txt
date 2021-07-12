@@ -21,7 +21,6 @@ if (${VULKAN_SUPPORT})
     add_definitions(-DSLIM_VULKAN_SUPPORT)
 endif()
 
-
 #   ____                      _ _
 #  / ___|___  _ __ ___  _ __ (_) | ___ _ __
 # | |   / _ \| '_ ` _ \| '_ \| | |/ _ \ '__|
@@ -82,7 +81,6 @@ function(compile_glsl Target Directory)
 
     add_custom_target(${Target} DEPENDS ${SPIRV_BINARY_FILES})
 endfunction()
-
 
 #  _____                           _
 # | ____|_  ____ _ _ __ ___  _ __ | | ___  ___

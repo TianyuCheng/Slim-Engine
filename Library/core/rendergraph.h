@@ -32,6 +32,7 @@ namespace slim {
             explicit Resource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);
             virtual ~Resource() = default;
             Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
+            Image* GetImage() const { return image; }
         private:
             void Allocate(RenderFrame* renderFrame);
             void Deallocate();

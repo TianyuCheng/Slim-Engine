@@ -28,8 +28,8 @@ RenderFrame::RenderFrame(Context *context, uint32_t maxSetsPerPool) : context(co
     renderFinishesSemaphore = SlimPtr<Semaphore>(context);
 }
 
-RenderFrame::RenderFrame(Context *context, GPUImage2D *backbuffer, uint32_t maxSetsPerPool) : RenderFrame(context, maxSetsPerPool) {
-    this->backbuffer.reset(backbuffer);
+RenderFrame::RenderFrame(Context *context, GPUImage2D *backBuffer, uint32_t maxSetsPerPool) : RenderFrame(context, maxSetsPerPool) {
+    this->backBuffer.reset(backBuffer);
 }
 
 RenderFrame::~RenderFrame() {
@@ -52,8 +52,8 @@ void RenderFrame::Invalidate() {
     pipelines.clear();
 }
 
-void RenderFrame::SetBackbuffer(GPUImage2D *backbuffer) {
-    this->backbuffer.reset(backbuffer);
+void RenderFrame::SetBackBuffer(GPUImage2D *backBuffer) {
+    this->backBuffer.reset(backBuffer);
 }
 
 void RenderFrame::Present(CommandBuffer *commandBuffer) {

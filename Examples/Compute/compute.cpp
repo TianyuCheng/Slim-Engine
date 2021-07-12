@@ -12,11 +12,11 @@ int main() {
     );
 
     // prepare compute pipeline
-    auto shader = SlimPtr<spirv::ComputeShader>(context.get(), "main", "shaders/compute.comp.spv");
+    auto shader = SlimPtr<spirv::ComputeShader>(context, "main", "shaders/compute.comp.spv");
     auto pipeline = SlimPtr<Pipeline>(
-            context.get(),
+            context,
             ComputePipelineDesc()
-                .SetComputeShader(shader.get())
+                .SetComputeShader(shader)
                 .SetPipelineLayout(PipelineLayoutDesc()
                     .AddBinding("InputBuffer",  0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("OutputBuffer", 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
@@ -28,8 +28,8 @@ int main() {
     for (uint32_t i = 0; i < 256; i++) data.push_back(i & 0xff);
 
     // create a buffers
-    auto srcBuffer = SlimPtr<DeviceStorageBuffer>(context.get(), BufferSize(data));
-    auto dstBuffer = SlimPtr<DeviceStorageBuffer>(context.get(), BufferSize(data));
+    auto srcBuffer = SlimPtr<DeviceStorageBuffer>(context, BufferSize(data));
+    auto dstBuffer = SlimPtr<DeviceStorageBuffer>(context, BufferSize(data));
 
     // execute
     context->Execute([=](auto renderFrame, auto commandBuffer) {
@@ -38,15 +38,15 @@ int main() {
         srcBuffer->SetData(data);
 
         // prepare resources
-        auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline.get());
-        descriptor->SetStorage("InputBuffer", srcBuffer.get());
-        descriptor->SetStorage("OutputBuffer", dstBuffer.get());
+        auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+        descriptor->SetStorage("InputBuffer", srcBuffer);
+        descriptor->SetStorage("OutputBuffer", dstBuffer);
 
         // bind compute pipeline
-        commandBuffer->BindPipeline(pipeline.get());
+        commandBuffer->BindPipeline(pipeline);
 
         // bind pipeline resource
-        commandBuffer->BindDescriptor(descriptor.get());
+        commandBuffer->BindDescriptor(descriptor);
 
         // dispatch compute
         commandBuffer->Dispatch(1, 1, 1);

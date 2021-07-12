@@ -12,9 +12,9 @@ int main() {
     );
 
     // create a buffers
-    auto buffer1 = SlimPtr<StagingBuffer>(context.get(), 256);
-    auto buffer2 = SlimPtr<VertexBuffer>(context.get(), 256);
-    auto buffer3 = SlimPtr<StagingBuffer>(context.get(), 256);
+    auto buffer1 = SlimPtr<StagingBuffer>(context, 256);
+    auto buffer2 = SlimPtr<VertexBuffer>(context, 256);
+    auto buffer3 = SlimPtr<StagingBuffer>(context, 256);
 
     // copy
     context->Execute([=](auto commandBuffer) {
@@ -29,10 +29,10 @@ int main() {
         buffer1->SetData(data);
 
         // copy from buffer 1 to buffer 2
-        commandBuffer->CopyBufferToBuffer(buffer1.get(), 0, buffer2.get(), 0, 256);
+        commandBuffer->CopyBufferToBuffer(buffer1, 0, buffer2, 0, 256);
 
         // copy from buffer 2 to buffer 3
-        commandBuffer->CopyBufferToBuffer(buffer2.get(), 0, buffer3.get(), 0, 256);
+        commandBuffer->CopyBufferToBuffer(buffer2, 0, buffer3, 0, 256);
 
     }, VK_QUEUE_TRANSFER_BIT);
 

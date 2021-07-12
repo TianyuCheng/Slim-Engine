@@ -61,8 +61,9 @@ set(SLIM_CORE_SOURCES
 
 # vulkan-specific class modules
 set(SLIM_IMGUI_SOURCES
-    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_vulkan.h
-    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_vulkan.cpp
+    # personal modifications made to support imgui for custom texture
+    imgui/imgui_impl_vulkan.h
+    imgui/imgui_impl_vulkan.cpp
     ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.h
     ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
