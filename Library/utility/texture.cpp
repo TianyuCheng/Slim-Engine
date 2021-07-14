@@ -1,7 +1,7 @@
 #include "core/debug.h"
 #include "core/commands.h"
 #include "core/vkutils.h"
-#include "core/texture.h"
+#include "utility/texture.h"
 
 using namespace slim;
 

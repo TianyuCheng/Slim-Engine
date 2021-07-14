@@ -1,5 +1,5 @@
-#ifndef SLIM_UTIL_INTERFACE_H
-#define SLIM_UTIL_INTERFACE_H
+#ifndef SLIM_UTILITY_INTERFACE_H
+#define SLIM_UTILITY_INTERFACE_H
 
 #include <atomic>
 #include "smartptr.h"

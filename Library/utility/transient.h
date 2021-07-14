@@ -1,5 +1,5 @@
-#ifndef SLIM_UTIL_TRANSIENT_H
-#define SLIM_UTIL_TRANSIENT_H
+#ifndef SLIM_UTILITY_TRANSIENT_H
+#define SLIM_UTILITY_TRANSIENT_H
 
 #include <cstdlib>
 

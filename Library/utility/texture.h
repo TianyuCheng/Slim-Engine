@@ -1,5 +1,5 @@
-#ifndef SLIM_CORE_TEXTURE_H
-#define SLIM_CORE_TEXTURE_H
+#ifndef SLIM_UTILITY_TEXTURE_H
+#define SLIM_UTILITY_TEXTURE_H
 
 #include <list>
 #include <string>
@@ -30,4 +30,4 @@ namespace slim {
 
 } // end of namespace slim
 
-#endif // end of SLIM_CORE_TEXTURE_H
+#endif // end of SLIM_UTILITY_TEXTURE_H

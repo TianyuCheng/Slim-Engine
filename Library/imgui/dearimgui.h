@@ -1,5 +1,5 @@
-#ifndef SLIM_CORE_DEARIMGUI_H
-#define SLIM_CORE_DEARIMGUI_H
+#ifndef SLIM_IMGUI_DEARIMGUI_H
+#define SLIM_IMGUI_DEARIMGUI_H
 
 #include <string>
 #include <vector>
@@ -38,4 +38,4 @@ namespace slim {
 
 } // end of namespace slim
 
-#endif // end of SLIM_CORE_DEARIMGUI_H
+#endif // end of SLIM_IMGUI_DEARIMGUI_H

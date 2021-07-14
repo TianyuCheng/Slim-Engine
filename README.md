@@ -25,19 +25,34 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
 * Compute
     - This is a demo for launching a simple compute kernel, with input/output buffers.
 
-* DearImGui
+* Dear ImGui
     - This is a demo for showcasing integration of a well-known immediate mode GUI library (DearImGui).
 
-* DepthBuffering
+* Depth Buffering
     - This is a demo showcasing how to enable depth testing with depth buffering.
 
-* TextureSampling
+* Texture Mapping
     - [TODO]
 
-* RenderToTexture
+* Render to Texture
     - [TODO]
 
-* DeferredRendering
+* Deferred Rendering
+    - [TODO]
+
+* Shadow Mapping
+    - [TODO]
+
+* Cube Marching
+    - [TODO]
+
+* Ray Marching
+    - [TODO]
+
+* Volumetric Light and Shadows
+    - [TODO]
+
+* Path Tracing
     - [TODO]
 
 Dependencies
@@ -63,7 +78,6 @@ Dependencies
 
 * imnodes
 	- a node-graph UI based on imgui
-
 
 Author(s)
 ---------

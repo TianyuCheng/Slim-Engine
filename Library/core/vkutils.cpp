@@ -2,7 +2,7 @@
 #include <iostream>
 #include "core/vkutils.h"
 #include "core/image.h"
-#include "core/color.h"
+#include "utility/color.h"
 
 namespace slim {
 

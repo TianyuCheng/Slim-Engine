@@ -1,5 +1,5 @@
-#ifndef SLIM_CORE_COLOR_H
-#define SLIM_CORE_COLOR_H
+#ifndef SLIM_UTILITY_COLOR_H
+#define SLIM_UTILITY_COLOR_H
 
 #include <ostream>
 
@@ -29,4 +29,4 @@ namespace slim::color {
     };
 }
 
-#endif // SLIM_CORE_COLOR_H
+#endif // SLIM_UTILITY_COLOR_H

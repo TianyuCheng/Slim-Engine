@@ -1,5 +1,5 @@
-#ifndef SLIM_UTIL_SMART_PTR_H
-#define SLIM_UTIL_SMART_PTR_H
+#ifndef SLIM_UTILITY_SMART_PTR_H
+#define SLIM_UTILITY_SMART_PTR_H
 
 #include <atomic>
 

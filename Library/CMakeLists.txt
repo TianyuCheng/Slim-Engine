@@ -5,62 +5,39 @@ set(SLIM_HEADERS
 
 # core class modules
 set(SLIM_CORE_SOURCES
-    core/buffer.cpp
-    core/buffer.h
-
-    core/color.cpp
-    core/color.h
-
-    core/commands.cpp
-    core/commands.h
-
-    core/context.cpp
-    core/context.h
-
-    core/dearimgui.cpp
-    core/dearimgui.h
-
     core/debug.h
-
-    core/framebuffer.cpp
+    core/buffer.h
+    core/buffer.cpp
+    core/commands.h
+    core/commands.cpp
+    core/context.h
+    core/context.cpp
     core/framebuffer.h
-
-    core/image.cpp
+    core/framebuffer.cpp
     core/image.h
-
-    core/texture.cpp
-    core/texture.h
-
-    core/sampler.cpp
+    core/image.cpp
     core/sampler.h
-
+    core/sampler.cpp
     core/pipeline.h
     core/pipeline.cpp
-
-    core/renderframe.cpp
     core/renderframe.h
-
-    core/rendergraph.cpp
-    core/rendergraph.h
-
-    core/renderpass.cpp
+    core/renderframe.cpp
     core/renderpass.h
-
-    core/shader.cpp
+    core/renderpass.cpp
     core/shader.h
-
-    core/synchronization.cpp
+    core/shader.cpp
     core/synchronization.h
-
-    core/vkutils.cpp
+    core/synchronization.cpp
     core/vkutils.h
-
-    core/window.cpp
+    core/vkutils.cpp
     core/window.h
+    core/window.cpp
 )
 
 # vulkan-specific class modules
 set(SLIM_IMGUI_SOURCES
+    imgui/dearimgui.cpp
+    imgui/dearimgui.h
     # personal modifications made to support imgui for custom texture
     imgui/imgui_impl_vulkan.h
     imgui/imgui_impl_vulkan.cpp
@@ -75,6 +52,20 @@ set(SLIM_UTILITY_SOURCES
     utility/smartptr.h
     utility/transient.h
     utility/interface.h
+    utility/color.h
+    utility/color.cpp
+    utility/texture.h
+    utility/texture.cpp
+    utility/rendergraph.h
+    utility/rendergraph.cpp
+    utility/scenegraph.h
+    utility/scenegraph.cpp
+    utility/transform.h
+    utility/transform.cpp
+    utility/camera.h
+    utility/camera.cpp
+    utility/component.h
+    utility/component.cpp
 )
 
 add_library(slim SHARED
