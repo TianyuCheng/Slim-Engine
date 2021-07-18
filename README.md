@@ -16,7 +16,6 @@ Examples
 During development, I have written progressively written some simple examples
 demonstrating how to use this library.
 
-
 Examples are located in `Examples/` directory. Here's a list of the examples.
 
 * Transfer
@@ -34,13 +33,30 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
 * Texture Mapping
     - [TODO]
 
+* Multisampling
+    - [TODO]
+
 * Render to Texture
     - [TODO]
+
+* Post-Processing
+    * Bloom Effect
+    * Screen Space Ambient Occlusion (SSAO)
+    * Screen Space Subsurface Scattering (SSSS)
 
 * Deferred Rendering
     - [TODO]
 
 * Shadow Mapping
+    - [TODO]
+
+* Skeletal Animation
+    - [TODO]
+
+* Temporal Anti-Aliasing (TAA)
+    - [TODO]
+
+* Particle System / Order Indepdenent Transparency (OIT)
     - [TODO]
 
 * Cube Marching
@@ -72,6 +88,9 @@ Dependencies
 
 * tinygltf
 	- a library for gltf loading
+
+* stduuid
+    - a library for uuid generation
 
 * imgui (DearImGui)
 	- immediate mode GUI library

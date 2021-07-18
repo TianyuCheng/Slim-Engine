@@ -34,11 +34,12 @@ namespace slim {
         Context*                 GetContext() const { return context.get(); }
         GPUImage2D*              GetBackBuffer() const { return backBuffer.get(); };
         VkExtent2D               GetExtent() const { VkExtent3D extent = backBuffer->GetExtent(); return { extent.width, extent.height }; };
+        float                    GetAspectRatio() const;
 
-        Pipeline*                RequestPipeline(const std::string &name, const ComputePipelineDesc &desc);
-        Pipeline*                RequestPipeline(const std::string &name, const GraphicsPipelineDesc &desc);
-        Pipeline*                RequestPipeline(const std::string &name, const RayTracingPipelineDesc &desc);
-        RenderPass*              RequestRenderPass(const std::string &name, const RenderPassDesc &renderPassDesc);
+        Pipeline*                RequestPipeline(const ComputePipelineDesc &desc);
+        Pipeline*                RequestPipeline(const GraphicsPipelineDesc &desc);
+        Pipeline*                RequestPipeline(const RayTracingPipelineDesc &desc);
+        RenderPass*              RequestRenderPass(const RenderPassDesc &renderPassDesc);
         Framebuffer*             RequestFramebuffer(const FramebufferDesc &framebufferDesc);
         CommandBuffer*           RequestCommandBuffer(VkQueueFlagBits queue, VkCommandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
         VkDescriptorSet          RequestDescriptorSet(VkDescriptorSetLayout layout);

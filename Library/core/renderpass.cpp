@@ -121,6 +121,10 @@ RenderPassDesc& RenderPassDesc::AddDepthStencilAttachment(VkFormat format, VkSam
 RenderPass::RenderPass(Context *context, const RenderPassDesc &desc)
     : context(context) {
 
+    #ifndef NDEBUG
+    assert(desc.name.length() > 0 && "RenderPassDesc must have a name!");
+    #endif
+
     VkSubpassDescription subpass = {};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = desc.colorAttachments.size();

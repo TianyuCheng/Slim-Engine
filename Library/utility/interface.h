@@ -2,6 +2,7 @@
 #define SLIM_UTILITY_INTERFACE_H
 
 #include <atomic>
+#include <optional>
 #include "smartptr.h"
 
 namespace slim {
@@ -47,6 +48,9 @@ namespace slim {
         operator T() { return handle; }
         operator T() const { return handle; }
     };
+
+    template <typename T>
+    using Optional = std::optional<T>;
 
 } // end of namespace slim
 

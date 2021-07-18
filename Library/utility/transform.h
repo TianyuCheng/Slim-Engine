@@ -29,21 +29,33 @@ namespace slim::transform {
 
 namespace slim {
 
-    struct Transform {
-        // local transformation
-        glm::vec3 localPosition = glm::vec3();
-        glm::quat localRotation = glm::quat();
-        glm::vec3 localScale = glm::vec3(1.0f, 1.0f, 1.0f);
-
-        // local/world transformation
-        glm::mat4 localToWorld = glm::identity<glm::mat4>();
-        glm::mat4 worldToLocal = glm::identity<glm::mat4>();
-    };
-
     struct TransformGizmo {
         glm::vec3 right;   // red axis in world space
         glm::vec3 up;      // blue axis in world space
         glm::vec3 forward; // green axis in the world space
+    };
+
+    class Transform {
+    public:
+        explicit Transform() = default;
+        explicit Transform(const glm::mat4 &xform);
+        virtual ~Transform() = default;
+
+        void SetLocalPosition(float tx, float ty, float tz);
+        void SetLocalScale(float sx, float sy, float sz);
+        void SetLocalRotation(const glm::vec3 &axis, float radians);
+
+        TransformGizmo AxisGizmo() const;
+
+    private:
+        // local transform
+        glm::vec3 localPosition = glm::vec3();
+        glm::quat localRotation = glm::quat();
+        glm::vec3 localScale    = glm::vec3(1.0f, 1.0f, 1.0f);
+
+        // local/world transform
+        glm::mat4 localToWorld = glm::identity<glm::mat4>();
+        glm::mat4 worldToLocal = glm::identity<glm::mat4>();
     };
 
 } // end of namespace slim

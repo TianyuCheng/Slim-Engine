@@ -33,13 +33,28 @@ add_subdirectory(glm)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE stb/)
 
+# uuid
+# ---------------------------------------------------------------
+set(UUID_BUILD_TESTS      OFF CACHE BOOL  "uuid lib only" FORCE)
+set(UUID_SYSTEM_GENERATOR ON  CACHE BOOL  "uuid lib only" FORCE)
+add_subdirectory(stduuid)
+
 # tinyglf
 # ---------------------------------------------------------------
-set(TINYGLTF_BUILD_LOADER_EXAMPLE    OFF CACHE BOOL  "tinygltf lib only" FORCE)
-set(TINYGLTF_BUILD_GL_EXAMPLES       OFF CACHE BOOL  "tinygltf lib only" FORCE)
-set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF CACHE BOOL  "tinygltf lib only" FORCE)
-set(TINYGLTF_BUILD_BUILDER_EXAMPLE   OFF CACHE BOOL  "tinygltf lib only" FORCE)
+set(TINYGLTF_BUILD_LOADER_EXAMPLE    OFF CACHE BOOL     "tinygltf lib only" FORCE)
+set(TINYGLTF_BUILD_GL_EXAMPLES       OFF CACHE BOOL     "tinygltf lib only" FORCE)
+set(TINYGLTF_BUILD_VALIDATOR_EXAMPLE OFF CACHE BOOL     "tinygltf lib only" FORCE)
+set(TINYGLTF_BUILD_BUILDER_EXAMPLE   OFF CACHE BOOL     "tinygltf lib only" FORCE)
+set(TINYGLTF_HEADER_ONLY             ON  CACHE INTERNAL "tinygltf lib only" FORCE)
+set(TINYGLTF_INSTALL                 OFF CACHE INTERNAL "tinygltf lib only" FORCE)
 add_subdirectory(tinygltf)
+
+# add replacement for filesystem (header-only)
+# ----------------------------------------------------------------
+set(GHC_FILESYSTEM_BUILD_TESTING     OFF CACHE BOOL "disable building tests for GHC"    FORCE)
+set(GHC_FILESYSTEM_BUILD_EXAMPLES    OFF CACHE BOOL "disable building examples for GHC" FORCE)
+set(GHC_FILESYSTEM_WITH_INSTALL      OFF CACHE BOOL "disable install for GHC"           FORCE)
+add_subdirectory(filesystem EXCLUDE_FROM_ALL)
 
 # vulkan & vulkan memory allocator
 # ---------------------------------------------------------------

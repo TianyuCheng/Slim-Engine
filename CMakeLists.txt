@@ -21,6 +21,16 @@ if (${VULKAN_SUPPORT})
     add_definitions(-DSLIM_VULKAN_SUPPORT)
 endif()
 
+#     _                 _
+#    / \   ___ ___  ___| |_ ___
+#   / _ \ / __/ __|/ _ \ __/ __|
+#  / ___ \\__ \__ \  __/ |_\__ \
+# /_/   \_\___/___/\___|\__|___/
+#
+# add assets directory
+# ----------------------------------------------------------------
+add_definitions(-DSLIM_ASSETS_DIRECTORY="${PROJECT_SOURCE_DIR}")
+
 #   ____                      _ _
 #  / ___|___  _ __ ___  _ __ (_) | ___ _ __
 # | |   / _ \| '_ ` _ \| '_ \| | |/ _ \ '__|
@@ -33,9 +43,22 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "-Wall -Wextra")
-set(CMAKE_CXX_FLAGS_DEBUG "-ggdb3")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
+if(MSVC)
+  add_compile_options(/W4 /WX-)
+  add_compile_options("/std:c++latest")
+else()
+  set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+  set(CMAKE_CXX_FLAGS_DEBUG "-ggdb3")
+  set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+endif()
+
+if (MSVC_VERSION GREATER_EQUAL "1900")
+  include(CheckCXXCompilerFlag)
+  CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
+  if (_cpp_latest_flag_supported)
+  endif()
+endif()
 
 # compilation database
 # -----------------------------------

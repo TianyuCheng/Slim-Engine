@@ -232,8 +232,11 @@ void RenderGraph::Pass::ExecuteGraphics() {
     else throw std::runtime_error("no attachment to detect extent!");
     framebufferDesc.SetExtent(extent.width, extent.height);
 
+    // use a named render pass desc
+    renderPassDesc.SetName(name);
+
     RenderFrame* renderFrame = graph->GetRenderFrame();
-    RenderPass* renderPass = renderFrame->RequestRenderPass(name, renderPassDesc);
+    RenderPass* renderPass = renderFrame->RequestRenderPass(renderPassDesc);
     Framebuffer* framebuffer = renderFrame->RequestFramebuffer(framebufferDesc.SetRenderPass(renderPass));
 
     // update render pass

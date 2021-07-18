@@ -12,7 +12,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Slim Application")
+            .SetTitle("Dear ImGui")
     );
 
     // create ui handle
@@ -21,10 +21,6 @@ int main() {
     // window
     auto window = context->GetWindow();
     while (!window->ShouldClose()) {
-
-        // window update
-        window->PollEvents();
-
         // query image from swapchain
         auto frame = window->AcquireNext();
 
@@ -47,6 +43,9 @@ int main() {
             });
         }
         graph.Execute();
+
+        // window update
+        window->PollEvents();
     }
 
     context->WaitIdle();

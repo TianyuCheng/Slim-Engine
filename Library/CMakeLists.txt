@@ -47,11 +47,13 @@ set(SLIM_IMGUI_SOURCES
 
 # utility class modules
 set(SLIM_UTILITY_SOURCES
-    utility/stb.h
-    utility/stb.cpp
     utility/smartptr.h
     utility/transient.h
     utility/interface.h
+    utility/stb.h
+    utility/stb.cpp
+    utility/gltf.h
+    utility/gltf.cpp
     utility/color.h
     utility/color.cpp
     utility/texture.h
@@ -64,8 +66,16 @@ set(SLIM_UTILITY_SOURCES
     utility/transform.cpp
     utility/camera.h
     utility/camera.cpp
-    utility/component.h
-    utility/component.cpp
+    utility/mesh.h
+    utility/mesh.cpp
+    utility/skinnedmesh.h
+    utility/skinnedmesh.cpp
+    utility/material.h
+    utility/material.cpp
+    utility/animator.h
+    utility/animator.cpp
+    utility/assets.h
+    utility/assets.cpp
 )
 
 add_library(slim SHARED
@@ -80,4 +90,4 @@ target_include_directories(slim PUBLIC
     ${IMNODES_INCLUDE_DIRS}
     ${VULKAN_INCLUDES}
 )
-target_link_libraries(slim PUBLIC glm glfw imgui imnodes stb tinygltf ${VULKAN_LIBS})
+target_link_libraries(slim PUBLIC glm glfw imgui imnodes stb tinygltf ghc_filesystem ${VULKAN_LIBS})

@@ -39,3 +39,9 @@ BuildXcode/
 # Editor stuff
 .vim
 .clangd
+
+# OS stuff
+.DS_Store
+
+# Assets
+Assets/

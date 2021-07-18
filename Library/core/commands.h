@@ -38,8 +38,8 @@ namespace slim {
         void BindPipeline(Pipeline *pipeline);
         void BindDescriptor(Descriptor *descriptor);
         void BindIndexBuffer(IndexBuffer *buffer, size_t offset = 0);
-        void BindVertexBuffer(uint32_t binding, VertexBuffer *buffers, uint64_t offsets);
-        void BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffer, const std::vector<uint64_t> &offset);
+        void BindVertexBuffer(uint32_t binding, VertexBuffer *buffer, uint64_t offset);
+        void BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffers, const std::vector<uint64_t> &offsets);
 
         void CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset = 0);
         void CopyDataToImage(void *data, size_t size, Image *image,

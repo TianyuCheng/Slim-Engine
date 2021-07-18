@@ -1,7 +1,11 @@
 #ifndef SLIM_UTILITY_CAMERA_H
 #define SLIM_UTILITY_CAMERA_H
 
+#include <string>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+
+#include "utility/interface.h"
 
 namespace slim {
 
@@ -9,33 +13,29 @@ namespace slim {
 
     class Camera {
     public:
+        Camera(const std::string &name);
+        Camera(const Camera &camera) = default;
+        virtual ~Camera() = default;
+
+        virtual std::string GetName() const { return name; }
+
         // perform frustum culling
-        // * true for cullable objects -> totally out of camera view
-        // * false for non-cullable objects
-        virtual bool Cull(const SceneNode *node) = 0;
+        virtual void Cull(SceneNode *node) const;
+
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up);
+
+        virtual void Ortho(float left, float right, float bottom, float top, float near, float far);
+
+        virtual void Frustum(float left, float right, float bottom, float top, float near, float far);
+
+        virtual void Perspective(float fovy, float aspect, float near, float far);
+
         virtual glm::mat4 GetViewProjection() const { return proj * view; }
-    protected:
+
+    private:
+        std::string name;
         glm::mat4 view;
         glm::mat4 proj;
-    };
-
-    class OrthographicCamera : public Camera {
-    public:
-        OrthographicCamera();
-
-        // * true for cullable objects -> totally out of camera view
-        // * false for non-cullable objects
-        virtual bool Cull(const SceneNode *) { return false; }
-    };
-
-    class PerspectiveCamera : public Camera {
-    public:
-        PerspectiveCamera();
-
-        // * true for cullable objects -> totally out of camera view
-        // * false for non-cullable objects
-        virtual bool Cull(const SceneNode *) { return false; }
     };
 
 } // end of namespace slim

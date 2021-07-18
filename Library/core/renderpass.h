@@ -22,6 +22,9 @@ namespace slim {
     class RenderPassDesc final {
         friend class RenderPass;
     public:
+        RenderPassDesc& SetName(const std::string &name) { this->name = name; return *this; }
+        const std::string& GetName() const { return name; }
+
         RenderPassDesc& AddColorAttachment(VkFormat format, VkSampleCountFlagBits samples,
                                            VkAttachmentLoadOp load, VkAttachmentStoreOp store,
                                            VkImageLayout initialLayout, VkImageLayout finalLayout);
@@ -39,6 +42,7 @@ namespace slim {
                                                   VkImageLayout initialLayout, VkImageLayout finalLayout);
 
     private:
+        std::string name;
         std::vector<VkAttachmentDescription> attachments;
         std::vector<VkAttachmentReference> colorAttachments;
         std::vector<VkAttachmentReference> depthStencilAttachments;

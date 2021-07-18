@@ -53,9 +53,6 @@ int main() {
     // window
     auto window = context->GetWindow();
     while (!window->ShouldClose()) {
-        // window update
-        window->PollEvents();
-
         // query image from swapchain
         auto frame = window->AcquireNext();
         float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
@@ -72,8 +69,9 @@ int main() {
             colorPass->Execute([=](const RenderGraph &graph) {
                 auto renderFrame = graph.GetRenderFrame();
                 auto commandBuffer = graph.GetGraphicsCommandBuffer();
-                auto pipeline = renderFrame->RequestPipeline("colorPass",
+                auto pipeline = renderFrame->RequestPipeline(
                     GraphicsPipelineDesc()
+                        .SetName("colorPass")
                         .AddVertexBinding(0, sizeof(glm::vec3) + sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
                         .AddVertexAttrib(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0)
                         .AddVertexAttrib(0, 1, VK_FORMAT_R32G32B32_SFLOAT, sizeof(glm::vec3))
@@ -122,9 +120,11 @@ int main() {
         }
 
         graph.Execute();
+
+        // window update
+        window->PollEvents();
     }
 
     context->WaitIdle();
-
     return EXIT_SUCCESS;
 }

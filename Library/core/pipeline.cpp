@@ -175,6 +175,37 @@ void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptor
     writes.push_back(update);
 }
 
+std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::string &name) {
+    auto indexOf = [](const std::vector<VkDescriptorSetLayout> &layouts, VkDescriptorSetLayout target) {
+        for (uint32_t i = 0; i < layouts.size(); i++)
+            if (layouts[i] == target)
+                return i;
+        return 0xffffffff;
+    };
+
+    VkDescriptorSet descriptorSet;
+
+    auto it = pipeline->Layout()->mappings.find(name);
+    if (it == pipeline->Layout()->mappings.end()) {
+        throw std::runtime_error("Failed to find binding with name: " + name);
+    }
+
+    VkDescriptorSetLayout layout = it->second.first;
+    uint32_t set = indexOf(pipeline->Layout()->descriptorSetLayouts, layout);
+    uint32_t binding = it->second.second;
+
+    // augment the descriptor sets array
+    while (descriptorSets.size() <= set)
+        descriptorSets.push_back(VK_NULL_HANDLE);
+
+    if (descriptorSets[set] == VK_NULL_HANDLE) {
+        descriptorSets[set] = renderFrame->RequestDescriptorSet(layout);
+    }
+
+    descriptorSet = descriptorSets[set];
+    return std::make_pair(descriptorSet, binding);
+}
+
 //  ____                      _       _             ____             _
 // |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __|  _ \ ___   ___ | |
 // | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__| |_) / _ \ / _ \| |
@@ -265,37 +296,6 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
     poolSetCounts[poolIndex]++;
     return descriptorSet;
 }
-std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::string &name) {
-    auto indexOf = [](const std::vector<VkDescriptorSetLayout> &layouts, VkDescriptorSetLayout target) {
-        for (uint32_t i = 0; i < layouts.size(); i++)
-            if (layouts[i] == target)
-                return i;
-        return 0xffffffff;
-    };
-
-    VkDescriptorSet descriptorSet;
-
-    auto it = pipeline->Layout()->mappings.find(name);
-    if (it == pipeline->Layout()->mappings.end()) {
-        throw std::runtime_error("Failed to find binding with name: " + name);
-    }
-
-    VkDescriptorSetLayout layout = it->second.first;
-    uint32_t set = indexOf(pipeline->Layout()->descriptorSetLayouts, layout);
-    uint32_t binding = it->second.second;
-
-    // augment the descriptor sets array
-    while (descriptorSets.size() <= set)
-        descriptorSets.push_back(VK_NULL_HANDLE);
-
-    if (descriptorSets[set] == VK_NULL_HANDLE) {
-        descriptorSets[set] = renderFrame->RequestDescriptorSet(layout);
-    }
-
-    descriptorSet = descriptorSets[set];
-    return std::make_pair(descriptorSet, binding);
-}
-
 
 //   ____                            _
 //  / ___|___  _ __ ___  _ __  _   _| |_ ___
@@ -546,6 +546,11 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetViewportScissors(const std::vecto
 //         |_|
 
 Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
+    #ifndef NDEBUG
+    assert(desc.name.length() > 0 && "PipelineDesc must have a name!");
+    assert(desc.renderPass && "PipelineDesc must have a valid renderPass!");
+    #endif
+
     layout = SlimPtr<PipelineLayout>(context, desc.pipelineLayoutDesc);
 
     // vertex attributes & input bindings

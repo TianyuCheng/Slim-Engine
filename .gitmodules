@@ -19,3 +19,9 @@
 [submodule "Dependencies/imnodes"]
 	path = Dependencies/imnodes
 	url = git@github.com:Nelarius/imnodes.git
+[submodule "Dependencies/stduuid"]
+	path = Dependencies/stduuid
+	url = git@github.com:mariusbancila/stduuid.git
+[submodule "Dependencies/filesystem"]
+	path = Dependencies/filesystem
+	url = git@github.com:gulrak/filesystem.git

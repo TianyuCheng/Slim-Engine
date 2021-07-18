@@ -14,16 +14,22 @@
 
 // utility
 #include "utility/stb.h"
+#include "utility/mesh.h"
 #include "utility/color.h"
+#include "utility/assets.h"
 #include "utility/texture.h"
 #include "utility/camera.h"
 #include "utility/transform.h"
+#include "utility/material.h"
+#include "utility/mesh.h"
+#include "utility/skinnedmesh.h"
 #include "utility/scenegraph.h"
 #include "utility/rendergraph.h"
 
 // third party
 #include <imgui.h>
 #include <imnodes.h>
+#include <tiny_gltf.h>
 #include "imgui/dearimgui.h"
 #include "imgui/imgui_impl_vulkan.h"
 

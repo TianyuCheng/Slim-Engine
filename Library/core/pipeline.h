@@ -135,9 +135,13 @@ namespace slim {
         explicit ComputePipelineDesc();
         virtual ~ComputePipelineDesc() = default;
 
+        ComputePipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
+        const std::string& GetName() const { return name; }
+
         ComputePipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layout);
         ComputePipelineDesc& SetComputeShader(Shader* shader);
     private:
+        std::string name;
         PipelineLayoutDesc pipelineLayoutDesc;
     };
 
@@ -155,6 +159,9 @@ namespace slim {
     public:
         explicit GraphicsPipelineDesc();
         virtual ~GraphicsPipelineDesc() = default;
+
+        GraphicsPipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
+        const std::string& GetName() const { return name; }
 
         GraphicsPipelineDesc& SetPrimitive(VkPrimitiveTopology primitive, bool dynamic = false);
         GraphicsPipelineDesc& SetCullMode(VkCullModeFlags cullMode, bool dynamic = false);
@@ -188,6 +195,8 @@ namespace slim {
         void InitDynamicState();
 
     private:
+        std::string name = "";
+
         PipelineLayoutDesc pipelineLayoutDesc;
         SmartPtr<RenderPass> renderPass;
 
@@ -219,6 +228,10 @@ namespace slim {
     class RayTracingPipelineDesc final : public TriviallyConvertible<VkRayTracingPipelineCreateInfoKHR> {
         friend class Pipeline;
     public:
+        RayTracingPipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
+        const std::string& GetName() const { return name; }
+    private:
+        std::string name;
     };
 
     //  ____  _            _ _

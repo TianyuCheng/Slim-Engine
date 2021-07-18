@@ -56,6 +56,11 @@ void RenderFrame::SetBackBuffer(GPUImage2D *backBuffer) {
     this->backBuffer.reset(backBuffer);
 }
 
+float RenderFrame::GetAspectRatio() const {
+    const VkExtent3D &extent = backBuffer->GetExtent();
+    return static_cast<float>(extent.width) / static_cast<float>(extent.height);
+}
+
 void RenderFrame::Present(CommandBuffer *commandBuffer) {
     VkSemaphore signalSemaphoreVk = *renderFinishesSemaphore;
 
@@ -76,7 +81,8 @@ void RenderFrame::Present(CommandBuffer *commandBuffer) {
     ErrorCheck(vkQueuePresentKHR(context->presentQueue, &presentInfo), "present a frame");
 }
 
-Pipeline* RenderFrame::RequestPipeline(const std::string &name, const ComputePipelineDesc &desc) {
+Pipeline* RenderFrame::RequestPipeline(const ComputePipelineDesc &desc) {
+    const std::string &name = desc.GetName();
     auto it = pipelines.find(name);
     if (it == pipelines.end()) {
         pipelines.insert(std::make_pair(name, SlimPtr<Pipeline>(context.get(), desc)));
@@ -85,7 +91,8 @@ Pipeline* RenderFrame::RequestPipeline(const std::string &name, const ComputePip
     return it->second.get();
 }
 
-Pipeline* RenderFrame::RequestPipeline(const std::string &name, const GraphicsPipelineDesc &desc) {
+Pipeline* RenderFrame::RequestPipeline(const GraphicsPipelineDesc &desc) {
+    const std::string &name = desc.GetName();
     auto it = pipelines.find(name);
     if (it == pipelines.end()) {
         pipelines.insert(std::make_pair(name, SlimPtr<Pipeline>(context.get(), desc)));
@@ -94,7 +101,8 @@ Pipeline* RenderFrame::RequestPipeline(const std::string &name, const GraphicsPi
     return it->second.get();
 }
 
-Pipeline* RenderFrame::RequestPipeline(const std::string &name, const RayTracingPipelineDesc &desc) {
+Pipeline* RenderFrame::RequestPipeline(const RayTracingPipelineDesc &desc) {
+    const std::string &name = desc.GetName();
     auto it = pipelines.find(name);
     if (it == pipelines.end()) {
         pipelines.insert(std::make_pair(name, SlimPtr<Pipeline>(context.get(), desc)));
@@ -103,7 +111,8 @@ Pipeline* RenderFrame::RequestPipeline(const std::string &name, const RayTracing
     return it->second.get();
 }
 
-RenderPass* RenderFrame::RequestRenderPass(const std::string &name, const RenderPassDesc &desc) {
+RenderPass* RenderFrame::RequestRenderPass(const RenderPassDesc &desc) {
+    const std::string &name = desc.GetName();
     auto it = renderPasses.find(name);
     if (it == renderPasses.end()) {
         renderPasses.insert(std::make_pair(name, SlimPtr<RenderPass>(context.get(), desc)));
