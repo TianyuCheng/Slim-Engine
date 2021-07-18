@@ -48,21 +48,27 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
 
 * Dear ImGui
     - This is an example showcasing integration of a well-known immediate mode GUI library (Dear ImGui).
+	- ![Screenshot](./Examples/DearImGui/screenshot.png =100x)
 
 * Depth Buffering
     - This is an example showcasing how to enable depth testing with with depth/stencil attachment.
+	- ![Screenshot](./Examples/DepthBuffering/screenshot.png =100x)
 
 * Multisampling
     - This is an example showcasing how to enable multisampling with resolve attachment.
+	- ![Screenshot](./Examples/Multisampling/screenshot.png =100x)
 
 * Texture Mapping
     - This is an example showcasing how to load and setup 2D texture for rendering.
+	- ![Screenshot](./Examples/TextureMapping/screenshot.png =100x)
 
 * Render to Texture
     - This is an example showcasing how to do render to texture with multipass frame graph.
+	- ![Screenshot](./Examples/RenderToTexture/screenshot.png =100x)
 
 * Scene Graph
     - This is an example showcasing how to use hierarchical scene graph for scene management.
+	- ![Screenshot](./Examples/SceneGraph/screenshot.png =100x)
 
 Applications
 ------------
@@ -106,28 +112,13 @@ Dependencies
 ------------
 
 * Vulkan
-	- Vulkan backend API for low-level rendering
-
 * VulkanMemoryAllocator
-	- an efficient memory allocator for vulkan buffer/image allocation
-
 * glm
-	- glsl style math library
-
 * stb
-	- a collection of utility functions, including image read/write
-
 * tinygltf
-	- a library for gltf loading
-
 * stduuid
-    - a library for uuid generation
-
 * imgui (DearImGui)
-	- immediate mode GUI library
-
 * imnodes
-	- a node-graph UI based on imgui
 
 Author(s)
 ---------
