@@ -1,0 +1,133 @@
+#include <slim/slim.hpp>
+
+using namespace slim;
+
+struct Vertex {
+    glm::vec3 position;
+    glm::vec3 color;
+};
+
+int main() {
+    // create a vulkan context
+    auto context = SlimPtr<Context>(
+        ContextDesc()
+            .EnableCompute(true)
+            .EnableGraphics(true)
+            .EnableValidation(true),
+        WindowDesc()
+            .SetResolution(640, 480)
+            .SetResizable(true)
+            .SetTitle("Depth Buffering")
+    );
+
+    // create vertex and index buffers
+    auto vBuffer = SlimPtr<VertexBuffer>(context, 4 * sizeof(Vertex));
+    auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
+
+    // create vertex and fragment shaders
+    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple.frag.spv");
+
+    // initialize
+    context->Execute([=](CommandBuffer *commandBuffer) {
+        // prepare vertex data
+        std::vector<Vertex> positions = {
+            { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f) },
+            { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(1.0f, 1.0f, 0.0f) },
+            { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
+        };
+        std::vector<uint32_t> indices = {
+            0, 1, 2,
+            2, 3, 0,
+        };
+
+        commandBuffer->CopyDataToBuffer(positions, vBuffer);
+        commandBuffer->CopyDataToBuffer(indices, iBuffer);
+    });
+
+    auto ui = SlimPtr<DearImGui>(context);
+
+    // window
+    auto window = context->GetWindow();
+    while (!window->ShouldClose()) {
+        // query image from swapchain
+        auto frame = window->AcquireNext();
+        float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
+
+        // rendergraph-based design
+        RenderGraph graph(frame);
+        {
+            auto backBuffer = graph.CreateResource(frame->GetBackBuffer());
+            auto colorBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+
+            auto colorPass = graph.CreateRenderPass("color");
+            colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            colorPass->Execute([=](const RenderGraph &graph) {
+                auto renderFrame = graph.GetRenderFrame();
+                auto commandBuffer = graph.GetGraphicsCommandBuffer();
+                auto pipeline = renderFrame->RequestPipeline(
+                    GraphicsPipelineDesc()
+                        .SetName("colorPass")
+                        .AddVertexBinding(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
+                            { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position) },
+                            { 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)    },
+                         })
+                        .SetVertexShader(vShader)
+                        .SetFragmentShader(fShader)
+                        .SetViewport(frame->GetExtent())
+                        .SetCullMode(VK_CULL_MODE_BACK_BIT)
+                        .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+                        .SetRenderPass(graph.GetRenderPass())
+                        .SetPipelineLayout(PipelineLayoutDesc()
+                            .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                        )
+                );
+
+                glm::mat4 model = glm::mat4(1.0);
+                glm::mat4 view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+                glm::mat4 proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
+
+                commandBuffer->BindPipeline(pipeline);
+
+                glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
+                glm::mat4 mvp = proj * view * m;
+                auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+                descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
+                commandBuffer->BindDescriptor(descriptor);
+                commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                commandBuffer->BindIndexBuffer(iBuffer);
+                commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
+            });
+
+            auto uiPass = graph.CreateRenderPass("ui");
+            uiPass->SetColor(backBuffer, ClearValue(1.0f, 1.0f, 1.0f, 1.0f));
+            uiPass->SetTexture(colorBuffer);
+            uiPass->Execute([=](const RenderGraph &graph) {
+                auto renderFrame = graph.GetRenderFrame();
+                auto commandBuffer = graph.GetGraphicsCommandBuffer();
+
+                ui->Begin();
+                {
+                    ImGui::Begin("Render To Texture");
+                    {
+                        ImTextureID tex = slim::imgui::AddTexture(renderFrame, colorBuffer->GetImage()->AsTexture());
+                        ImGui::Image(tex, ImGui::GetContentRegionAvail());
+                    }
+                    ImGui::End();
+                }
+                ui->End();
+
+                ui->Draw(commandBuffer);
+            });
+        }
+
+        graph.Execute();
+
+        // window update
+        window->PollEvents();
+    }
+
+    context->WaitIdle();
+    return EXIT_SUCCESS;
+}

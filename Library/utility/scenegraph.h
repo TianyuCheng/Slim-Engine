@@ -37,11 +37,6 @@ namespace slim {
         SceneNode* AddChild(const std::string &name);
         void       AddComponent(SceneComponent* component);
 
-        void       ResetTransform();
-        void       Translate(float tx, float ty, float tz);
-        void       Scale(float sx, float sy, float sz);
-        void       Rotate(const glm::vec3 &axis, float radians);
-
         void       Init();
         void       Update();
         void       Render(const RenderGraph &graph, const Camera &camera);
@@ -76,15 +71,22 @@ namespace slim {
         void SetDistanceToCamera(float distance) { distanceToCamera = distance; }
         float GetDistanceToCamera() const { return distanceToCamera; }
 
-        const glm::mat4& GetTransform() const { return xform; }
         const std::string& GetName() const { return name; }
 
+        Transform& GetTransform() { return transform; }
+        const Transform& GetTransform() const { return transform; }
+
+        void Scale(float x, float y, float z);
+        void Rotate(const glm::vec3& axis, float radians);
+        void Translate(float x, float y, float z);
+
     private:
-        void DecomposeTransform();
+        void Init(SceneNode* parent);
+        void Update(SceneNode* parent);
+        void UpdateTransformHierarchy(SceneNode* parent);
 
     private:
         std::string name;                   // node name
-        glm::mat4   xform = glm::mat4(1.0); // node xform (local)
         Transform transform;
 
         Submesh submesh;
@@ -93,7 +95,6 @@ namespace slim {
         std::vector<SmartPtr<SceneComponent>> components;
 
         // states
-        bool changed = false;
         bool culled = false;
         bool visible = true;
         float distanceToCamera = 0.0f;

@@ -1,0 +1,4 @@
+compile_glsl(render2texture_glsl_shaders shaders/)
+add_executable(render2texture main.cpp)
+target_link_libraries(render2texture PRIVATE slim)
+add_dependencies(render2texture render2texture_glsl_shaders)

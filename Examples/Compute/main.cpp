@@ -12,7 +12,7 @@ int main() {
     );
 
     // prepare compute pipeline
-    auto shader = SlimPtr<spirv::ComputeShader>(context, "main", "shaders/compute.comp.spv");
+    auto shader = SlimPtr<spirv::ComputeShader>(context, "main", "shaders/simple.comp.spv");
     auto pipeline = SlimPtr<Pipeline>(
             context,
             ComputePipelineDesc()
@@ -59,5 +59,6 @@ int main() {
         std::cout << "DATA[" << i << "] = " << byte << std::endl;
     }
 
+    context->WaitIdle();
     return EXIT_SUCCESS;
 }

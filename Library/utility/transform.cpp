@@ -4,33 +4,45 @@
 
 using namespace slim;
 
-Transform::Transform(const glm::mat4 &xform) {
-    glm::vec3 skew;
-    glm::vec4 perspective;
-    glm::decompose(xform, localScale, localRotation, localPosition, skew, perspective);
+Transform::Transform(const glm::mat4 &xform) : localXform(xform) {
+    // compute localToWorld and worldToLocal
+    localToWorld = localXform;
+    worldToLocal = glm::inverse(localToWorld);
 }
 
-void Transform::SetLocalPosition(float tx, float ty, float tz) {
-    localPosition.x = tx;
-    localPosition.y = ty;
-    localPosition.z = tz;
+Transform::Transform(const glm::vec3 &translation,
+                     const glm::quat &rotation,
+                     const glm::vec3 &scaling) {
+    localXform = glm::mat4_cast(rotation);
+    localXform = glm::scale(localXform, scaling);
+    localXform = glm::translate(localXform, translation);
+
+    // compute localToWorld and worldToLocal
+    localToWorld = localXform;
+    worldToLocal = glm::inverse(localToWorld);
 }
 
-void Transform::SetLocalScale(float sx, float sy, float sz) {
-    localScale.x = sx;
-    localScale.y = sy;
-    localScale.z = sz;
+void Transform::ApplyParentTransform(const Transform &parent) {
+    localToWorld = parent.localToWorld * localXform;
+    worldToLocal = worldToLocal * parent.worldToLocal;
 }
 
-void Transform::SetLocalRotation(const glm::vec3 &axis, float radians) {
-    localRotation = glm::angleAxis(radians, axis);
+const glm::mat4& Transform::LocalToWorld() const {
+    return localToWorld;
 }
 
-TransformGizmo Transform::AxisGizmo() const {
-    const glm::mat3 &mat = glm::mat3_cast(localRotation);
-    return TransformGizmo {
-        glm::column(mat, 0),
-        glm::column(mat, 1),
-        glm::column(mat, 2),
-    };
+const glm::mat4& Transform::WorldToLocal() const {
+    return worldToLocal;
+}
+
+void Transform::Scale(float x, float y, float z) {
+    localXform = glm::scale(localXform, glm::vec3(x, y, z));
+}
+
+void Transform::Rotate(const glm::vec3& axis, float radians) {
+    localXform = glm::rotate(localXform, radians, axis);
+}
+
+void Transform::Translate(float x, float y, float z) {
+    localXform = glm::translate(localXform, glm::vec3(x, y, z));
 }

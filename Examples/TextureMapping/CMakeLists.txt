@@ -1,4 +1,4 @@
 compile_glsl(texturemapping_glsl_shaders shaders/)
-add_executable(texturemapping texturemapping.cpp)
+add_executable(texturemapping main.cpp)
 target_link_libraries(texturemapping PRIVATE slim)
 add_dependencies(texturemapping texturemapping_glsl_shaders)

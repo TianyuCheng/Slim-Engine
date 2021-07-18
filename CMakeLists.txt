@@ -112,10 +112,13 @@ endfunction()
 # |_____/_/\_\__,_|_| |_| |_| .__/|_|\___||___/
 #                           |_|
 # ---------------------------------------------------------------
-add_subdirectory(Examples/Transfer)
+add_subdirectory(Examples/BufferCopy)
 add_subdirectory(Examples/Compute)
 add_subdirectory(Examples/DearImGui)
 add_subdirectory(Examples/DepthBuffering)
 add_subdirectory(Examples/Multisampling)
 add_subdirectory(Examples/TextureMapping)
+add_subdirectory(Examples/RenderToTexture)
+add_subdirectory(Examples/SceneGraph)
+
 add_subdirectory(Applications/Basic)

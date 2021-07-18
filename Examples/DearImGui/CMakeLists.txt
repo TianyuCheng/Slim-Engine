@@ -1,2 +1,2 @@
-add_executable(dearimgui dearimgui.cpp)
+add_executable(dearimgui main.cpp)
 target_link_libraries(dearimgui PRIVATE slim)

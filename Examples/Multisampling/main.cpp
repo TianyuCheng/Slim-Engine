@@ -4,11 +4,10 @@ using namespace slim;
 
 struct Vertex {
     glm::vec3 position;
-    glm::vec2 texcoord;
+    glm::vec3 color;
 };
 
 int main() {
-
     // create a vulkan context
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -26,17 +25,17 @@ int main() {
     auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/textured_vertex.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/textured_fragment.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple.frag.spv");
 
     // initialize
     context->Execute([=](CommandBuffer *commandBuffer) {
         // prepare vertex data
         std::vector<Vertex> positions = {
-            { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec2(0.0f, 0.0f) },
-            { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec2(1.0f, 0.0f) },
-            { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec2(1.0f, 1.0f) },
-            { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec2(0.0f, 1.0f) },
+            { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
+            { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f) },
+            { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(1.0f, 1.0f, 0.0f) },
+            { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
         };
         std::vector<uint32_t> indices = {
             0, 1, 2,
@@ -47,15 +46,7 @@ int main() {
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
     });
 
-    // create texture
-    auto renderFrame = SlimPtr<RenderFrame>(context);
-    auto commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_TRANSFER_BIT);
-    commandBuffer->Begin();
-    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(context, SamplerDesc());
-    SmartPtr<GPUImage2D> texture = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
-    commandBuffer->End();
-    commandBuffer->Submit();
-    context->WaitIdle();
+    VkSampleCountFlagBits multisamples = VK_SAMPLE_COUNT_8_BIT;
 
     // window
     auto window = context->GetWindow();
@@ -68,11 +59,13 @@ int main() {
         RenderGraph graph(frame);
         {
             auto backBuffer = graph.CreateResource(frame->GetBackBuffer());
-            auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
+            auto colorBuffer = graph.CreateResource(frame->GetExtent(), window->GetFormat(), multisamples);
+            auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, multisamples);
 
             auto colorPass = graph.CreateRenderPass("color");
-            colorPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
+            colorPass->SetColorResolve(backBuffer);
             colorPass->Execute([=](const RenderGraph &graph) {
                 auto renderFrame = graph.GetRenderFrame();
                 auto commandBuffer = graph.GetGraphicsCommandBuffer();
@@ -81,18 +74,18 @@ int main() {
                         .SetName("colorPass")
                         .AddVertexBinding(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
                             { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position) },
-                            { 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, texcoord)    },
+                            { 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)    },
                          })
                         .SetVertexShader(vShader)
                         .SetFragmentShader(fShader)
                         .SetViewport(frame->GetExtent())
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
+                        .SetSampleCount(multisamples)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                         .SetRenderPass(graph.GetRenderPass())
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
                             .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding("Albedo", 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                         )
                 );
 
@@ -101,10 +94,6 @@ int main() {
                 glm::mat4 proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
 
                 commandBuffer->BindPipeline(pipeline);
-
-                auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
-                descriptor->SetTexture("Albedo", texture, sampler);
-                commandBuffer->BindDescriptor(descriptor);
 
                 // mesh 1
                 {

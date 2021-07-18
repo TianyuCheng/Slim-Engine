@@ -4,30 +4,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/quaternion.hpp>
 
-namespace slim::transform {
-
-    // identity
-    glm::mat4 Identity();
-
-    // scaling
-    glm::mat4 Scale(float sx, float sy, float sz);
-    glm::mat4 Scale(float s);
-    glm::mat4 ScaleX(float s);
-    glm::mat4 ScaleY(float s);
-    glm::mat4 ScaleZ(float s);
-
-    // translation
-    glm::mat4 Translate(float tx, float ty, float tz);
-    glm::mat4 TranslateX(float t);
-    glm::mat4 TranslateY(float t);
-    glm::mat4 TranslateZ(float t);
-
-    // rotation
-    glm::mat4 Rotate(const glm::vec3 &axis, float radians);
-
-} // end of namespace slim::transform
-
 namespace slim {
+
+    class SceneNode;
 
     struct TransformGizmo {
         glm::vec3 right;   // red axis in world space
@@ -36,24 +15,35 @@ namespace slim {
     };
 
     class Transform {
+        friend class SceneNode;
     public:
+        // identity transform
         explicit Transform() = default;
+
+        // initialize by existing transform matrix
         explicit Transform(const glm::mat4 &xform);
+
+        // initialize by TRS (translation, rotation, scaling)
+        explicit Transform(const glm::vec3 &translation,
+                           const glm::quat &rotation,
+                           const glm::vec3 &scaling = glm::vec3(1.0, 1.0, 1.0));
+
         virtual ~Transform() = default;
 
-        void SetLocalPosition(float tx, float ty, float tz);
-        void SetLocalScale(float sx, float sy, float sz);
-        void SetLocalRotation(const glm::vec3 &axis, float radians);
+        const glm::mat4& LocalToWorld() const;
+        const glm::mat4& WorldToLocal() const;
 
-        TransformGizmo AxisGizmo() const;
+        void ApplyParentTransform(const Transform &parent);
+
+        void Scale(float x, float y, float z);
+        void Rotate(const glm::vec3& axis, float radians);
+        void Translate(float x, float y, float z);
 
     private:
         // local transform
-        glm::vec3 localPosition = glm::vec3();
-        glm::quat localRotation = glm::quat();
-        glm::vec3 localScale    = glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::mat4 localXform = glm::mat4(1.0);
 
-        // local/world transform
+        // local/world transform (hierarchical)
         glm::mat4 localToWorld = glm::identity<glm::mat4>();
         glm::mat4 worldToLocal = glm::identity<glm::mat4>();
     };

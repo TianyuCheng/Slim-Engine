@@ -66,7 +66,15 @@ SceneNode::~SceneNode() {
 }
 
 void SceneNode::Init() {
-    DecomposeTransform();
+    Init(nullptr);
+}
+
+void SceneNode::Update() {
+    Update(nullptr);
+}
+
+void SceneNode::Init(SceneNode* parent) {
+    UpdateTransformHierarchy(parent);
 
     // initialize all components
     for (auto &component : components)
@@ -74,11 +82,11 @@ void SceneNode::Init() {
 
     // initialize all children
     for (auto &child : children)
-        child->Init();
+        child->Init(this);
 }
 
-void SceneNode::Update() {
-    DecomposeTransform();
+void SceneNode::Update(SceneNode* parent) {
+    UpdateTransformHierarchy(parent);
 
     // update all components
     for (auto &component : components)
@@ -86,37 +94,29 @@ void SceneNode::Update() {
 
     // update all children
     for (auto &child : children)
-        child->Update();
+        child->Update(this);
 }
 
 void SceneNode::AddComponent(SceneComponent* component) {
     components.push_back(component);
 }
 
-void SceneNode::ResetTransform() {
-    xform = glm::mat4(1.0f);
-}
-
-void SceneNode::DecomposeTransform() {
-    if (changed) {
-        transform = Transform(xform);
-        changed = false;
+void SceneNode::UpdateTransformHierarchy(SceneNode* parent) {
+    if (parent) {
+        transform.ApplyParentTransform(parent->transform);
     }
 }
 
-void SceneNode::Translate(float tx, float ty, float tz) {
-    xform = glm::translate(xform, glm::vec3(tx, ty, tz));
-    changed = true;
+void SceneNode::Scale(float x, float y, float z) {
+    transform.Scale(x, y, z);
 }
 
-void SceneNode::Scale(float sx, float sy, float sz) {
-    xform = glm::scale(xform, glm::vec3(sx, sy, sz));
-    changed = true;
+void SceneNode::Rotate(const glm::vec3& axis, float radians) {
+    transform.Rotate(axis, radians);
 }
 
-void SceneNode::Rotate(const glm::vec3 &axis, float radians) {
-    xform = glm::rotate(xform, radians, axis);
-    changed = true;
+void SceneNode::Translate(float x, float y, float z) {
+    transform.Translate(x, y, z);
 }
 
 void SceneNode::Render(const RenderGraph &graph, const Camera &camera) {

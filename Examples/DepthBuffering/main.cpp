@@ -8,7 +8,6 @@ struct Vertex {
 };
 
 int main() {
-
     // create a vulkan context
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -18,7 +17,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Multisampling")
+            .SetTitle("Depth Buffering")
     );
 
     // create vertex and index buffers
@@ -26,8 +25,8 @@ int main() {
     auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple_vertex.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple_fragment.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple.frag.spv");
 
     // initialize
     context->Execute([=](CommandBuffer *commandBuffer) {
@@ -47,8 +46,6 @@ int main() {
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
     });
 
-    VkSampleCountFlagBits multisamples = VK_SAMPLE_COUNT_8_BIT;
-
     // window
     auto window = context->GetWindow();
     while (!window->ShouldClose()) {
@@ -60,13 +57,11 @@ int main() {
         RenderGraph graph(frame);
         {
             auto backBuffer = graph.CreateResource(frame->GetBackBuffer());
-            auto colorBuffer = graph.CreateResource(frame->GetExtent(), window->GetFormat(), multisamples);
-            auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, multisamples);
+            auto depthBuffer = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
 
             auto colorPass = graph.CreateRenderPass("color");
-            colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            colorPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
-            colorPass->SetColorResolve(backBuffer);
             colorPass->Execute([=](const RenderGraph &graph) {
                 auto renderFrame = graph.GetRenderFrame();
                 auto commandBuffer = graph.GetGraphicsCommandBuffer();
@@ -81,7 +76,6 @@ int main() {
                         .SetFragmentShader(fShader)
                         .SetViewport(frame->GetExtent())
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
-                        .SetSampleCount(multisamples)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                         .SetRenderPass(graph.GetRenderPass())
                         .SetDepthTest(VK_COMPARE_OP_LESS)

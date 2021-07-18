@@ -43,5 +43,6 @@ int main() {
         std::cout << "DATA[" << i << "] = " << byte << std::endl;
     }
 
+    context->WaitIdle();
     return EXIT_SUCCESS;
 }
