@@ -425,6 +425,11 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetLineWidth(float lineWidth, bool d
     return *this;
 }
 
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetSampleCount(VkSampleCountFlagBits samples) {
+    multisampleStateCreateInfo.rasterizationSamples = samples;
+    return *this;
+}
+
 GraphicsPipelineDesc& GraphicsPipelineDesc::SetRasterizationDiscard(bool enable, bool dynamic) {
     rasterizationStateCreateInfo.rasterizerDiscardEnable = enable;
     if (dynamic) dynamicStates.push_back(VK_DYNAMIC_STATE_RASTERIZER_DISCARD_ENABLE_EXT);
@@ -454,17 +459,18 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthBias(float depthBiasConstant
     return *this;
 }
 
-GraphicsPipelineDesc& GraphicsPipelineDesc::AddVertexAttrib(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset) {
-    vertexAttributes.push_back(VkVertexInputAttributeDescription {
-        location, binding, format, offset
-    });
-    return *this;
-}
-
-GraphicsPipelineDesc& GraphicsPipelineDesc::AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate) {
+GraphicsPipelineDesc& GraphicsPipelineDesc::AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate,
+                                                             const std::vector<VertexAttrib> &attribs) {
     inputBindings.push_back(VkVertexInputBindingDescription {
         binding, stride, inputRate
     });
+
+    for (const VertexAttrib &attrib : attribs) {
+        vertexAttributes.push_back(VkVertexInputAttributeDescription {
+            attrib.location, binding, attrib.format, attrib.offset
+        });
+    }
+
     return *this;
 }
 

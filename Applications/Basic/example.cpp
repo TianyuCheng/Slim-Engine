@@ -34,10 +34,12 @@ int main() {
     auto material = SlimPtr<Material>("material", Material::Opaque);
     material->GetPipelineDesc()
         .SetName("textured")
-        .AddVertexBinding(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX)
-        .AddVertexAttrib(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0)
-        .AddVertexBinding(1, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX)
-        .AddVertexAttrib(1, 1, VK_FORMAT_R32G32_SFLOAT, 0)
+        .AddVertexBinding(0, sizeof(glm::vec3), VK_VERTEX_INPUT_RATE_VERTEX, {
+            { 0, VK_FORMAT_R32G32B32_SFLOAT, 0 }
+         })
+        .AddVertexBinding(1, sizeof(glm::vec2), VK_VERTEX_INPUT_RATE_VERTEX, {
+            { 1, VK_FORMAT_R32G32_SFLOAT, 0 }
+         })
         .SetVertexShader(vShader)
         .SetFragmentShader(fShader)
         .SetCullMode(VK_CULL_MODE_BACK_BIT)

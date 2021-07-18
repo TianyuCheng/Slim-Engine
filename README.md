@@ -25,24 +25,24 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
     - This is a demo for launching a simple compute kernel, with input/output buffers.
 
 * Dear ImGui
-    - This is a demo for showcasing integration of a well-known immediate mode GUI library (DearImGui).
+    - This is a demo for showcasing integration of a well-known immediate mode GUI library (Dear ImGui).
 
 * Depth Buffering
-    - This is a demo showcasing how to enable depth testing with depth buffering.
-
-* Texture Mapping
-    - [TODO]
+    - This is a demo showcasing how to enable depth testing with with depth/stencil attachment.
 
 * Multisampling
+    - This is a demo showcasing how to enable multisampling with resolve attachment.
+
+* Texture Mapping
     - [TODO]
 
 * Render to Texture
     - [TODO]
 
 * Post-Processing
-    * Bloom Effect
-    * Screen Space Ambient Occlusion (SSAO)
-    * Screen Space Subsurface Scattering (SSSS)
+    * [TODO] Bloom Effect
+    * [TODO] Screen Space Ambient Occlusion (SSAO)
+    * [TODO] Screen Space Subsurface Scattering (SSSS)
 
 * Deferred Rendering
     - [TODO]

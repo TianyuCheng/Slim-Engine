@@ -60,6 +60,8 @@ namespace slim {
         public:
             explicit Pass(const std::string &name, RenderGraph *graph, bool compute = false);
 
+            void SetColorResolve(RenderGraph::Resource *resource);
+
             void SetColor(RenderGraph::Resource *resource);
             void SetColor(RenderGraph::Resource *resource, const ClearValue &clear);
 
@@ -102,6 +104,7 @@ namespace slim {
             std::vector<ResourceMetadata> usedAsDepthAttachment = {};
             std::vector<ResourceMetadata> usedAsStencilAttachment = {};
             std::vector<ResourceMetadata> usedAsDepthStencilAttachment = {};
+            std::vector<ResourceMetadata> usedAsColorResolveAttachment = {};
 
             std::function<void(const RenderGraph &renderGraph)> callback;
         };

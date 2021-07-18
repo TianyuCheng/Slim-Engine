@@ -6,14 +6,6 @@
 
 using namespace slim;
 
-bool IsDepthStencil(VkFormat format) {
-    return format == VK_FORMAT_D16_UNORM
-         | format == VK_FORMAT_D16_UNORM_S8_UINT
-         | format == VK_FORMAT_D24_UNORM_S8_UINT
-         | format == VK_FORMAT_D32_SFLOAT
-         | format == VK_FORMAT_D32_SFLOAT_S8_UINT;
-}
-
 RenderGraph::Resource::Resource(GPUImage2D* image)
     : image(image), retained(true) {
     VkExtent3D ext = image->GetExtent();
@@ -46,6 +38,12 @@ void RenderGraph::Resource::Deallocate() {
 }
 
 RenderGraph::Pass::Pass(const std::string &name, RenderGraph *graph, bool compute) : name(name), graph(graph), compute(compute) {
+}
+
+void RenderGraph::Pass::SetColorResolve(RenderGraph::Resource *resource) {
+    attachments.push_back(resource);
+    resource->writers.push_back(this);
+    usedAsColorResolveAttachment.push_back({ resource });
 }
 
 void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource) {
@@ -114,6 +112,7 @@ void RenderGraph::Pass::Execute() {
     for (auto &attachment : usedAsDepthAttachment)        attachment.resource->Allocate(renderFrame);
     for (auto &attachment : usedAsStencilAttachment)      attachment.resource->Allocate(renderFrame);
     for (auto &attachment : usedAsDepthStencilAttachment) attachment.resource->Allocate(renderFrame);
+    for (auto &attachment : usedAsColorResolveAttachment) attachment.resource->Allocate(renderFrame);
 
     if (compute) {
         ExecuteCompute();
@@ -127,6 +126,7 @@ void RenderGraph::Pass::Execute() {
     for (auto &attachment : usedAsDepthAttachment)        attachment.resource->wrCount--;
     for (auto &attachment : usedAsStencilAttachment)      attachment.resource->wrCount--;
     for (auto &attachment : usedAsDepthStencilAttachment) attachment.resource->wrCount--;
+    for (auto &attachment : usedAsColorResolveAttachment) attachment.resource->wrCount--;
 
     // clean up resources not used anymore
     for (auto &attachment : usedAsTexture)                if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
@@ -134,6 +134,7 @@ void RenderGraph::Pass::Execute() {
     for (auto &attachment : usedAsDepthAttachment)        if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
     for (auto &attachment : usedAsStencilAttachment)      if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
     for (auto &attachment : usedAsDepthStencilAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    for (auto &attachment : usedAsColorResolveAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
 }
 
 void RenderGraph::Pass::ExecuteCompute() {
@@ -209,6 +210,18 @@ void RenderGraph::Pass::ExecuteGraphics() {
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+    }
+
+    // color resolve attachments
+    for (auto &attachment : usedAsColorResolveAttachment) {
+        renderPassDesc.AddResolveAttachment(attachment.resource->format,
+                                            attachment.resource->samples,
+                                            inferLoadOp(attachment),
+                                            VK_ATTACHMENT_STORE_OP_STORE,
+                                            attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
+        attachment.resource->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
     }
 

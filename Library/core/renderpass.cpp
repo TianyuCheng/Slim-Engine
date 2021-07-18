@@ -117,6 +117,33 @@ RenderPassDesc& RenderPassDesc::AddDepthStencilAttachment(VkFormat format, VkSam
     return *this;
 }
 
+RenderPassDesc& RenderPassDesc::AddResolveAttachment(VkFormat format, VkSampleCountFlagBits samples,
+                                                     VkAttachmentLoadOp load, VkAttachmentStoreOp store,
+                                                     VkImageLayout initialLayout, VkImageLayout finalLayout) {
+    uint32_t index = attachments.size();
+
+    // description
+    attachments.push_back(VkAttachmentDescription {});
+    VkAttachmentDescription &desc = attachments.back();
+    desc.format = format;
+    desc.samples = samples;
+    desc.loadOp = load;
+    desc.storeOp = store;
+    desc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    desc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    desc.initialLayout = initialLayout;
+    desc.finalLayout = finalLayout;
+    desc.flags = 0;
+
+    // reference
+    resolveAttachments.push_back(VkAttachmentReference {
+        index,
+        IsDepthStencil(format) ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+                               : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+    });
+
+    return *this;
+}
 
 RenderPass::RenderPass(Context *context, const RenderPassDesc &desc)
     : context(context) {
@@ -131,6 +158,8 @@ RenderPass::RenderPass(Context *context, const RenderPassDesc &desc)
     subpass.pColorAttachments = desc.colorAttachments.data();
     if (desc.depthStencilAttachments.size())
         subpass.pDepthStencilAttachment = desc.depthStencilAttachments.data();
+    if (desc.resolveAttachments.size())
+        subpass.pResolveAttachments = desc.resolveAttachments.data();
 
     VkSubpassDependency dependency = {};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;

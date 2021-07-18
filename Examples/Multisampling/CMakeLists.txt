@@ -1,0 +1,4 @@
+compile_glsl(multisampling_glsl_shaders shaders/)
+add_executable(multisampling multisampling.cpp)
+target_link_libraries(multisampling PRIVATE slim)
+add_dependencies(multisampling multisampling_glsl_shaders)

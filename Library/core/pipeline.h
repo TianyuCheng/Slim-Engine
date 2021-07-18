@@ -21,6 +21,12 @@ namespace slim {
     class Descriptor;
     class RenderFrame;
 
+    struct VertexAttrib {
+        uint32_t location;
+        VkFormat format;
+        uint32_t offset;
+    };
+
     //  ____  _            _ _            _                            _   ____
     // |  _ \(_)_ __   ___| (_)_ __   ___| |    __ _ _   _  ___  _   _| |_|  _ \  ___  ___  ___
     // | |_) | | '_ \ / _ \ | | '_ \ / _ \ |   / _` | | | |/ _ \| | | | __| | | |/ _ \/ __|/ __|
@@ -168,14 +174,14 @@ namespace slim {
         GraphicsPipelineDesc& SetFrontFace(VkFrontFace frontFace, bool dynamic = false);
         GraphicsPipelineDesc& SetPolygonMode(VkPolygonMode polygonMode);
         GraphicsPipelineDesc& SetLineWidth(float lineWidth, bool dynamic = false);
+        GraphicsPipelineDesc& SetSampleCount(VkSampleCountFlagBits);
         GraphicsPipelineDesc& SetRasterizationDiscard(bool enable, bool dynamic = false);
         GraphicsPipelineDesc& SetDepthTest(VkCompareOp compare);
         GraphicsPipelineDesc& SetDepthClamp(bool enable);
         GraphicsPipelineDesc& SetDepthBias(float depthBiasConstantFactor,
                                            float depthBiasSlopeFactor,
                                            float depthBiasClamp, bool dynamic = false);
-        GraphicsPipelineDesc& AddVertexAttrib(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset);
-        GraphicsPipelineDesc& AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate);
+        GraphicsPipelineDesc& AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate, const std::vector<VertexAttrib> &attribs);
         GraphicsPipelineDesc& SetVertexShader(Shader* shader);
         GraphicsPipelineDesc& SetFragmentShader(Shader* shader);
         GraphicsPipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layoutBuilder);

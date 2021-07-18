@@ -24,24 +24,25 @@ int main() {
         // query image from swapchain
         auto frame = window->AcquireNext();
 
+        // rendergraph-based design
+        RenderGraph graph(frame);
+        {
+            auto backBuffer = graph.CreateResource(frame->GetBackBuffer());
+
+            auto uiPass = graph.CreateRenderPass("ui");
+            uiPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            uiPass->Execute([=](const RenderGraph &graph) {
+                auto commandBuffer = graph.GetGraphicsCommandBuffer();
+                ui->Draw(commandBuffer);
+            });
+        }
+
         ui->Begin();
         {
             ImGui::ShowDemoWindow();
         }
         ui->End();
 
-        // rendergraph-based design
-        RenderGraph graph(frame);
-        {
-            auto backbuffer = graph.CreateResource(frame->GetBackBuffer());
-
-            auto uiPass = graph.CreateRenderPass("ui");
-            uiPass->SetColor(backbuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
-            uiPass->Execute([=](const RenderGraph &graph) {
-                auto commandBuffer = graph.GetGraphicsCommandBuffer();
-                ui->Draw(commandBuffer);
-            });
-        }
         graph.Execute();
 
         // window update
