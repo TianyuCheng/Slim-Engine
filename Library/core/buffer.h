@@ -20,7 +20,7 @@ namespace slim {
     }
 
     template <typename Buffer>
-    class BufferPool final {
+    class BufferPool final : public ReferenceCountable {
         using List = std::list<SmartPtr<Buffer>>;
     public:
         explicit BufferPool(Context *context);

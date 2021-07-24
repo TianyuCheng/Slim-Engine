@@ -38,7 +38,7 @@ int main() {
         srcBuffer->SetData(data);
 
         // prepare resources
-        auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+        auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
         descriptor->SetStorage("InputBuffer", srcBuffer);
         descriptor->SetStorage("OutputBuffer", dstBuffer);
 

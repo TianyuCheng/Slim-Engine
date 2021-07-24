@@ -96,12 +96,12 @@ int main() {
                 );
 
                 glm::mat4 model = glm::mat4(1.0);
-                glm::mat4 view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+                glm::mat4 view = glm::lookAt(glm::vec3(0.0, 0.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
                 glm::mat4 proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
 
                 commandBuffer->BindPipeline(pipeline);
 
-                auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+                auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 descriptor->SetTexture("Albedo", texture, sampler);
                 commandBuffer->BindDescriptor(descriptor);
 
@@ -109,19 +109,7 @@ int main() {
                 {
                     glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
                     glm::mat4 mvp = proj * view * m;
-                    auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                    commandBuffer->BindDescriptor(descriptor);
-                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
-                    commandBuffer->BindIndexBuffer(iBuffer);
-                    commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
-                }
-
-                // mesh 2
-                {
-                    glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, -1.0));
-                    glm::mat4 mvp = proj * view * m;
-                    auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+                    auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
                     commandBuffer->BindDescriptor(descriptor);
                     commandBuffer->BindVertexBuffer(0, vBuffer, 0);

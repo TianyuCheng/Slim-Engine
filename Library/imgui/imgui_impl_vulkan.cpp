@@ -1470,12 +1470,12 @@ void ImGui_ImplVulkanH_DestroyWindowRenderBuffers(VkDevice device, ImGui_ImplVul
 }
 
 namespace slim::imgui {
-    ImTextureID AddTexture(RenderFrame *alloc, VkImageView imageView) {
+    ImTextureID AddTexture(DescriptorPool *alloc, VkImageView imageView) {
         ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
         ImGui_ImplVulkan_InitInfo* v = &bd->VulkanInitInfo;
 
         // [MODIFIED] Create Descriptor Set:
-        VkDescriptorSet descriptorSet = alloc->RequestDescriptorSet(bd->DescriptorSetLayout);
+        VkDescriptorSet descriptorSet = alloc->Request(bd->DescriptorSetLayout);
 
         // Update the Descriptor Set:
         {

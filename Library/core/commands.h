@@ -36,16 +36,29 @@ namespace slim {
         void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
 
         void BindPipeline(Pipeline *pipeline);
-        void BindDescriptor(Descriptor *descriptor);
+        void BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
         void BindIndexBuffer(IndexBuffer *buffer, size_t offset = 0);
         void BindVertexBuffer(uint32_t binding, VertexBuffer *buffer, uint64_t offset);
         void BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffers, const std::vector<uint64_t> &offsets);
+
+        void PushConstants(PipelineLayout *layout, const std::string &name, const void *value);
+        void PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages);
 
         void CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset = 0);
         void CopyDataToImage(void *data, size_t size, Image *image,
                              const VkOffset3D &offset, const VkExtent3D &extent,
                              uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel,
                              VkImageAspectFlags aspectMask);
+
+        template <typename T>
+        void PushConstants(PipelineLayout* layout, const std::string &name, const T &data) {
+            PushConstants(layout, name, &data);
+        }
+
+        template <typename T>
+        void PushConstants(PipelineLayout* layout, size_t offset, const T &data, VkShaderStageFlags stages) {
+            PushConstants(layout, offset, &data, sizeof(T), stages);
+        }
 
         template <typename T>
         void CopyDataToBuffer(const T &data, Buffer *buffer, size_t offset = 0);

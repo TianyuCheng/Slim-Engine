@@ -26,6 +26,7 @@ namespace slim {
     // RenderFrame is responsible for storing frame-scoped data for rendering purpose.
     class RenderFrame final : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend class Window;
+        friend class Descriptor;
     public:
         explicit RenderFrame(Context *context, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
         explicit RenderFrame(Context *context, GPUImage2D *backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
@@ -35,6 +36,7 @@ namespace slim {
         GPUImage2D*              GetBackBuffer() const { return backBuffer.get(); };
         VkExtent2D               GetExtent() const { VkExtent3D extent = backBuffer->GetExtent(); return { extent.width, extent.height }; };
         float                    GetAspectRatio() const;
+        DescriptorPool*          GetDescriptorPool() const;
 
         Pipeline*                RequestPipeline(const ComputePipelineDesc &desc);
         Pipeline*                RequestPipeline(const GraphicsPipelineDesc &desc);
@@ -42,7 +44,6 @@ namespace slim {
         RenderPass*              RequestRenderPass(const RenderPassDesc &renderPassDesc);
         Framebuffer*             RequestFramebuffer(const FramebufferDesc &framebufferDesc);
         CommandBuffer*           RequestCommandBuffer(VkQueueFlagBits queue, VkCommandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        VkDescriptorSet          RequestDescriptorSet(VkDescriptorSetLayout layout);
         Transient<GPUImage2D>    RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
 
         template <typename T>
@@ -64,10 +65,10 @@ namespace slim {
         SmartPtr<CommandPool>    transferCommandPools;
 
         // pools
-        std::unique_ptr<Image2DPool<CPUImage2D>>   cpuImagePool;
-        std::unique_ptr<Image2DPool<GPUImage2D>>   gpuImagePool;
-        std::unique_ptr<BufferPool<UniformBuffer>> uniformBufferPool;
-        std::unique_ptr<DescriptorPool>            descriptorPool;
+        SmartPtr<Image2DPool<CPUImage2D>>   cpuImagePool;
+        SmartPtr<Image2DPool<GPUImage2D>>   gpuImagePool;
+        SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool;
+        SmartPtr<DescriptorPool>            descriptorPool;
 
         // mappings
         std::unordered_map<std::string, SmartPtr<Pipeline>> pipelines;

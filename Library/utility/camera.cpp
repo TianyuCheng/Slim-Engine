@@ -22,5 +22,15 @@ void Camera::LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::ve
     view = glm::lookAt(eye, center, up);
 }
 
-void Camera::Cull(SceneNode *node) const {
+bool Camera::Cull(SceneNode *node, float &distance) const {
+    return false;
+}
+
+void Camera::Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const {
+    auto uniformBuffer = renderFrame->RequestUniformBuffer(proj * view);
+    uniformBuffer->Flush();
+
+    auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), layout);
+    descriptor->SetUniform("Camera", uniformBuffer);
+    commandBuffer->BindDescriptor(descriptor);
 }

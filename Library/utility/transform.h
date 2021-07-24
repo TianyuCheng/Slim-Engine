@@ -21,7 +21,7 @@ namespace slim {
         explicit Transform() = default;
 
         // initialize by existing transform matrix
-        explicit Transform(const glm::mat4 &xform);
+        Transform(const glm::mat4 &xform);
 
         // initialize by TRS (translation, rotation, scaling)
         explicit Transform(const glm::vec3 &translation,

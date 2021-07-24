@@ -19,6 +19,7 @@ namespace slim {
 
     class Pipeline;
     class Descriptor;
+    class DescriptorPool;
     class RenderFrame;
 
     struct VertexAttrib {
@@ -43,12 +44,16 @@ namespace slim {
         friend class PipelineLayout;
         friend class std::hash<PipelineLayoutDesc>;
     public:
+        PipelineLayoutDesc& AddPushConstant(const std::string &name, uint32_t offset, uint32_t size,
+                                            VkShaderStageFlags stages);
         PipelineLayoutDesc& AddBinding(const std::string &name, uint32_t set, uint32_t binding,
                                        VkDescriptorType descriptorType, VkShaderStageFlags stages);
         PipelineLayoutDesc& AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
                                             VkDescriptorType descriptorType, VkShaderStageFlags stages);
     private:
         mutable std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> bindings;
+        std::vector<std::string> pushConstantNames;
+        std::vector<VkPushConstantRange> pushConstantRange;
     };
 
     //  ____  _            _ _            _                            _
@@ -64,12 +69,15 @@ namespace slim {
     public:
         explicit PipelineLayout(Context *context, const PipelineLayoutDesc &desc);
         virtual ~PipelineLayout();
+        bool HasAttrib(const std::string &name) const;
+        std::tuple<size_t, size_t, VkShaderStageFlags> GetPushConstant(const std::string &name) const;
     private:
-        void Init(std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings);
+        void Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings);
     private:
         SmartPtr<Context> context;
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
         std::unordered_map<std::string, std::pair<VkDescriptorSetLayout, uint32_t>> mappings;
+        std::unordered_map<std::string, VkPushConstantRange> pushConstants;
         size_t hashValue;
     };
 
@@ -83,18 +91,19 @@ namespace slim {
     class Descriptor final : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend class CommandBuffer;
     public:
-        explicit Descriptor(RenderFrame *frame, Pipeline *pipeline);
+        explicit Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout);
         virtual ~Descriptor();
         void SetUniform(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
         void SetStorage(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
         void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
+        bool HasAttrib(const std::string &name) const;
     private:
         void Update();
         std::pair<VkDescriptorSet, uint32_t> FindDescriptorSet(const std::string &name);
         void SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size);
     private:
-        SmartPtr<RenderFrame> renderFrame;
-        SmartPtr<Pipeline> pipeline;
+        SmartPtr<DescriptorPool> pool;
+        SmartPtr<PipelineLayout> pipelineLayout;
         std::vector<VkWriteDescriptorSet> writes;
         std::list<VkDescriptorBufferInfo> bufferInfos;
         std::list<VkDescriptorImageInfo> imageInfos;
@@ -108,21 +117,48 @@ namespace slim {
     // |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|  |_|   \___/ \___/|_|
     //                             |_|
 
-    class DescriptorPool final {
+    class DescriptorPool final : public ReferenceCountable {
+        friend class Descriptor;
     public:
         explicit DescriptorPool(Context *context, uint32_t poolSize);
         virtual ~DescriptorPool();
         void Reset();
         VkDescriptorSet Request(VkDescriptorSetLayout layout);
+        Context* GetContext() const { return context; }
     private:
         uint32_t FindAvailablePoolIndex(uint32_t poolIndex);
     private:
-        Context *context;
+        SmartPtr<Context> context;
         uint32_t poolIndex = 0;
         uint32_t maxPoolSets;
         std::vector<VkDescriptorPool> pools;
         std::vector<VkDescriptorPoolSize> poolSizes;
         std::vector<uint32_t> poolSetCounts;
+    };
+
+    //  ____  _            _ _              ____
+    // |  _ \(_)_ __   ___| (_)_ __   ___  |  _ \  ___  ___  ___
+    // | |_) | | '_ \ / _ \ | | '_ \ / _ \ | | | |/ _ \/ __|/ __|
+    // |  __/| | |_) |  __/ | | | | |  __/ | |_| |  __/\__ \ (__
+    // |_|   |_| .__/ \___|_|_|_| |_|\___| |____/ \___||___/\___|
+    //         |_|
+
+    class PipelineDesc {
+    public:
+        PipelineDesc(VkPipelineBindPoint bindPoint);
+        PipelineDesc(const std::string &name, VkPipelineBindPoint bindPoint);
+
+        void Initialize(Context* context);
+
+        PipelineLayout* Layout() const { return pipelineLayout; }
+        VkPipelineBindPoint Type() const { return bindPoint; }
+        const std::string& GetName() const { return name; }
+
+    protected:
+        std::string name = "";
+        VkPipelineBindPoint bindPoint;
+        SmartPtr<PipelineLayout> pipelineLayout;
+        PipelineLayoutDesc pipelineLayoutDesc;
     };
 
     //   ____                            _
@@ -135,20 +171,17 @@ namespace slim {
 
     // ComputePipelineDesc should hold the data for all configurations needed for compute pipeline.
     // When pipeline is initialized, nothing should be changeable (except for dynamic states).
-    class ComputePipelineDesc final : public TriviallyConvertible<VkComputePipelineCreateInfo> {
+    class ComputePipelineDesc final : public PipelineDesc, public TriviallyConvertible<VkComputePipelineCreateInfo> {
         friend class Pipeline;
     public:
         explicit ComputePipelineDesc();
+        explicit ComputePipelineDesc(const std::string &name);
         virtual ~ComputePipelineDesc() = default;
 
         ComputePipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
-        const std::string& GetName() const { return name; }
 
         ComputePipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layout);
         ComputePipelineDesc& SetComputeShader(Shader* shader);
-    private:
-        std::string name;
-        PipelineLayoutDesc pipelineLayoutDesc;
     };
 
     //   ____                 _     _
@@ -160,14 +193,14 @@ namespace slim {
 
     // GraphicsPipelineDesc should hold the data for all configurations needed for graphics pipeline.
     // When pipeline is initialized, nothing should be changeable (except for dynamic states).
-    class GraphicsPipelineDesc final : public TriviallyConvertible<VkGraphicsPipelineCreateInfo> {
+    class GraphicsPipelineDesc final : public PipelineDesc, public TriviallyConvertible<VkGraphicsPipelineCreateInfo> {
         friend class Pipeline;
     public:
         explicit GraphicsPipelineDesc();
+        explicit GraphicsPipelineDesc(const std::string &name);
         virtual ~GraphicsPipelineDesc() = default;
 
         GraphicsPipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
-        const std::string& GetName() const { return name; }
 
         GraphicsPipelineDesc& SetPrimitive(VkPrimitiveTopology primitive, bool dynamic = false);
         GraphicsPipelineDesc& SetCullMode(VkCullModeFlags cullMode, bool dynamic = false);
@@ -201,9 +234,6 @@ namespace slim {
         void InitDynamicState();
 
     private:
-        std::string name = "";
-
-        PipelineLayoutDesc pipelineLayoutDesc;
         SmartPtr<RenderPass> renderPass;
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
@@ -231,13 +261,12 @@ namespace slim {
 
     // TODO: RayTracingPipelineDesc is currently just a placeholder, its implementation is not targeted as
     // first-class. I will come back to this once other things are settled.
-    class RayTracingPipelineDesc final : public TriviallyConvertible<VkRayTracingPipelineCreateInfoKHR> {
+    class RayTracingPipelineDesc final : public PipelineDesc, public TriviallyConvertible<VkRayTracingPipelineCreateInfoKHR> {
         friend class Pipeline;
     public:
+        explicit RayTracingPipelineDesc();
+        explicit RayTracingPipelineDesc(const std::string &name);
         RayTracingPipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
-        const std::string& GetName() const { return name; }
-    private:
-        std::string name;
     };
 
     //  ____  _            _ _

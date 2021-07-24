@@ -329,11 +329,10 @@ void CommandBuffer::BindPipeline(Pipeline *pipeline) {
     vkCmdBindPipeline(handle, pipeline->Type(), *pipeline);
 }
 
-void CommandBuffer::BindDescriptor(Descriptor *descriptor) {
+void CommandBuffer::BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint) {
     descriptor->Update();
 
-    VkPipelineBindPoint bindPoint = descriptor->pipeline->Type();
-    VkPipelineLayout layout = *descriptor->pipeline->Layout();
+    VkPipelineLayout layout = *descriptor->pipelineLayout;
 
     // bind descriptor set individually (need to optimize it later)
     // TODO: batch descriptor sets binding if possible
@@ -356,6 +355,15 @@ void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<Vertex
     for (auto buffer : buffers)
         vBuffers.push_back(*buffer);
     vkCmdBindVertexBuffers(handle, binding, vBuffers.size(), vBuffers.data(), offsets.data());
+}
+
+void CommandBuffer::PushConstants(PipelineLayout *layout, const std::string &name, const void *value) {
+    const auto& [offset, size, stages] = layout->GetPushConstant(name);
+    PushConstants(layout, offset, value, size, stages);
+}
+
+void CommandBuffer::PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages) {
+    vkCmdPushConstants(handle, *layout, stages, offset, size, value);
 }
 
 CommandPool::CommandPool(Context *context, uint32_t queueFamilyIndex) : context(context) {

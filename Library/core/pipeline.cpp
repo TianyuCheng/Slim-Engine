@@ -12,6 +12,15 @@ using namespace slim;
 // |_|   |_| .__/ \___|_|_|_| |_|\___|_____\__,_|\__, |\___/ \__,_|\__|____/ \___||___/\___|
 //         |_|                                   |___/
 
+PipelineLayoutDesc& PipelineLayoutDesc::AddPushConstant(const std::string &name, uint32_t offset, uint32_t size,
+                                                        VkShaderStageFlags stages) {
+    pushConstantNames.push_back(name);
+    pushConstantRange.push_back(VkPushConstantRange {
+        stages, offset, size
+    });
+    return *this;
+}
+
 PipelineLayoutDesc& PipelineLayoutDesc::AddBinding(const std::string &name, uint32_t set, uint32_t binding,
                                                    VkDescriptorType descriptorType, VkShaderStageFlags stages) {
     return AddBindingArray(name, set, binding, 1, descriptorType, stages);
@@ -40,10 +49,17 @@ PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name,
 //         |_|                                   |___/
 
 PipelineLayout::PipelineLayout(Context *context, const PipelineLayoutDesc &desc) : context(context) {
-    Init(desc.bindings);
+    Init(desc, desc.bindings);
+
+    for (uint32_t i = 0; i < desc.pushConstantNames.size(); i++) {
+        pushConstants.insert(std::make_pair(
+            desc.pushConstantNames[i],
+            desc.pushConstantRange[i]
+        ));
+    }
 }
 
-void PipelineLayout::Init(std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings) {
+void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings) {
     hashValue = 0x0;
 
     // iteratively create descriptor set layouts
@@ -81,6 +97,8 @@ void PipelineLayout::Init(std::multimap<uint32_t, std::vector<DescriptorSetLayou
     pipelineLayoutCreateInfo.pNext = nullptr;
     pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayouts.size();
     pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
+    pipelineLayoutCreateInfo.pushConstantRangeCount = desc.pushConstantRange.size();
+    pipelineLayoutCreateInfo.pPushConstantRanges = desc.pushConstantRange.data();
     ErrorCheck(vkCreatePipelineLayout(context->GetDevice(), &pipelineLayoutCreateInfo, nullptr, &handle), "create pipeline layout");
 }
 
@@ -94,6 +112,23 @@ PipelineLayout::~PipelineLayout() {
     }
 }
 
+bool PipelineLayout::HasAttrib(const std::string &name) const {
+    return mappings.find(name) != mappings.end();
+}
+
+std::tuple<size_t, size_t, VkShaderStageFlags> PipelineLayout::GetPushConstant(const std::string &name) const {
+    auto it = pushConstants.find(name);
+
+    #ifndef NDEBUG
+    if (it == pushConstants.end()) {
+        throw std::runtime_error("[PipelineLayout] Failed to find push constant == " + name);
+    }
+    #endif
+
+    const auto &pushConstant = it->second;
+    return std::make_tuple(pushConstant.offset, pushConstant.size, pushConstant.stageFlags);
+}
+
 //  ____                      _       _
 // |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __
 // | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__|
@@ -101,20 +136,24 @@ PipelineLayout::~PipelineLayout() {
 // |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|
 //                             |_|
 
-Descriptor::Descriptor(RenderFrame *frame, Pipeline *pipeline)
-    : renderFrame(frame), pipeline(pipeline) {
+Descriptor::Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout)
+    : pool(pool), pipelineLayout(pipelineLayout) {
 }
 
 Descriptor::~Descriptor() {
 }
 
 void Descriptor::Update() {
-    VkDevice device = renderFrame->GetContext()->GetDevice();
+    VkDevice device = pool->GetContext()->GetDevice();
     vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 
     writes.clear();
     imageInfos.clear();
     bufferInfos.clear();
+}
+
+bool Descriptor::HasAttrib(const std::string &name) const {
+    return pipelineLayout->HasAttrib(name);
 }
 
 void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *sampler) {
@@ -185,13 +224,13 @@ std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::st
 
     VkDescriptorSet descriptorSet;
 
-    auto it = pipeline->Layout()->mappings.find(name);
-    if (it == pipeline->Layout()->mappings.end()) {
+    auto it = pipelineLayout->mappings.find(name);
+    if (it == pipelineLayout->mappings.end()) {
         throw std::runtime_error("Failed to find binding with name: " + name);
     }
 
     VkDescriptorSetLayout layout = it->second.first;
-    uint32_t set = indexOf(pipeline->Layout()->descriptorSetLayouts, layout);
+    uint32_t set = indexOf(pipelineLayout->descriptorSetLayouts, layout);
     uint32_t binding = it->second.second;
 
     // augment the descriptor sets array
@@ -199,7 +238,7 @@ std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::st
         descriptorSets.push_back(VK_NULL_HANDLE);
 
     if (descriptorSets[set] == VK_NULL_HANDLE) {
-        descriptorSets[set] = renderFrame->RequestDescriptorSet(layout);
+        descriptorSets[set] = pool->Request(layout);
     }
 
     descriptorSet = descriptorSets[set];
@@ -297,6 +336,27 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
     return descriptorSet;
 }
 
+//  ____  _            _ _              ____
+// |  _ \(_)_ __   ___| (_)_ __   ___  |  _ \  ___  ___  ___
+// | |_) | | '_ \ / _ \ | | '_ \ / _ \ | | | |/ _ \/ __|/ __|
+// |  __/| | |_) |  __/ | | | | |  __/ | |_| |  __/\__ \ (__
+// |_|   |_| .__/ \___|_|_|_| |_|\___| |____/ \___||___/\___|
+//         |_|
+
+PipelineDesc::PipelineDesc(VkPipelineBindPoint bindPoint) : bindPoint(bindPoint) {
+
+}
+
+PipelineDesc::PipelineDesc(const std::string &name, VkPipelineBindPoint bindPoint) : name(name), bindPoint(bindPoint) {
+
+}
+
+void PipelineDesc::Initialize(Context* context) {
+    if (!pipelineLayout) {
+        pipelineLayout = SlimPtr<PipelineLayout>(context, pipelineLayoutDesc);
+    }
+}
+
 //   ____                            _
 //  / ___|___  _ __ ___  _ __  _   _| |_ ___
 // | |   / _ \| '_ ` _ \| '_ \| | | | __/ _ \
@@ -305,7 +365,13 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
 //                      |_|
 //
 
-ComputePipelineDesc::ComputePipelineDesc() {
+ComputePipelineDesc::ComputePipelineDesc() : PipelineDesc(VK_PIPELINE_BIND_POINT_COMPUTE) {
+    handle.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    handle.flags = 0;
+    handle.pNext = nullptr;
+}
+
+ComputePipelineDesc::ComputePipelineDesc(const std::string &name) : PipelineDesc(name, VK_PIPELINE_BIND_POINT_COMPUTE) {
     handle.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     handle.flags = 0;
     handle.pNext = nullptr;
@@ -328,7 +394,17 @@ ComputePipelineDesc& ComputePipelineDesc::SetComputeShader(Shader* shader) {
 //  \____|_|  \__,_| .__/|_| |_|_|\___|___/
 //                 |_|
 
-GraphicsPipelineDesc::GraphicsPipelineDesc() {
+GraphicsPipelineDesc::GraphicsPipelineDesc() : PipelineDesc(VK_PIPELINE_BIND_POINT_GRAPHICS) {
+    handle = {};
+    InitInputAssemblyState();
+    InitRasterizationState();
+    InitColorBlendState();
+    InitDepthStencilState();
+    InitMultisampleState();
+    InitDynamicState();
+}
+
+GraphicsPipelineDesc::GraphicsPipelineDesc(const std::string &name) : PipelineDesc(name, VK_PIPELINE_BIND_POINT_GRAPHICS) {
     handle = {};
     InitInputAssemblyState();
     InitRasterizationState();
@@ -557,7 +633,8 @@ Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(conte
     assert(desc.renderPass && "PipelineDesc must have a valid renderPass!");
     #endif
 
-    layout = SlimPtr<PipelineLayout>(context, desc.pipelineLayoutDesc);
+    desc.Initialize(context);
+    layout = desc.Layout();
 
     // vertex attributes & input bindings
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
@@ -605,8 +682,9 @@ Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(conte
     ErrorCheck(vkCreateGraphicsPipelines(context->GetDevice(), VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create graphics pipeline");
 }
 
-Pipeline::Pipeline(Context *context, ComputePipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_COMPUTE){
-    layout = SlimPtr<PipelineLayout>(context, desc.pipelineLayoutDesc);
+Pipeline::Pipeline(Context *context, ComputePipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_COMPUTE) {
+    desc.Initialize(context);
+    layout = desc.Layout();
 
     desc.handle.basePipelineHandle = handle;
     desc.handle.basePipelineIndex = 0;

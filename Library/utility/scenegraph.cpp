@@ -1,46 +1,6 @@
-#include <deque>
-#include <unordered_map>
 #include "utility/scenegraph.h"
 
 using namespace slim;
-
-// type shortcuts
-using Key           = Material*;
-using ValAscending  = std::vector<SceneNode*>;
-using ValDescending = std::vector<SceneNode*>;
-using ValUnordered  = std::vector<SceneNode*>;
-using MapAscending  = std::unordered_map<Key, ValAscending>;
-using MapDescending = std::unordered_map<Key, ValDescending>;
-using MapUnordered  = std::unordered_map<Key, ValUnordered>;
-
-// -------------------------------------------------------------
-
-bool CompareNodeAscending(SceneNode* left, SceneNode* right) {
-    return left->GetDistanceToCamera() < right->GetDistanceToCamera();
-}
-
-bool CompareNodeDescending(SceneNode* left, SceneNode* right) {
-    return left->GetDistanceToCamera() > right->GetDistanceToCamera();
-}
-
-template <typename MapType>
-void AddToMapList(MapType& container, Material* material, SceneNode *node) {
-    auto it = container.find(material);
-    if (it == container.end()) {
-        container.insert(std::make_pair(material, ValAscending()));
-        it = container.find(material);
-    }
-    it->second.push_back(node);
-}
-
-template <typename MapType, typename Comparator>
-void SortMapList(MapType& container, const Comparator &comparator) {
-    for (auto &kv : container) {
-        std::sort(kv.second.begin(), kv.second.end(), comparator);
-    }
-}
-
-// -------------------------------------------------------------
 
 void SceneComponent::OnInit(SceneNode *) {
 }
@@ -51,13 +11,12 @@ void SceneComponent::OnUpdate(SceneNode *) {
 SceneNode::SceneNode() : name("") {
 }
 
-SceneNode::SceneNode(const std::string &name) : name(name) {
+SceneNode::SceneNode(const std::string &name, SceneNode *parent) : name(name), parent(parent) {
+    if (parent) parent->AddChild(this);
 }
 
-SceneNode* SceneNode::AddChild(const std::string &name) {
-    SceneNode *node = new SceneNode(name);
-    children.push_back(node);
-    return node;
+void SceneNode::AddChild(SceneNode* child) {
+    children.push_back(child);
 }
 
 SceneNode::~SceneNode() {
@@ -119,80 +78,118 @@ void SceneNode::Translate(float x, float y, float z) {
     transform.Translate(x, y, z);
 }
 
-void SceneNode::Render(const RenderGraph &graph, const Camera &camera) {
-    // quick test
-    if (this->IsCulled() || !this->IsVisible()) return;
+bool CompareDrawableAscending(const Drawable& left, const Drawable& right) {
+    return left.distance < right.distance;
+}
 
-    // We should draw opque objects front to back;
-    // background is for things like skybox;
-    // unordered is for things that does not need an order, e.g. OIT
-    // We should draw transparent objects afterwards, but sorted back to front.
-    MapAscending opaque;
-    MapAscending background;
-    MapUnordered unordered;
-    MapDescending transparent;
+bool CompareDrawableDescending(const Drawable& left, const Drawable& right) {
+    return left.distance > right.distance;
+}
 
-    // node traversal
-    std::deque<SceneNode*> nodes;
-    nodes.push_back(this);
-    while (!nodes.empty()) {
-        // get the front node
-        SceneNode *node = nodes.front();
+SceneGraph::SceneGraph(SceneNode* node) : root(node) {
+}
 
-        // find a queue to fit this object in
-        if (Material *material = node->GetMaterial())  {
-            Material::Queue queue = material->GetMaterialQueue();
-
-            switch (queue) {
-                case Material::Queue::Opaque:      AddToMapList(opaque,      material, node); break;
-                case Material::Queue::Background:  AddToMapList(background,  material, node); break;
-                case Material::Queue::Unordered:   AddToMapList(unordered,   material, node); break;
-                case Material::Queue::Transparent: AddToMapList(transparent, material, node); break;
-                default: throw std::runtime_error("[SceneGraph] unhandled material queue type");
-            }
-        }
-
-        // add children
-        for (auto &child : node->children) {
-            if (!child->IsCulled() && this->IsVisible())
-                nodes.push_back(child);
-        }
-
-        // update queue
-        nodes.pop_front();
+void SceneGraph::AddDrawable(RenderQueue renderQueue, Material *material, const Drawable &drawable) {
+    // find the first level render queue
+    auto it = cullingResults.find(renderQueue);
+    if (it == cullingResults.end()) {
+        cullingResults.insert(std::make_pair(renderQueue, ValList()));
+        it = cullingResults.find(renderQueue);
     }
 
-    // sort objects in the map
-    SortMapList(opaque, CompareNodeAscending);
-    SortMapList(background, CompareNodeAscending);
-    SortMapList(transparent, CompareNodeDescending);
+    // find the second level material queue
+    auto it2 = it->second.find(material);
+    if (it2 == it->second.end()) {
+        it->second.insert(std::make_pair(material, Val()));
+        it2 = it->second.find(material);
+    }
 
-    // structured render information for argument passing
+    it2->second.push_back(drawable);
+}
+
+void SceneGraph::Cull(const Camera &camera) {
+    Cull(root, camera);
+}
+
+void SceneGraph::Cull(SceneNode *node, const Camera &camera) {
+    // quick test for manually turned off nodes
+    if (!node->IsVisible()) return;
+
+    bool drawable = true;
+
+    // do camera culling
+    float distance = 0.0f;
+    if (drawable && !camera.Cull(node, distance)) {
+        drawable = false;
+    }
+
+    // check if this node is drawable
+    Material* material = node->GetMaterial();
+    const auto& mesh = node->GetMesh();
+    if (material && mesh.mesh) {
+        for (const auto &pass : *material->GetTechnique()) {
+            Drawable drawable = {
+                const_cast<Submesh*>(&mesh),
+                pass.pipeline,
+                distance,
+                node->GetTransform().LocalToWorld(),
+            };
+            AddDrawable(pass.queue, material, drawable);
+        }
+    }
+
+    // child node traversal
+    for (SceneNode* child : *node) {
+        Cull(child, camera);
+    }
+}
+
+void SceneGraph::Render(const RenderGraph& renderGraph, const Camera &camera, RenderQueue queue, SortingOrder sorting) {
+    // skip if there is nothing in the render queue
+    auto it = cullingResults.find(queue);
+    if (it == cullingResults.end()) return;
+
+    RenderPass* renderPass = renderGraph.GetRenderPass();
+    RenderFrame* renderFrame = renderGraph.GetRenderFrame();
+    CommandBuffer* commandBuffer = renderGraph.GetGraphicsCommandBuffer();
+
     RenderInfo renderInfo = {};
-    renderInfo.renderPass = graph.GetRenderPass();
-    renderInfo.renderFrame = graph.GetRenderFrame();
-    renderInfo.commandBuffer = graph.GetGraphicsCommandBuffer();
-    renderInfo.camera = &camera;
+    renderInfo.camera = const_cast<Camera*>(&camera);
+    renderInfo.renderPass = renderPass;
+    renderInfo.renderFrame = renderFrame;
+    renderInfo.commandBuffer = commandBuffer;
 
-    #define RENDER(LIST)                                        \
-    for (auto &kv : LIST) {                                     \
-        auto &material = kv.first;                              \
-        auto &queue = kv.second;                                \
-        renderInfo.material = material;                         \
-        renderInfo.sceneNodeData = queue.data();                \
-        renderInfo.sceneNodeCount = queue.size();               \
-        material->Bind(renderInfo);                             \
-        material->PrepareMaterial(renderInfo);                  \
-        for (auto node : queue) {                               \
-            renderInfo.sceneNode = node;                        \
-            material->PrepareSceneNode(renderInfo);             \
-            node->submesh.Bind(renderInfo.commandBuffer);       \
-            node->submesh.Draw(renderInfo.commandBuffer);       \
-        }                                                       \
+    // draw objects grouped by material
+    auto& mapper = it->second;
+    for (auto &kv : mapper) {
+        Material* material = kv.first;
+
+        // fetch queue index and pipeline layout
+        uint32_t queueIndex = material->QueueIndex(queue);
+        PipelineLayout* layout = material->Layout(queueIndex);
+
+        // bind material specific pipeline & descriptors
+        material->Bind(queueIndex, commandBuffer, renderFrame, renderPass);
+
+        // bind camera for all drawables with this material
+        camera.Bind(commandBuffer, renderFrame, layout);
+
+        // sort drawables front to back
+        if (sorting == SortingOrder::FrontToback)
+            std::sort(kv.second.begin(), kv.second.end(), CompareDrawableAscending);
+
+        // sort drawables back to front
+        if (sorting == SortingOrder::BackToFront)
+            std::sort(kv.second.begin(), kv.second.end(), CompareDrawableDescending);
+
+        const auto& [offset, _, stages] = layout->GetPushConstant("Xform");
+
+        // draw
+        for (const auto& drawable : kv.second) {
+            commandBuffer->PushConstants(layout, offset, drawable.transform, stages);
+            drawable.submesh->Bind(commandBuffer);
+            drawable.submesh->Draw(commandBuffer);
+        }
     }
-    RENDER(opaque);
-    RENDER(background);
-    RENDER(unordered);
-    RENDER(transparent);
-    #undef RENDER
+
 }

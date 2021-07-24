@@ -7,7 +7,7 @@
 
 namespace slim {
 
-    class Mesh final : public ReferenceCountable {
+    class Mesh final : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend struct Submesh;
     public:
         template <typename T>

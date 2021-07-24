@@ -1,66 +1,61 @@
 #ifndef SLIM_UTILITY_MATERIAL_H
 #define SLIM_UTILITY_MATERIAL_H
 
-#include <functional>
 #include "core/shader.h"
 #include "core/commands.h"
 #include "core/pipeline.h"
 #include "core/renderpass.h"
 #include "core/renderframe.h"
 #include "utility/camera.h"
+#include "utility/technique.h"
 #include "utility/interface.h"
 
 namespace slim {
 
-    class SceneNode;
-    class RenderPass;
-    class RenderFrame;
-    class CommandBuffer;
-    class Material;
-
     struct RenderInfo {
-        RenderPass*      renderPass     = nullptr;
-        RenderFrame*     renderFrame    = nullptr;
-        CommandBuffer*   commandBuffer  = nullptr;
-        size_t           sceneNodeCount = 0;
-        SceneNode**      sceneNodeData  = nullptr;
-        SceneNode*       sceneNode      = nullptr;
-        const Material*  material       = nullptr;
-        const Camera*    camera         = nullptr;
+        Camera *camera = nullptr;
+        RenderPass *renderPass = nullptr;
+        RenderFrame *renderFrame = nullptr;
+        CommandBuffer *commandBuffer = nullptr;
     };
 
-    class Material final : public ReferenceCountable {
+    class Material final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
+        explicit Material(Context *context, Technique *technique);
+        virtual ~Material();
 
-        enum Queue : uint32_t {
-            Opaque      = 1000,
-            Background  = 2000,
-            Unordered   = 3000,
-            Transparent = 4000,
-        };
+        Technique* GetTechnique() const { return technique; }
 
-        explicit Material(const std::string &name, Queue queue);
-        virtual ~Material() = default;
+        void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
+        void SetUniform(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
+        void SetStorage(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
 
-        Queue GetMaterialQueue() { return queue; }
+        template <typename T>
+        void SetUniform(const std::string &name, const T &data) {
+            UniformBuffer* uniform = uniformBufferPool->Request(sizeof(T));
+            uniform->SetData(data);
+            SetUniform(name, uniform, 0, 0);
+        }
 
-        GraphicsPipelineDesc& GetPipelineDesc() { return desc; }
+        uint32_t QueueIndex(RenderQueue queue) const {
+            return technique->QueueIndex(queue);
+        }
 
-        Pipeline* GetPipeline() const { return pipeline; }
+        PipelineLayout* Layout(uint32_t index) const {
+            return technique->Layout(index);
+        }
 
-        void Bind(const RenderInfo &renderInfo);
-
-        std::function<void(const RenderInfo &)> PrepareMaterial
-            = [](const RenderInfo &) { };
-
-        std::function<void(const RenderInfo &)> PrepareSceneNode
-            = [](const RenderInfo &) { };
+        void Bind(uint32_t queueIndex,
+                  CommandBuffer *commandBuffer,
+                  RenderFrame *renderFrame,
+                  RenderPass *renderPass) const;
 
     private:
-        std::string name;
-        Queue queue;
-        GraphicsPipelineDesc desc;
-        Pipeline* pipeline = nullptr;
+        SmartPtr<Context> context;
+        SmartPtr<Technique> technique = nullptr;
+        SmartPtr<DescriptorPool> descriptorPool = nullptr;
+        SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool = nullptr;
+        std::vector<SmartPtr<Descriptor>> descriptors;
     };
 
 } // end of namespace slim

@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include "core/commands.h"
 #include "core/renderframe.h"
 #include "utility/interface.h"
@@ -18,38 +19,51 @@ namespace slim {
     class SceneGraph;
     class SceneComponent;
 
-    class SceneComponent : public ReferenceCountable {
+    class SceneComponent : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         virtual void OnInit(SceneNode *node);
         virtual void OnUpdate(SceneNode *node);
     };
 
-    class SceneNode final : public ReferenceCountable {
+    class SceneNode final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         friend class Camera;
         friend class SceneGraph;
         friend class SceneComponent;
 
-        explicit   SceneNode();
-        explicit   SceneNode(const std::string &name);
-        virtual    ~SceneNode();
+        explicit        SceneNode();
+        explicit        SceneNode(const std::string &name, SceneNode *parent = nullptr);
+        virtual         ~SceneNode();
 
-        SceneNode* AddChild(const std::string &name);
-        void       AddComponent(SceneComponent* component);
+        void            AddChild(SceneNode* child);
+        void            AddComponent(SceneComponent* component);
 
-        void       Init();
-        void       Update();
-        void       Render(const RenderGraph &graph, const Camera &camera);
+        void            Init();
+        void            Update();
 
-        void           SetMesh(Submesh submesh)        { this->submesh = submesh;        }
-        void           SetMaterial(Material *material) { this->material = material;      }
-        const Submesh& GetMesh()     const             { return submesh;                 }
-        Material*      GetMaterial() const             { return material.get();          }
+        void            SetMesh(Submesh submesh)        { this->submesh = submesh;        }
+        void            SetMaterial(Material *material) { this->material = material;      }
+        const Submesh&  GetMesh()     const             { return submesh;                 }
+        Material*       GetMaterial() const             { return material.get();          }
 
-        auto       begin()       { return children.begin(); }
-        auto       begin() const { return children.begin(); }
-        auto       end()         { return children.end();   }
-        auto       end()   const { return children.end();   }
+        auto            begin()       { return children.begin(); }
+        auto            begin() const { return children.begin(); }
+        auto            end()         { return children.end();   }
+        auto            end()   const { return children.end();   }
+
+        const std::string& GetName() const { return name; }
+
+        // mark if this object is visible
+        void SetVisible(bool value) { visible = value; }
+        bool IsVisible() const { return visible; }
+
+        Transform& GetTransform() { return transform; }
+        const Transform& GetTransform() const { return transform; }
+        void SetTransform(const Transform& xform) { transform = xform; }
+
+        void Scale(float x, float y, float z);
+        void Rotate(const glm::vec3& axis, float radians);
+        void Translate(float x, float y, float z);
 
         template <typename T>
         T* GetComponent() {
@@ -59,27 +73,6 @@ namespace slim {
             return nullptr;
         }
 
-        // mark if this object is visible
-        void SetVisible(bool value) { visible = value; }
-        bool IsVisible() const { return visible; }
-
-        // mark if this object is culled or not
-        void SetCulled(bool value) { culled = value; }
-        bool IsCulled() const { return culled; }
-
-        // set the distsance from camera to object
-        void SetDistanceToCamera(float distance) { distanceToCamera = distance; }
-        float GetDistanceToCamera() const { return distanceToCamera; }
-
-        const std::string& GetName() const { return name; }
-
-        Transform& GetTransform() { return transform; }
-        const Transform& GetTransform() const { return transform; }
-
-        void Scale(float x, float y, float z);
-        void Rotate(const glm::vec3& axis, float radians);
-        void Translate(float x, float y, float z);
-
     private:
         void Init(SceneNode* parent);
         void Update(SceneNode* parent);
@@ -88,19 +81,49 @@ namespace slim {
     private:
         std::string name;                   // node name
         Transform transform;
+        SceneNode* parent = nullptr;
 
         Submesh submesh;
         SmartPtr<Material> material;
-        std::vector<SmartPtr<SceneNode>> children;
+        std::vector<SceneNode*> children;
         std::vector<SmartPtr<SceneComponent>> components;
 
         // states
-        bool culled = false;
         bool visible = true;
-        float distanceToCamera = 0.0f;
     }; // end of scene node class
 
-    using Scene = SceneNode;
+
+    struct Drawable {
+        Submesh  *submesh;
+        Pipeline *pipeline;
+        float     distance;
+        glm::mat4 transform;
+    };
+
+    class SceneGraph : public NotCopyable, public NotMovable, public ReferenceCountable {
+    public:
+        explicit SceneGraph() = default;
+        explicit SceneGraph(SceneNode* node);
+        virtual ~SceneGraph() = default;
+
+        void SetRootNode(SceneNode* node) { root = node; }
+
+        void Cull(const Camera &camera);
+        void Render(const RenderGraph& renderGraph, const Camera &camera, RenderQueue queue, SortingOrder sorting);
+
+    private:
+        void Cull(SceneNode *node, const Camera &camera);
+        void AddDrawable(RenderQueue renderQueue, Material *material, const Drawable &drawable);
+
+    private:
+        SceneNode* root = nullptr;
+
+        // Culling Results
+        using Key = RenderQueue;
+        using Val = std::vector<Drawable>;
+        using ValList = std::unordered_map<Material*, Val>;
+        std::unordered_map<Key, ValList> cullingResults;
+    };
 
 } // end of namespace slim
 

@@ -5,6 +5,9 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
+#include "core/pipeline.h"
+#include "core/commands.h"
+#include "core/renderframe.h"
 #include "utility/interface.h"
 
 namespace slim {
@@ -14,13 +17,14 @@ namespace slim {
     class Camera {
     public:
         Camera(const std::string &name);
-        Camera(const Camera &camera) = default;
         virtual ~Camera() = default;
 
         virtual std::string GetName() const { return name; }
 
         // perform frustum culling
-        virtual void Cull(SceneNode *node) const;
+        // return true for things needs to be culled
+        // return false for things needs to be culled
+        virtual bool Cull(SceneNode *node, float &distance) const;
 
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up);
 
@@ -30,7 +34,7 @@ namespace slim {
 
         virtual void Perspective(float fovy, float aspect, float near, float far);
 
-        virtual glm::mat4 GetViewProjection() const { return proj * view; }
+        void Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const;
 
     private:
         std::string name;

@@ -60,6 +60,8 @@ set(SLIM_UTILITY_SOURCES
     utility/texture.cpp
     utility/rendergraph.h
     utility/rendergraph.cpp
+    utility/renderqueue.h
+    utility/renderqueue.cpp
     utility/scenegraph.h
     utility/scenegraph.cpp
     utility/transform.h
@@ -70,12 +72,16 @@ set(SLIM_UTILITY_SOURCES
     utility/mesh.cpp
     utility/skinnedmesh.h
     utility/skinnedmesh.cpp
+    utility/technique.h
+    utility/technique.cpp
     utility/material.h
     utility/material.cpp
     utility/animator.h
     utility/animator.cpp
     utility/assets.h
     utility/assets.cpp
+    utility/boundingbox.h
+    utility/boundingbox.cpp
 )
 
 add_library(slim SHARED

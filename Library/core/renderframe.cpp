@@ -18,10 +18,10 @@ RenderFrame::RenderFrame(Context *context, uint32_t maxSetsPerPool) : context(co
         transferCommandPools = SlimPtr<CommandPool>(context, queueFamilyIndices.transfer.value());
 
     // initialize pools for resource allocation
-    cpuImagePool = std::make_unique<Image2DPool<CPUImage2D>>(context);
-    gpuImagePool = std::make_unique<Image2DPool<GPUImage2D>>(context);
-    uniformBufferPool = std::make_unique<BufferPool<UniformBuffer>>(context);
-    descriptorPool = std::make_unique<DescriptorPool>(context, maxSetsPerPool);
+    cpuImagePool = SlimPtr<Image2DPool<CPUImage2D>>(context);
+    gpuImagePool = SlimPtr<Image2DPool<GPUImage2D>>(context);
+    uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(context);
+    descriptorPool = SlimPtr<DescriptorPool>(context, maxSetsPerPool);
 
     // initialize synchronization objects
     imageAvailableSemaphore = SlimPtr<Semaphore>(context);
@@ -59,6 +59,10 @@ void RenderFrame::SetBackBuffer(GPUImage2D *backBuffer) {
 float RenderFrame::GetAspectRatio() const {
     const VkExtent3D &extent = backBuffer->GetExtent();
     return static_cast<float>(extent.width) / static_cast<float>(extent.height);
+}
+
+DescriptorPool* RenderFrame::GetDescriptorPool() const {
+    return descriptorPool;
 }
 
 void RenderFrame::Present(CommandBuffer *commandBuffer) {
@@ -142,10 +146,6 @@ CommandBuffer* RenderFrame::RequestCommandBuffer(VkQueueFlagBits queue, VkComman
         default:
             throw std::runtime_error("Fail to request command buffer other than compute/graphics/transfer");
     }
-}
-
-VkDescriptorSet RenderFrame::RequestDescriptorSet(VkDescriptorSetLayout layout) {
-    return descriptorPool->Request(layout);
 }
 
 Transient<GPUImage2D> RenderFrame::RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage) {

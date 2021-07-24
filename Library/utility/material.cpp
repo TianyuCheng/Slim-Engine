@@ -2,15 +2,54 @@
 
 using namespace slim;
 
-Material::Material(const std::string &name, Queue queue) : name(name), queue(queue) {
+Material::Material(Context *context, Technique *technique) : technique(technique) {
+    // a material should not need too many descriptors,
+    // 32 should be large enough for most cases without
+    // needing to create additional descriptorPool
+    descriptorPool = SlimPtr<DescriptorPool>(context, 32);
+    uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(context);
+
+    // need to initialize layout
+    for (Technique::Pass &pass : *technique) {
+        pass.desc.Initialize(context);
+    }
+
+    // initialize descriptors
+    for (Technique::Pass &pass : *technique) {
+        descriptors.push_back(SlimPtr<Descriptor>(descriptorPool, pass.desc.Layout()));
+    }
 }
 
-void Material::Bind(const RenderInfo &renderInfo) {
-    // update pipeline viewport
-    desc.SetViewport(renderInfo.renderFrame->GetExtent());
-    desc.SetRenderPass(renderInfo.renderPass);
+Material::~Material() {
 
-    // request and bind pipeline
-    pipeline = renderInfo.renderFrame->RequestPipeline(desc);
-    renderInfo.commandBuffer->BindPipeline(pipeline);
+}
+
+void Material::SetTexture(const std::string &name, Image *texture, Sampler *sampler) {
+    for (Descriptor* descriptor : descriptors)
+        if (descriptor->HasAttrib(name))
+            descriptor->SetTexture(name, texture, sampler);
+}
+
+void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
+    for (Descriptor* descriptor : descriptors)
+        if (descriptor->HasAttrib(name))
+            descriptor->SetUniform(name, buffer, offset ,size);
+}
+
+void Material::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
+    for (Descriptor* descriptor : descriptors)
+        if (descriptor->HasAttrib(name))
+            descriptor->SetStorage(name, buffer, offset ,size);
+}
+
+void Material::Bind(uint32_t index,
+                    CommandBuffer *commandBuffer,
+                    RenderFrame *renderFrame,
+                    RenderPass *renderPass) const {
+
+    // bind pipeline used by this technique + render queue
+    technique->Bind(index, renderFrame, renderPass, commandBuffer);
+
+    // bind descriptor
+    commandBuffer->BindDescriptor(descriptors[index]);
 }

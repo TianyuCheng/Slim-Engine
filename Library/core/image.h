@@ -18,7 +18,7 @@ namespace slim {
     class Image;
 
     template <typename Image>
-    class Image2DPool final {
+    class Image2DPool final : public ReferenceCountable {
         friend class Transient<Image>;
         using List = std::list<Image*>;
         using Dictionary = std::unordered_map<size_t, List>;

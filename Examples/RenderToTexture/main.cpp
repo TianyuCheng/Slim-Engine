@@ -92,7 +92,7 @@ int main() {
 
                 glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
                 glm::mat4 mvp = proj * view * m;
-                auto descriptor = SlimPtr<Descriptor>(renderFrame, pipeline);
+                auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
                 commandBuffer->BindDescriptor(descriptor);
                 commandBuffer->BindVertexBuffer(0, vBuffer, 0);
@@ -111,7 +111,7 @@ int main() {
                 {
                     ImGui::Begin("Render To Texture");
                     {
-                        ImTextureID tex = slim::imgui::AddTexture(renderFrame, colorBuffer->GetImage()->AsTexture());
+                        ImTextureID tex = slim::imgui::AddTexture(renderFrame->GetDescriptorPool(), colorBuffer->GetImage()->AsTexture());
                         ImGui::Image(tex, ImGui::GetContentRegionAvail());
                     }
                     ImGui::End();

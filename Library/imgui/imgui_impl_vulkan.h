@@ -23,7 +23,7 @@
 
 #pragma once
 #include "imgui.h"      // IMGUI_IMPL_API
-#include "core/renderframe.h"
+#include "core/pipeline.h"
 
 // [Configuration] in order to use a custom Vulkan function loader:
 // (1) You'll need to disable default Vulkan function prototypes.
@@ -73,7 +73,7 @@ IMGUI_IMPL_API void     ImGui_ImplVulkan_SetMinImageCount(uint32_t min_image_cou
 
 // [MODIFIED]
 namespace slim::imgui {
-    ImTextureID AddTexture(RenderFrame *alloc, VkImageView imageView);
+    ImTextureID AddTexture(DescriptorPool *alloc, VkImageView imageView);
 }
 
 // Optional: load Vulkan functions with a custom function loader
