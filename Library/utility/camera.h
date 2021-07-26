@@ -22,7 +22,7 @@ namespace slim {
         virtual std::string GetName() const { return name; }
 
         // perform frustum culling
-        // return true for things needs to be culled
+        // return true for things do not need to be culled
         // return false for things needs to be culled
         virtual bool Cull(SceneNode *node, float &distance) const;
 

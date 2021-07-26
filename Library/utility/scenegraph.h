@@ -63,6 +63,7 @@ namespace slim {
 
         void Scale(float x, float y, float z);
         void Rotate(const glm::vec3& axis, float radians);
+        void Rotate(float x, float y, float z, float w);    // quaternion-based
         void Translate(float x, float y, float z);
 
         template <typename T>
@@ -104,19 +105,29 @@ namespace slim {
     public:
         explicit SceneGraph() = default;
         explicit SceneGraph(SceneNode* node);
+        explicit SceneGraph(const std::vector<SceneNode*> &nodes);
         virtual ~SceneGraph() = default;
 
-        void SetRootNode(SceneNode* node) { root = node; }
+        void AddRootNode(SceneNode* node);
+        void SetRootNode(SceneNode* node);
+        void SetRootNodes(const std::vector<SceneNode*> &nodes);
 
+        void Init();
+        void Update();
         void Cull(const Camera &camera);
         void Render(const RenderGraph& renderGraph, const Camera &camera, RenderQueue queue, SortingOrder sorting);
+
+        auto begin()       { return roots.begin(); }
+        auto begin() const { return roots.begin(); }
+        auto end()         { return roots.end();   }
+        auto end()   const { return roots.end();   }
 
     private:
         void Cull(SceneNode *node, const Camera &camera);
         void AddDrawable(RenderQueue renderQueue, Material *material, const Drawable &drawable);
 
     private:
-        SceneNode* root = nullptr;
+        std::vector<SceneNode*> roots = {};
 
         // Culling Results
         using Key = RenderQueue;

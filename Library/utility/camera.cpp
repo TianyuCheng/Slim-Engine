@@ -22,12 +22,20 @@ void Camera::LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::ve
     view = glm::lookAt(eye, center, up);
 }
 
-bool Camera::Cull(SceneNode *node, float &distance) const {
-    return false;
+bool Camera::Cull(SceneNode *, float &) const {
+    return true;
 }
 
 void Camera::Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const {
-    auto uniformBuffer = renderFrame->RequestUniformBuffer(proj * view);
+    struct Uniform {
+        glm::mat4 view;
+        glm::mat4 proj;
+    } uniform;
+
+    uniform.view = view;
+    uniform.proj = proj;
+
+    auto uniformBuffer = renderFrame->RequestUniformBuffer(uniform);
     uniformBuffer->Flush();
 
     auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), layout);

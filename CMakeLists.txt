@@ -128,4 +128,4 @@ add_subdirectory(Examples/SceneGraph)
 # /_/   \_\ .__/| .__/|_|_|\___\__,_|\__|_|\___/|_| |_|
 #         |_|   |_|
 
-# add_subdirectory(Applications/GLTFViewer)
+add_subdirectory(Applications/GLTFViewer)

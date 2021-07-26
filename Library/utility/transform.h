@@ -33,10 +33,12 @@ namespace slim {
         const glm::mat4& LocalToWorld() const;
         const glm::mat4& WorldToLocal() const;
 
+        void ApplyTransform();
         void ApplyParentTransform(const Transform &parent);
 
         void Scale(float x, float y, float z);
         void Rotate(const glm::vec3& axis, float radians);
+        void Rotate(float x, float y, float z, float w);
         void Translate(float x, float y, float z);
 
     private:

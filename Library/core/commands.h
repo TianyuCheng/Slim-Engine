@@ -38,8 +38,9 @@ namespace slim {
         void BindPipeline(Pipeline *pipeline);
         void BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
         void BindIndexBuffer(IndexBuffer *buffer, size_t offset = 0);
-        void BindVertexBuffer(uint32_t binding, VertexBuffer *buffer, uint64_t offset);
-        void BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffers, const std::vector<uint64_t> &offsets);
+        void BindIndexBuffer(Buffer *buffer, size_t offset, VkIndexType indexType);
+        void BindVertexBuffer(uint32_t binding, Buffer *buffer, uint64_t offset);
+        void BindVertexBuffers(uint32_t binding, const std::vector<Buffer*> &buffers, const std::vector<uint64_t> &offsets);
 
         void PushConstants(PipelineLayout *layout, const std::string &name, const void *value);
         void PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages);

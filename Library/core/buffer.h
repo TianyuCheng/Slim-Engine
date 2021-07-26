@@ -64,7 +64,7 @@ namespace slim {
 
     class Buffer : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkBuffer> {
     public:
-        explicit Buffer(Context *context, size_t size, VkBufferUsageFlagBits bufferUsage, VmaMemoryUsage memoryUsage);
+        explicit Buffer(Context *context, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage);
         virtual ~Buffer();
 
         void SetData(void *data, size_t size, size_t offset = 0) const;

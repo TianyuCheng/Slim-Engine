@@ -63,6 +63,8 @@ void SceneNode::AddComponent(SceneComponent* component) {
 void SceneNode::UpdateTransformHierarchy(SceneNode* parent) {
     if (parent) {
         transform.ApplyParentTransform(parent->transform);
+    } else {
+        transform.ApplyTransform();
     }
 }
 
@@ -72,6 +74,10 @@ void SceneNode::Scale(float x, float y, float z) {
 
 void SceneNode::Rotate(const glm::vec3& axis, float radians) {
     transform.Rotate(axis, radians);
+}
+
+void SceneNode::Rotate(float x, float y, float z, float w) {
+    transform.Rotate(x, y, z, w);
 }
 
 void SceneNode::Translate(float x, float y, float z) {
@@ -86,7 +92,24 @@ bool CompareDrawableDescending(const Drawable& left, const Drawable& right) {
     return left.distance > right.distance;
 }
 
-SceneGraph::SceneGraph(SceneNode* node) : root(node) {
+SceneGraph::SceneGraph(SceneNode* node) {
+    SetRootNode(node);
+}
+
+SceneGraph::SceneGraph(const std::vector<SceneNode*> &nodes) {
+    SetRootNodes(nodes);
+}
+
+void SceneGraph::AddRootNode(SceneNode *node) {
+    roots.push_back(node);
+}
+
+void SceneGraph::SetRootNode(SceneNode* node) {
+    roots = { node };
+}
+
+void SceneGraph::SetRootNodes(const std::vector<SceneNode*> &nodes) {
+    roots = nodes;
 }
 
 void SceneGraph::AddDrawable(RenderQueue renderQueue, Material *material, const Drawable &drawable) {
@@ -107,8 +130,23 @@ void SceneGraph::AddDrawable(RenderQueue renderQueue, Material *material, const 
     it2->second.push_back(drawable);
 }
 
+void SceneGraph::Init() {
+    for (SceneNode* node : roots) {
+        node->Init();
+    }
+}
+
+void SceneGraph::Update() {
+    for (SceneNode* node : roots) {
+        node->Update();
+    }
+}
+
 void SceneGraph::Cull(const Camera &camera) {
-    Cull(root, camera);
+    cullingResults.clear();
+    for (SceneNode* node : roots) {
+        Cull(node, camera);
+    }
 }
 
 void SceneGraph::Cull(SceneNode *node, const Camera &camera) {
@@ -126,7 +164,7 @@ void SceneGraph::Cull(SceneNode *node, const Camera &camera) {
     // check if this node is drawable
     Material* material = node->GetMaterial();
     const auto& mesh = node->GetMesh();
-    if (material && mesh.mesh) {
+    if (drawable && material && mesh.mesh) {
         for (const auto &pass : *material->GetTechnique()) {
             Drawable drawable = {
                 const_cast<Submesh*>(&mesh),

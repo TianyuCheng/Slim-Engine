@@ -345,12 +345,16 @@ void CommandBuffer::BindIndexBuffer(IndexBuffer *buffer, size_t offset) {
     vkCmdBindIndexBuffer(handle, *buffer, offset, buffer->indexType);
 }
 
-void CommandBuffer::BindVertexBuffer(uint32_t binding, VertexBuffer *buffer, uint64_t offset) {
+void CommandBuffer::BindIndexBuffer(Buffer *buffer, size_t offset, VkIndexType indexType) {
+    vkCmdBindIndexBuffer(handle, *buffer, offset, indexType);
+}
+
+void CommandBuffer::BindVertexBuffer(uint32_t binding, Buffer *buffer, uint64_t offset) {
     VkBuffer vBuffer = *buffer;
     vkCmdBindVertexBuffers(handle, binding, 1, &vBuffer, &offset);
 }
 
-void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<VertexBuffer*> &buffers, const std::vector<uint64_t> &offsets) {
+void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<Buffer*> &buffers, const std::vector<uint64_t> &offsets) {
     std::vector<VkBuffer> vBuffers;
     for (auto buffer : buffers)
         vBuffers.push_back(*buffer);

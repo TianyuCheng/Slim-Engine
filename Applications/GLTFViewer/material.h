@@ -7,4 +7,4 @@ struct Vertex {
     glm::vec2 texcoord;
 };
 
-Material* CreateMaterial(Shader* vShader, Shader *fShader);
+// Material* CreateMaterial(Shader* vShader, Shader *fShader);

@@ -10,6 +10,11 @@ namespace slim {
     class Mesh final : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend struct Submesh;
     public:
+
+        void SetVertexAttrib(Buffer *buffer, size_t offset, uint32_t index);
+
+        void SetIndexAttrib(Buffer *buffer, size_t offset, VkIndexType indexType);
+
         template <typename T>
         void SetVertexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib, uint32_t index);
 
@@ -17,33 +22,30 @@ namespace slim {
         void SetIndexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib);
 
     private:
-        SmartPtr<IndexBuffer> indexBuffer;
-        std::vector<SmartPtr<VertexBuffer>> vertexBuffers;
-        std::vector<size_t> vertexElemSizes;
-        size_t indexElemSize = 4;
+        Buffer* indexBuffer;
+        size_t indexOffset;
+        VkIndexType indexType;
+
+        std::vector<Buffer*> vertexBuffers;
+        std::vector<VkDeviceSize> vertexOffsets;
     };
 
     template <typename T>
     void Mesh::SetVertexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib, uint32_t index) {
         // prepare vertex buffer
-        if (vertexBuffers.size() <= index) { vertexBuffers.resize(index + 1); }
-        if (vertexElemSizes.size() <= index) { vertexElemSizes.resize(index + 1); }
+        Buffer* buffer = new VertexBuffer(commandBuffer->GetContext(), BufferSize(attrib));
+        commandBuffer->CopyDataToBuffer(attrib, buffer);
 
-        vertexBuffers[index] = SlimPtr<VertexBuffer>(commandBuffer->GetContext(), BufferSize(attrib));
-        vertexElemSizes[index] = sizeof(T);
-
-        // copy data to vertex buffer
-        commandBuffer->CopyDataToBuffer(attrib, vertexBuffers[index]);
+        SetVertexAttrib(buffer, 0, index);
     }
 
     template <typename T>
     void Mesh::SetIndexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib) {
         // prepare index buffer
-        indexBuffer = SlimPtr<IndexBuffer>(commandBuffer->GetContext(), BufferSize(attrib));
-        indexElemSize = sizeof(T);
+        Buffer* buffer = new IndexBuffer(commandBuffer->GetContext(), BufferSize(attrib));
+        commandBuffer->CopyDataToBuffer(attrib, buffer);
 
-        // copy data to index buffer
-        commandBuffer->CopyDataToBuffer(attrib, indexBuffer);
+        SetIndexAttrib(buffer, 0, sizeof(T) == 4 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
     }
 
     struct Submesh {

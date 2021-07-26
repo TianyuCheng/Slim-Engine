@@ -1,3 +1,4 @@
+#include <glm/gtx/string_cast.hpp>
 #include <glm/gtc/matrix_access.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include "utility/transform.h"
@@ -22,6 +23,11 @@ Transform::Transform(const glm::vec3 &translation,
     worldToLocal = glm::inverse(localToWorld);
 }
 
+void Transform::ApplyTransform() {
+    localToWorld = localXform;
+    worldToLocal = glm::inverse(localToWorld);
+}
+
 void Transform::ApplyParentTransform(const Transform &parent) {
     localToWorld = parent.localToWorld * localXform;
     worldToLocal = worldToLocal * parent.worldToLocal;
@@ -41,6 +47,10 @@ void Transform::Scale(float x, float y, float z) {
 
 void Transform::Rotate(const glm::vec3& axis, float radians) {
     localXform = glm::rotate(localXform, radians, axis);
+}
+
+void Transform::Rotate(float x, float y, float z, float w) {
+    localXform = glm::mat4_cast(glm::quat(x, y, z, w)) * localXform;
 }
 
 void Transform::Translate(float x, float y, float z) {

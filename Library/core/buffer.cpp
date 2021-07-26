@@ -4,7 +4,7 @@
 
 using namespace slim;
 
-Buffer::Buffer(Context *context, size_t size, VkBufferUsageFlagBits bufferUsage, VmaMemoryUsage memoryUsage)
+Buffer::Buffer(Context *context, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage)
     : allocator(context->GetMemoryAllocator()), size(size) {
 
     if (size == 0) throw std::runtime_error("[Buffer] size should not be 0!");
