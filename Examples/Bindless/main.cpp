@@ -4,7 +4,7 @@ using namespace slim;
 
 struct Vertex {
     glm::vec3 position;
-    glm::vec3 color;
+    glm::vec2 texcoord;
 };
 
 struct CameraData {
@@ -36,7 +36,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Depth Buffering")
+            .SetTitle("Bindless Texture")
     );
 
     // create vertex and index buffers
@@ -47,14 +47,18 @@ int main() {
     auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
     auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
 
+    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(device, SamplerDesc());
+    SmartPtr<GPUImage2D> texture1;
+    SmartPtr<GPUImage2D> texture2;
+
     // initialize
-    device->Execute([=](CommandBuffer *commandBuffer) {
+    device->Execute([&](CommandBuffer *commandBuffer) {
         // prepare vertex data
         std::vector<Vertex> positions = {
-            { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
-            { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec3(0.0f, 1.0f, 0.0f) },
-            { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec3(1.0f, 1.0f, 0.0f) },
-            { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec3(0.0f, 0.0f, 1.0f) },
+            { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec2(0.0f, 0.0f) },
+            { glm::vec3( 0.5f, -0.5f,  0.5f), glm::vec2(1.0f, 0.0f) },
+            { glm::vec3( 0.5f,  0.5f,  0.5f), glm::vec2(1.0f, 1.0f) },
+            { glm::vec3(-0.5f,  0.5f,  0.5f), glm::vec2(0.0f, 1.0f) },
         };
         std::vector<uint32_t> indices = {
             0, 1, 2,
@@ -63,6 +67,9 @@ int main() {
 
         commandBuffer->CopyDataToBuffer(positions, vBuffer);
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
+
+        texture1 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
+        texture2 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanTransparent.png"), VK_FILTER_LINEAR);
     });
 
     // window
@@ -71,7 +78,7 @@ int main() {
         auto frame = window->AcquireNext();
         float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
 
-        constexpr uint32_t C = 32;      // we won't be using all of them
+        constexpr uint32_t C = 32;     // we won't be using all of them, on MoltenVk -> # sampled images=128, # samplers=16
         constexpr uint32_t N = 10;      // we only draw 10 objects
 
         // rendergraph-based design
@@ -91,7 +98,7 @@ int main() {
                         .SetName("colorPass")
                         .AddVertexBinding(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
                             { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position) },
-                            { 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)    },
+                            { 1, VK_FORMAT_R32G32_SFLOAT,    offsetof(Vertex, texcoord) },
                          })
                         .SetVertexShader(vShader)
                         .SetFragmentShader(fShader)
@@ -101,39 +108,46 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddPushConstant("Object", 0, sizeof(int), VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding     ("Camera", 0, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBindingArray("Models", 0, 1, C, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                            .AddPushConstant("Material", 0, sizeof(int), VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding     ("Camera",   0, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBindingArray("Sampler",  0, 1, 1, VK_DESCRIPTOR_TYPE_SAMPLER,        VK_SHADER_STAGE_FRAGMENT_BIT)
+                            .AddBindingArray("Images",   1, 0, C, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) // bindless
+                            .AddBinding     ("Models",   2, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                         )
                 );
 
                 commandBuffer->BindPipeline(pipeline);
 
-                // prepare camera and model uniform buffer
+                // prepare camera uniform buffer
                 auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 {
                     CameraData cameraData;
                     cameraData.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
                     cameraData.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
                     descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(cameraData));
-
-                    std::vector<BufferAlloc> modelUniforms;
-                    auto modelBuffer = renderFrame->RequestUniformBuffer(sizeof(ModelData) * N);
-                    ModelData* modelData = modelBuffer->GetData<ModelData>();
-                    for (uint32_t i = 0; i < N; i++) {
-                        modelData[i].model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
-                        modelUniforms.push_back(BufferAlloc { modelBuffer, i * sizeof(ModelData), sizeof(ModelData) });
-                    }
-                    descriptor->SetUniforms("Models", modelUniforms);
                 }
-                commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+                // prepare bindless textures
+                // TODO: we need a way to properly define variable descriptor count when allocating descriptor set
+                descriptor->SetImages("Images", { texture1, texture2 });
+                descriptor->SetSampler("Sampler", sampler);
+
+                // prepare model uniform buffer
+                std::vector<SmartPtr<Descriptor>> modelDescriptors(N);
+                for (uint32_t i = 0; i < N; i++) {
+                    auto model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
+                    modelDescriptors[i] = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
+                    modelDescriptors[i]->SetUniform("Models", renderFrame->RequestUniformBuffer(model));
+                }
 
                 // draw objects
                 commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                 commandBuffer->BindIndexBuffer(iBuffer);
                 commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
                 for (uint32_t i = 0; i < N; i++) {
-                    commandBuffer->PushConstants(pipeline->Layout(), "Object", &i);
+                    int material = (i % 2);
+                    commandBuffer->PushConstants(pipeline->Layout(), "Material", &material);
+                    commandBuffer->BindDescriptor(modelDescriptors[i], VK_PIPELINE_BIND_POINT_GRAPHICS);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 
@@ -144,8 +158,6 @@ int main() {
 
         // window update
         window->PollEvents();
-
-        break;
     }
 
     device->WaitIdle();

@@ -10,7 +10,6 @@ ContextDesc::ContextDesc() {
     // initialize physical device features
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features.pNext = nullptr;
-    features.features = {};
 }
 
 ContextDesc& ContextDesc::EnableValidation(bool value) {

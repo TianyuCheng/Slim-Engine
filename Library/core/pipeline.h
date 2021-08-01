@@ -152,7 +152,7 @@ namespace slim {
         void SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset);
     private:
         void Update();
-        std::tuple<VkDescriptorSet, uint32_t, uint32_t> FindDescriptorSet(const std::string &name);
+        std::tuple<VkDescriptorSet, uint32_t, uint32_t> FindDescriptorSet(const std::string &name, uint32_t variableDescriptorCount = 0);
         void SetBuffer(const std::string &name, VkDescriptorType descriptorType, const std::vector<BufferAlloc> &bufferAlloc);
     private:
         SmartPtr<DescriptorPool> pool;

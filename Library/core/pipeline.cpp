@@ -190,7 +190,7 @@ void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *samp
 }
 
 void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name, images.size());
 
     #ifdef NDEBUG
     if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && imageNum != samplerNum) {
@@ -230,7 +230,7 @@ void Descriptor::SetImage(const std::string &name, Image *image) {
 }
 
 void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &images) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name, images.size());
 
     imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
     auto& infos = imageInfos.back();
@@ -264,7 +264,7 @@ void Descriptor::SetSampler(const std::string &name, Sampler *sampler) {
 }
 
 void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name, samplers.size());
 
     imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
     auto& infos = imageInfos.back();
@@ -372,7 +372,7 @@ void Descriptor::SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offse
     dynamicOffsets[set][binding] = offset;
 }
 
-std::tuple<VkDescriptorSet, uint32_t, uint32_t> Descriptor::FindDescriptorSet(const std::string &name) {
+std::tuple<VkDescriptorSet, uint32_t, uint32_t> Descriptor::FindDescriptorSet(const std::string &name, uint32_t variableDescriptorCount) {
     auto indexOf = [](const std::vector<VkDescriptorSetLayout> &layouts, VkDescriptorSetLayout target) {
         for (uint32_t i = 0; i < layouts.size(); i++)
             if (layouts[i] == target)
@@ -396,7 +396,7 @@ std::tuple<VkDescriptorSet, uint32_t, uint32_t> Descriptor::FindDescriptorSet(co
         descriptorSets.push_back(VK_NULL_HANDLE);
 
     if (descriptorSets[set] == VK_NULL_HANDLE)
-        descriptorSets[set] = pool->Request(layout);
+        descriptorSets[set] = pool->Request(layout, variableDescriptorCount);
 
     while (dynamicOffsets.size() <= set)
         dynamicOffsets.push_back({ });
