@@ -1,8 +1,11 @@
 #ifndef SLIM_UTILITY_SCENEGRAPH_H
 #define SLIM_UTILITY_SCENEGRAPH_H
 
+#include <list>
+#include <deque>
 #include <string>
-#include <vector>
+#include <algorithm>
+#include <functional>
 #include <unordered_map>
 #include "core/commands.h"
 #include "core/renderframe.h"
@@ -15,125 +18,80 @@
 
 namespace slim {
 
-    class SceneNode;
-    class SceneGraph;
-    class SceneComponent;
-
-    class SceneComponent : public NotCopyable, public NotMovable, public ReferenceCountable {
+    class Scene : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        virtual void OnInit(SceneNode *node);
-        virtual void OnUpdate(SceneNode *node);
-    };
+        friend class SceneIterator;
 
-    class SceneNode final : public NotCopyable, public NotMovable, public ReferenceCountable {
-    public:
-        friend class Camera;
-        friend class SceneGraph;
-        friend class SceneComponent;
+        // constructor & destructor
+        explicit Scene() = default;
+        explicit Scene(const std::string &name, Scene* parent = nullptr);
+        virtual ~Scene() = default;
 
-        explicit        SceneNode();
-        explicit        SceneNode(const std::string &name, SceneNode *parent = nullptr);
-        virtual         ~SceneNode();
+        // setters
+        void SetMesh(Mesh* mesh);
+        void SetMaterial(Material* material);
+        void SetDraw(uint32_t firstVertex, uint32_t vertexCount);
+        void SetDrawIndexed(uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset);
 
-        void            AddChild(SceneNode* child);
-        void            AddComponent(SceneComponent* component);
-
-        void            Init();
-        void            Update();
-
-        void            SetMesh(Submesh submesh)        { this->submesh = submesh;        }
-        void            SetMaterial(Material *material) { this->material = material;      }
-        const Submesh&  GetMesh()     const             { return submesh;                 }
-        Material*       GetMaterial() const             { return material.get();          }
-
-        auto            begin()       { return children.begin(); }
-        auto            begin() const { return children.begin(); }
-        auto            end()         { return children.end();   }
-        auto            end()   const { return children.end();   }
-
+        // getters
         const std::string& GetName() const { return name; }
-
-        // mark if this object is visible
-        void SetVisible(bool value) { visible = value; }
-        bool IsVisible() const { return visible; }
-
-        Transform& GetTransform() { return transform; }
         const Transform& GetTransform() const { return transform; }
-        void SetTransform(const Transform& xform) { transform = xform; }
+        bool IsVisible() const { return visible; }
+        Mesh* GetMesh() const { return mesh; }
+        Material* GetMaterial() const { return material; }
 
+        // scene node hierarchy
+        void AddChild(Scene* child);
+        void MoveTo(Scene* parent);
+
+        // transform
         void Scale(float x, float y, float z);
         void Rotate(const glm::vec3& axis, float radians);
-        void Rotate(float x, float y, float z, float w);    // quaternion-based
+        void Rotate(float x, float y, float z, float w);
         void Translate(float x, float y, float z);
 
-        template <typename T>
-        T* GetComponent() {
-            for (SceneComponent* component : components)
-                if (auto obj = dynamic_cast<T*>(component))
-                    return obj;
-            return nullptr;
+        // traversal-based operations
+        void ForEach(const std::function<bool(Scene*)> &callback);
+        void Update();
+
+    protected:
+        std::string name = "";
+        Transform transform;
+
+        // hierarchy
+        Scene* parent = nullptr;
+        std::list<Scene*> children = {};
+
+        // properties
+        SmartPtr<Mesh> mesh = nullptr;
+        SmartPtr<Material> material = nullptr;
+
+    public:
+        // draw params
+        bool visible = true;
+        bool indexed = true;
+        struct {
+            uint32_t first = 0;
+            uint32_t count = 0;
+            uint32_t offset = 0;
+        } draw;
+    };
+
+    // -------------------------------------------------------------
+
+    class SceneManager : public NotCopyable, public NotMovable, public ReferenceCountable {
+    public:
+
+        template <typename SceneNode, typename...Args>
+        SceneNode* Create(Args...args) {
+            SceneNode* node = new SceneNode(args...);
+            nodes.push_back(node);
+            return node;
         }
 
     private:
-        void Init(SceneNode* parent);
-        void Update(SceneNode* parent);
-        void UpdateTransformHierarchy(SceneNode* parent);
-
-    private:
-        std::string name;                   // node name
-        Transform transform;
-        SceneNode* parent = nullptr;
-
-        Submesh submesh;
-        SmartPtr<Material> material;
-        std::vector<SceneNode*> children;
-        std::vector<SmartPtr<SceneComponent>> components;
-
-        // states
-        bool visible = true;
-    }; // end of scene node class
-
-
-    struct Drawable {
-        Submesh  *submesh;
-        Pipeline *pipeline;
-        float     distance;
-        glm::mat4 transform;
-    };
-
-    class SceneGraph : public NotCopyable, public NotMovable, public ReferenceCountable {
-    public:
-        explicit SceneGraph() = default;
-        explicit SceneGraph(SceneNode* node);
-        explicit SceneGraph(const std::vector<SceneNode*> &nodes);
-        virtual ~SceneGraph() = default;
-
-        void AddRootNode(SceneNode* node);
-        void SetRootNode(SceneNode* node);
-        void SetRootNodes(const std::vector<SceneNode*> &nodes);
-
-        void Init();
-        void Update();
-        void Cull(const Camera &camera);
-        void Render(const RenderGraph& renderGraph, const Camera &camera, RenderQueue queue, SortingOrder sorting);
-
-        auto begin()       { return roots.begin(); }
-        auto begin() const { return roots.begin(); }
-        auto end()         { return roots.end();   }
-        auto end()   const { return roots.end();   }
-
-    private:
-        void Cull(SceneNode *node, const Camera &camera);
-        void AddDrawable(RenderQueue renderQueue, Material *material, const Drawable &drawable);
-
-    private:
-        std::vector<SceneNode*> roots = {};
-
-        // Culling Results
-        using Key = RenderQueue;
-        using Val = std::vector<Drawable>;
-        using ValList = std::unordered_map<Material*, Val>;
-        std::unordered_map<Key, ValList> cullingResults;
+        std::vector<Scene*> roots;
+        std::vector<SmartPtr<Scene>> nodes;
     };
 
 } // end of namespace slim

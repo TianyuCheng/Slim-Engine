@@ -11,7 +11,7 @@
 #include "core/buffer.h"
 #include "core/shader.h"
 #include "core/sampler.h"
-#include "core/context.h"
+#include "core/device.h"
 #include "core/renderpass.h"
 #include "utility/interface.h"
 
@@ -67,16 +67,18 @@ namespace slim {
         friend class Descriptor;
         friend class std::hash<PipelineLayout>;
     public:
-        explicit PipelineLayout(Context *context, const PipelineLayoutDesc &desc);
+        explicit PipelineLayout(Device *device, const PipelineLayoutDesc &desc);
         virtual ~PipelineLayout();
-        bool HasAttrib(const std::string &name) const;
+
+        bool HasBinding(const std::string &name) const;
         std::tuple<size_t, size_t, VkShaderStageFlags> GetPushConstant(const std::string &name) const;
     private:
         void Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings);
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
         std::unordered_map<std::string, std::pair<VkDescriptorSetLayout, uint32_t>> mappings;
+        std::unordered_map<std::string, std::tuple<uint32_t, uint32_t>> bindings;
         std::unordered_map<std::string, VkPushConstantRange> pushConstants;
         size_t hashValue;
     };
@@ -94,12 +96,18 @@ namespace slim {
         explicit Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout);
         virtual ~Descriptor();
         void SetUniform(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
+        void SetDynamic(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
         void SetStorage(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
         void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
-        bool HasAttrib(const std::string &name) const;
+
+        bool HasBinding(const std::string &name) const;
+        std::tuple<uint32_t, uint32_t> GetBinding(const std::string &name);
+
+        void SetDynamicOffset(const std::string &name, uint32_t offset);
+        void SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset);
     private:
         void Update();
-        std::pair<VkDescriptorSet, uint32_t> FindDescriptorSet(const std::string &name);
+        std::tuple<VkDescriptorSet, uint32_t, uint32_t> FindDescriptorSet(const std::string &name);
         void SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size);
     private:
         SmartPtr<DescriptorPool> pool;
@@ -108,6 +116,7 @@ namespace slim {
         std::list<VkDescriptorBufferInfo> bufferInfos;
         std::list<VkDescriptorImageInfo> imageInfos;
         std::vector<VkDescriptorSet> descriptorSets;
+        std::vector<std::vector<uint32_t>> dynamicOffsets;
     };
 
     //  ____                      _       _             ____             _
@@ -120,15 +129,15 @@ namespace slim {
     class DescriptorPool final : public ReferenceCountable {
         friend class Descriptor;
     public:
-        explicit DescriptorPool(Context *context, uint32_t poolSize);
+        explicit DescriptorPool(Device *device, uint32_t poolSize);
         virtual ~DescriptorPool();
         void Reset();
         VkDescriptorSet Request(VkDescriptorSetLayout layout);
-        Context* GetContext() const { return context; }
+        Device* GetDevice() const { return device; }
     private:
         uint32_t FindAvailablePoolIndex(uint32_t poolIndex);
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         uint32_t poolIndex = 0;
         uint32_t maxPoolSets;
         std::vector<VkDescriptorPool> pools;
@@ -148,7 +157,7 @@ namespace slim {
         PipelineDesc(VkPipelineBindPoint bindPoint);
         PipelineDesc(const std::string &name, VkPipelineBindPoint bindPoint);
 
-        void Initialize(Context* context);
+        void Initialize(Device* device);
 
         PipelineLayout* Layout() const { return pipelineLayout; }
         VkPipelineBindPoint Type() const { return bindPoint; }
@@ -278,14 +287,14 @@ namespace slim {
 
     class Pipeline final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkPipeline> {
     public:
-        explicit Pipeline(Context *context, GraphicsPipelineDesc &);
-        explicit Pipeline(Context *context, ComputePipelineDesc &);
-        explicit Pipeline(Context *context, RayTracingPipelineDesc &);
+        explicit Pipeline(Device *device, GraphicsPipelineDesc &);
+        explicit Pipeline(Device *device, ComputePipelineDesc &);
+        explicit Pipeline(Device *device, RayTracingPipelineDesc &);
         virtual ~Pipeline();
         VkPipelineBindPoint Type() const { return bindPoint; }
         PipelineLayout* Layout() const { return layout.get(); }
     private:
-        Context* context = nullptr;
+        SmartPtr<Device> device = nullptr;
         VkPipelineBindPoint bindPoint;
         SmartPtr<PipelineLayout> layout;
     };

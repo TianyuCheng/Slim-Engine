@@ -33,12 +33,6 @@ add_subdirectory(glm)
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE stb/)
 
-# uuid
-# ---------------------------------------------------------------
-set(UUID_BUILD_TESTS      OFF CACHE BOOL  "uuid lib only" FORCE)
-set(UUID_SYSTEM_GENERATOR ON  CACHE BOOL  "uuid lib only" FORCE)
-add_subdirectory(stduuid)
-
 # tinyglf
 # ---------------------------------------------------------------
 set(TINYGLTF_BUILD_LOADER_EXAMPLE    OFF CACHE BOOL     "tinygltf lib only" FORCE)

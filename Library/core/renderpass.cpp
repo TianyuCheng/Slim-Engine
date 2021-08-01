@@ -145,8 +145,8 @@ RenderPassDesc& RenderPassDesc::AddResolveAttachment(VkFormat format, VkSampleCo
     return *this;
 }
 
-RenderPass::RenderPass(Context *context, const RenderPassDesc &desc)
-    : context(context) {
+RenderPass::RenderPass(Device *device, const RenderPassDesc &desc)
+    : device(device) {
 
     #ifndef NDEBUG
     assert(desc.name.length() > 0 && "RenderPassDesc must have a name!");
@@ -178,12 +178,12 @@ RenderPass::RenderPass(Context *context, const RenderPassDesc &desc)
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    ErrorCheck(vkCreateRenderPass(context->GetDevice(), &renderPassInfo, nullptr, &handle), "create render pass");
+    ErrorCheck(vkCreateRenderPass(*device, &renderPassInfo, nullptr, &handle), "create render pass");
 }
 
 RenderPass::~RenderPass() {
     if (handle) {
-        vkDestroyRenderPass(context->GetDevice(), handle, nullptr);
+        vkDestroyRenderPass(*device, handle, nullptr);
         handle = VK_NULL_HANDLE;
     }
 }

@@ -12,16 +12,9 @@
 
 namespace slim {
 
-    struct RenderInfo {
-        Camera *camera = nullptr;
-        RenderPass *renderPass = nullptr;
-        RenderFrame *renderFrame = nullptr;
-        CommandBuffer *commandBuffer = nullptr;
-    };
-
     class Material final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        explicit Material(Context *context, Technique *technique);
+        explicit Material(Device *device, Technique *technique);
         virtual ~Material();
 
         Technique* GetTechnique() const { return technique; }
@@ -51,7 +44,7 @@ namespace slim {
                   RenderPass *renderPass) const;
 
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         SmartPtr<Technique> technique = nullptr;
         SmartPtr<DescriptorPool> descriptorPool = nullptr;
         SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool = nullptr;

@@ -10,6 +10,7 @@
 
 #include "core/image.h"
 #include "core/context.h"
+#include "core/device.h"
 #include "core/renderframe.h"
 #include "core/synchronization.h"
 #include "utility/interface.h"
@@ -53,7 +54,7 @@ namespace slim {
     class Window final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<GLFWwindow*> {
         friend class DearImGui;
     public:
-        explicit Window(Context *context, const WindowDesc & desc);
+        explicit Window(Device *device, const WindowDesc & desc);
         virtual ~Window();
 
         void                               PollEvents();
@@ -71,7 +72,7 @@ namespace slim {
 
     private:
         WindowDesc                         desc;
-        Context*                           context             = nullptr;
+        SmartPtr<Device>                   device              = nullptr;
         GLFWwindow*                        window              = nullptr;
         VkSurfaceKHR                       surface             = VK_NULL_HANDLE;
 

@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/buffer.h"
-#include "core/context.h"
+#include "core/device.h"
 #include "core/pipeline.h"
 #include "core/synchronization.h"
 #include "utility/interface.h"
@@ -20,7 +20,7 @@ namespace slim {
         friend class CommandPool;
     public:
         using PoolType = CommandPool;
-        explicit CommandBuffer(Context *context, VkQueue queue, VkCommandBuffer commandBuffer);
+        explicit CommandBuffer(Device *device, VkQueue queue, VkCommandBuffer commandBuffer);
         virtual ~CommandBuffer();
 
         void Begin();
@@ -37,6 +37,7 @@ namespace slim {
 
         void BindPipeline(Pipeline *pipeline);
         void BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
+        void BindDescriptor(Descriptor *descriptor, const std::vector<uint32_t> &dynamicOffset, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
         void BindIndexBuffer(IndexBuffer *buffer, size_t offset = 0);
         void BindIndexBuffer(Buffer *buffer, size_t offset, VkIndexType indexType);
         void BindVertexBuffer(uint32_t binding, Buffer *buffer, uint64_t offset);
@@ -101,13 +102,15 @@ namespace slim {
         void PrepareForPresentSrc(Image *image);
         void PrepareForMemoryMapping(Image *image);
 
-        Context* GetContext() const { return context.get(); }
+        Device* GetDevice() const { return device; }
+
+        VkSubmitInfo GetSubmitInfo() const;
 
     private:
         void Reset();
 
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         VkQueue queue = VK_NULL_HANDLE;
 
         // synchronization
@@ -146,7 +149,7 @@ namespace slim {
 
     class CommandPool final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkCommandPool> {
     public:
-        CommandPool(Context *context, uint32_t queueFamilyIndex);
+        CommandPool(Device *device, uint32_t queueFamilyIndex);
         virtual ~CommandPool();
 
         void Reset();
@@ -157,7 +160,7 @@ namespace slim {
         CommandBuffer* RequestSecondaryCommandBufer();
 
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         VkQueue queue = VK_NULL_HANDLE;
 
         uint32_t activePrimaryCommandBuffers = 0;

@@ -29,7 +29,7 @@ VkImageViewType InferImageViewType(const VkImageCreateInfo &createInfo) {
     return VK_IMAGE_VIEW_TYPE_2D;
 }
 
-Image::Image(Context *context,
+Image::Image(Device *device,
              VkFormat format,
              VkExtent3D extent,
              uint32_t mipLevels,
@@ -39,7 +39,7 @@ Image::Image(Context *context,
              VmaMemoryUsage memoryUsage,
              VkImageTiling tiling,
              VkSharingMode sharingMode)
-    : context(context), allocator(context->GetMemoryAllocator()) {
+    : device(device), allocator(device->GetMemoryAllocator()) {
 
     VkImageType imageType = VK_IMAGE_TYPE_1D;
     if (extent.height > 1) imageType = VK_IMAGE_TYPE_2D;
@@ -72,13 +72,13 @@ Image::Image(Context *context,
             layout.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
 }
 
-Image::Image(Context *context,
+Image::Image(Device *device,
              VkFormat format,
              VkExtent3D extent,
              uint32_t mipLevels,
              uint32_t arrayLayers,
              VkSampleCountFlagBits samples,
-             VkImage image) : context(context) {
+             VkImage image) : device(device) {
 
     createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     createInfo.pNext = nullptr;
@@ -107,7 +107,7 @@ Image::Image(Context *context,
 Image::~Image() {
     #define DESTROY_VIEW(view)                                      \
     if (view) {                                                     \
-        vkDestroyImageView(context->GetDevice(), view, nullptr);    \
+        vkDestroyImageView(*device, view, nullptr);                 \
         textureView = VK_NULL_HANDLE;                               \
     }
     DESTROY_VIEW(textureView);
@@ -140,7 +140,7 @@ VkImageView Image::AsTexture() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(context->GetDevice(), &viewCreateInfo, nullptr, &textureView), "create texture view");
+        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &textureView), "create texture view");
     }
     return textureView;
 }
@@ -161,7 +161,7 @@ VkImageView Image::AsColorBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(context->GetDevice(), &viewCreateInfo, nullptr, &colorView), "create color buffer view");
+        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &colorView), "create color buffer view");
     }
     return colorView;
 }
@@ -182,7 +182,7 @@ VkImageView Image::AsDepthBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(context->GetDevice(), &viewCreateInfo, nullptr, &depthView), "create depth buffer view");
+        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthView), "create depth buffer view");
     }
     return depthView;
 }
@@ -203,7 +203,7 @@ VkImageView Image::AsStencilBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(context->GetDevice(), &viewCreateInfo, nullptr, &stencilView), "create stencil buffer view");
+        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &stencilView), "create stencil buffer view");
     }
     return stencilView;
 }
@@ -224,7 +224,7 @@ VkImageView Image::AsDepthStencilBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(context->GetDevice(), &viewCreateInfo, nullptr, &depthStencilView), "create depth stencil view");
+        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthStencilView), "create depth stencil view");
     }
     return depthStencilView;
 }

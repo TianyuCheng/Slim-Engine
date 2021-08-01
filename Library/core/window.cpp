@@ -40,7 +40,7 @@ WindowDesc& WindowDesc::SetTitle(const std::string &value) {
     return *this;
 }
 
-Window::Window(Context *context, const WindowDesc &desc) : desc(desc), context(context) {
+Window::Window(Device *device, const WindowDesc &desc) : desc(desc), device(device) {
     // for Vulkan, use GLFW_NO_API
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -54,7 +54,7 @@ Window::Window(Context *context, const WindowDesc &desc) : desc(desc), context(c
     glfwSetWindowUserPointer(window, this);
 
     // create surface
-    ErrorCheck(glfwCreateWindowSurface(context->instance, window, nullptr, &surface), "create window surface");
+    ErrorCheck(glfwCreateWindowSurface(device->GetContext()->GetInstance(), window, nullptr, &surface), "create window surface");
 
     InitSwapchain();
     InitRenderFrames();
@@ -69,13 +69,13 @@ Window::~Window() {
 
     // clean up swapchain
     if (swapchain) {
-        vkDestroySwapchainKHR(context->GetDevice(), swapchain, nullptr);
+        vkDestroySwapchainKHR(*device, swapchain, nullptr);
         swapchain = VK_NULL_HANDLE;
     }
 
     // clean up surface
     if (surface) {
-        vkDestroySurfaceKHR(context->instance, surface, nullptr);
+        vkDestroySurfaceKHR(device->GetContext()->GetInstance(), surface, nullptr);
         surface = nullptr;
     }
 
@@ -95,7 +95,7 @@ bool Window::ShouldClose() {
 }
 
 void Window::InitSwapchain() {
-    SwapchainSupportDetails swapchainSupport = QuerySwapchainSupport(context->physicalDevice, surface);
+    SwapchainSupportDetails swapchainSupport = QuerySwapchainSupport(device->GetContext()->GetPhysicalDevice(), surface);
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapchainSupport.formats);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapchainSupport.presentModes);
@@ -116,7 +116,7 @@ void Window::InitSwapchain() {
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = FindQueueFamilyIndices(context->physicalDevice, surface);
+    QueueFamilyIndices indices = FindQueueFamilyIndices(device->GetContext()->GetPhysicalDevice(), surface);
     uint32_t queueFamilyIndices[] = { indices.graphics.value(), indices.present.value() };
     if (indices.graphics != indices.present) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -137,15 +137,15 @@ void Window::InitSwapchain() {
     swapchainFormat = surfaceFormat.format;
     swapchainExtent = extent;
 
-    ErrorCheck(vkCreateSwapchainKHR(context->GetDevice(), &createInfo, nullptr, &swapchain), "create swapchain");
+    ErrorCheck(vkCreateSwapchainKHR(*device, &createInfo, nullptr, &swapchain), "create swapchain");
 
     std::vector<VkImage> images;
-    vkGetSwapchainImagesKHR(context->GetDevice(), swapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(*device, swapchain, &imageCount, nullptr);
     images.resize(imageCount);
-    vkGetSwapchainImagesKHR(context->GetDevice(), swapchain, &imageCount, images.data());
+    vkGetSwapchainImagesKHR(*device, swapchain, &imageCount, images.data());
     swapchainImages.resize(imageCount);
     for (uint32_t i = 0; i < images.size(); i++) {
-        swapchainImages[i] = SlimPtr<GPUImage2D>(context, swapchainFormat,
+        swapchainImages[i] = SlimPtr<GPUImage2D>(device, swapchainFormat,
                                                  VkExtent3D { swapchainExtent.width, swapchainExtent.height, 1 },
                                                  1, 1, VK_SAMPLE_COUNT_1_BIT,
                                                  images[i]);
@@ -155,8 +155,8 @@ void Window::InitSwapchain() {
 void Window::InitRenderFrames() {
     maxFramesInFlight = desc.maxFramesInFlight;
     for (uint32_t i = 0; i < desc.maxFramesInFlight; i++) {
-        inflightFences.push_back(SlimPtr<Fence>(context));
-        renderFrames.push_back(SlimPtr<RenderFrame>(context, desc.maxSetsPerPool));
+        inflightFences.push_back(SlimPtr<Fence>(device));
+        renderFrames.push_back(SlimPtr<RenderFrame>(device, desc.maxSetsPerPool));
     }
 }
 
@@ -178,7 +178,7 @@ RenderFrame* Window::AcquireNext() {
     if (swapchain) {
         uint32_t imageIndex;
         VkSemaphore imageAvailableSemaphore = *frame->imageAvailableSemaphore.get();
-        VkResult result = vkAcquireNextImageKHR(context->GetDevice(), swapchain, UINT64_MAX, imageAvailableSemaphore, nullptr, &imageIndex);
+        VkResult result = vkAcquireNextImageKHR(*device, swapchain, UINT64_MAX, imageAvailableSemaphore, nullptr, &imageIndex);
         if (result == VK_SUCCESS) {
             frame->swapchain = swapchain;
             frame->swapchainIndex = imageIndex;
@@ -209,7 +209,7 @@ void Window::OnResize() {
     desc.height = height;
 
     // wait until all things are finished
-    context->WaitIdle();
+    device->WaitIdle();
 
     // recreate most of the rendering related stuff
     InitSwapchain();
@@ -224,8 +224,8 @@ void Window::OnResize() {
         RenderFrame* frame = renderFrames[i].get();
         frame->Invalidate();
         frame->inflightFence = nullptr;
-        frame->imageAvailableSemaphore = SlimPtr<Semaphore>(context);
-        frame->renderFinishesSemaphore = SlimPtr<Semaphore>(context);
+        frame->imageAvailableSemaphore = SlimPtr<Semaphore>(device);
+        frame->renderFinishesSemaphore = SlimPtr<Semaphore>(device);
         frame->SetBackBuffer(swapchainImages[i].get());
     }
 }

@@ -3,18 +3,22 @@
 using namespace slim;
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
+            .EnableGLFW(true)
     );
 
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
     // prepare compute pipeline
-    auto shader = SlimPtr<spirv::ComputeShader>(context, "main", "shaders/simple.comp.spv");
+    auto shader = SlimPtr<spirv::ComputeShader>(device, "main", "shaders/simple.comp.spv");
     auto pipeline = SlimPtr<Pipeline>(
-            context,
+            device,
             ComputePipelineDesc()
                 .SetComputeShader(shader)
                 .SetPipelineLayout(PipelineLayoutDesc()
@@ -28,11 +32,11 @@ int main() {
     for (uint32_t i = 0; i < 256; i++) data.push_back(i & 0xff);
 
     // create a buffers
-    auto srcBuffer = SlimPtr<DeviceStorageBuffer>(context, BufferSize(data));
-    auto dstBuffer = SlimPtr<DeviceStorageBuffer>(context, BufferSize(data));
+    auto srcBuffer = SlimPtr<DeviceStorageBuffer>(device, BufferSize(data));
+    auto dstBuffer = SlimPtr<DeviceStorageBuffer>(device, BufferSize(data));
 
     // execute
-    context->Execute([=](auto renderFrame, auto commandBuffer) {
+    device->Execute([=](auto renderFrame, auto commandBuffer) {
 
         // update data for source buffer
         srcBuffer->SetData(data);
@@ -46,7 +50,7 @@ int main() {
         commandBuffer->BindPipeline(pipeline);
 
         // bind pipeline resource
-        commandBuffer->BindDescriptor(descriptor);
+        commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_COMPUTE);
 
         // dispatch compute
         commandBuffer->Dispatch(1, 1, 1);
@@ -59,6 +63,6 @@ int main() {
         std::cout << "DATA[" << i << "] = " << byte << std::endl;
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

@@ -4,8 +4,8 @@
 
 using namespace slim;
 
-Buffer::Buffer(Context *context, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage)
-    : allocator(context->GetMemoryAllocator()), size(size) {
+Buffer::Buffer(Device *device, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage)
+    : device(device), size(size) {
 
     if (size == 0) throw std::runtime_error("[Buffer] size should not be 0!");
 
@@ -23,15 +23,15 @@ Buffer::Buffer(Context *context, size_t size, VkBufferUsageFlags bufferUsage, Vm
     allocCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
     // use vulkan memory allocator
-    ErrorCheck(vmaCreateBuffer(allocator, &bufferCreateInfo, &allocCreateInfo, &handle, &allocation, &allocInfo),
+    ErrorCheck(vmaCreateBuffer(device->GetMemoryAllocator(), &bufferCreateInfo, &allocCreateInfo, &handle, &allocation, &allocInfo),
         "create buffer");
 }
 
 Buffer::~Buffer() {
     if (handle) {
-        vmaDestroyBuffer(allocator, handle, allocation);
-        handle = VK_NULL_HANDLE;
+        vmaDestroyBuffer(device->GetMemoryAllocator(), handle, allocation);
     }
+    handle = VK_NULL_HANDLE;
 }
 
 bool Buffer::HostVisible() const {
@@ -64,5 +64,5 @@ void Buffer::SetData(void *data, size_t size, size_t offset) const {
 }
 
 void Buffer::Flush() const {
-    vmaFlushAllocation(allocator, allocation, 0, size);
+    vmaFlushAllocation(device->GetMemoryAllocator(), allocation, 0, size);
 }

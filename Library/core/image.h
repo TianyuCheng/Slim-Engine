@@ -9,7 +9,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/hasher.h"
-#include "core/context.h"
+#include "core/device.h"
 #include "utility/transient.h"
 #include "utility/interface.h"
 
@@ -23,7 +23,7 @@ namespace slim {
         using List = std::list<Image*>;
         using Dictionary = std::unordered_map<size_t, List>;
     public:
-        explicit Image2DPool(Context *context);
+        explicit Image2DPool(Device *device);
         virtual ~Image2DPool();
         void Reset();
         Transient<Image> Request(VkFormat format,
@@ -40,17 +40,22 @@ namespace slim {
                              size_t hash);
         void Recycle(Image *image, size_t size);
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         Dictionary allAllocations;
         Dictionary availableLists;
     };
 
     template <typename Image>
-    Image2DPool<Image>::Image2DPool(Context *context) : context(context) {
+    Image2DPool<Image>::Image2DPool(Device *device) : device(device) {
     }
 
     template <typename Image>
     Image2DPool<Image>::~Image2DPool() {
+        // delete all allocations
+        for (auto &kv : allAllocations)
+            for (auto &image : kv.second)
+                delete image;
+
         allAllocations.clear();
         availableLists.clear();
     }
@@ -101,7 +106,7 @@ namespace slim {
                                              VkSampleCountFlagBits samples,
                                              VkImageUsageFlags imageUsage,
                                              size_t hash) {
-        Image *image = new Image(context.get(), format, extent, mipLevels, samples, imageUsage);
+        Image *image = new Image(device, format, extent, mipLevels, samples, imageUsage);
         auto it = allAllocations.find(hash);
         if (it == allAllocations.end()) {
             allAllocations.insert(std::make_pair(hash, List()));
@@ -126,7 +131,7 @@ namespace slim {
     class Image : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkImage> {
         friend class CommandBuffer;
     public:
-        explicit Image(Context *context,
+        explicit Image(Device *device,
                        VkFormat format,
                        VkExtent3D extent,
                        uint32_t mipLevels,
@@ -137,7 +142,7 @@ namespace slim {
                        VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL,
                        VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE);
 
-        explicit Image(Context *context,
+        explicit Image(Device *device,
                        VkFormat format,
                        VkExtent3D extent,
                        uint32_t mipLevels,
@@ -173,7 +178,7 @@ namespace slim {
         std::vector<std::vector<VkImageLayout>> layouts = {};
 
     private:
-        Context*          context = nullptr;
+        Device*           device = nullptr;
         VmaAllocator      allocator = VK_NULL_HANDLE;
         VmaAllocation     allocation;
         VmaAllocationInfo allocInfo;
@@ -204,24 +209,24 @@ namespace slim {
     public:                                                              \
         friend class Image2DPool<NAME>;                                  \
         using PoolType = Image2DPool<NAME>;                              \
-        NAME(Context *context, VkFormat format, VkExtent2D extent,       \
+        NAME(Device *device, VkFormat format, VkExtent2D extent,         \
              uint32_t mipLevels, VkSampleCountFlagBits samples,          \
              VkImageUsageFlags imageUsage,                               \
              VkImageTiling tiling = TILING,                              \
              VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)      \
-            : Image(context, format,                                     \
+            : Image(device, format,                                      \
                     VkExtent3D { extent.width, extent.height, 1 },       \
                     mipLevels, 1, samples, imageUsage,                   \
                     MEMORY_USAGE, tiling, sharingMode) {                 \
         }                                                                \
-        NAME(Context *context,                                           \
+        NAME(Device *device,                                             \
              VkFormat format,                                            \
              VkExtent3D extent,                                          \
              uint32_t mipLevels,                                         \
              uint32_t arrayLayers,                                       \
              VkSampleCountFlagBits samples,                              \
              VkImage image)                                              \
-            : Image(context, format, extent, mipLevels,                  \
+            : Image(device, format, extent, mipLevels,                   \
                     arrayLayers, samples, image) {                       \
         }                                                                \
         virtual ~NAME() = default;                                       \

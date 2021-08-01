@@ -37,17 +37,17 @@ FramebufferDesc& FramebufferDesc::AddAttachment(VkImageView view) {
     return *this;
 }
 
-Framebuffer::Framebuffer(Context *context, FramebufferDesc &desc)
-    : context(context) {
+Framebuffer::Framebuffer(Device *device, FramebufferDesc &desc)
+    : device(device) {
 
     desc.handle.attachmentCount = desc.attachments.size();
     desc.handle.pAttachments = desc.attachments.data();
 
-    ErrorCheck(vkCreateFramebuffer(context->GetDevice(), &desc.handle, nullptr, &handle), "create framebuffer");
+    ErrorCheck(vkCreateFramebuffer(*device, &desc.handle, nullptr, &handle), "create framebuffer");
 }
 
 Framebuffer::~Framebuffer() {
     if (handle) {
-        vkDestroyFramebuffer(context->GetDevice(), handle, nullptr);
+        vkDestroyFramebuffer(*device, handle, nullptr);
     }
 }

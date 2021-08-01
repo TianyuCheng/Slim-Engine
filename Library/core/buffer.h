@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vulkan/vulkan.h>
 
-#include "core/context.h"
+#include "core/device.h"
 #include "utility/transient.h"
 #include "utility/interface.h"
 
@@ -23,19 +23,19 @@ namespace slim {
     class BufferPool final : public ReferenceCountable {
         using List = std::list<SmartPtr<Buffer>>;
     public:
-        explicit BufferPool(Context *context);
+        explicit BufferPool(Device *device);
         virtual ~BufferPool();
         void Reset();
         Buffer* Request(size_t size);
     private:
         Buffer* AllocateBuffer(size_t size);
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
         List allAllocations;
     };
 
     template <typename Buffer>
-    BufferPool<Buffer>::BufferPool(Context *context) : context(context) {
+    BufferPool<Buffer>::BufferPool(Device *device) : device(device) {
     }
 
     template <typename Buffer>
@@ -55,7 +55,7 @@ namespace slim {
 
     template <typename Buffer>
     Buffer* BufferPool<Buffer>::AllocateBuffer(size_t size) {
-        Buffer *buffer = new Buffer(context.get(), size);
+        Buffer *buffer = new Buffer(device, size);
         allAllocations.push_back(SmartPtr<Buffer>(buffer));
         return buffer;
     }
@@ -64,7 +64,7 @@ namespace slim {
 
     class Buffer : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkBuffer> {
     public:
-        explicit Buffer(Context *context, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage);
+        explicit Buffer(Device *device, size_t size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage);
         virtual ~Buffer();
 
         void SetData(void *data, size_t size, size_t offset = 0) const;
@@ -88,7 +88,7 @@ namespace slim {
         size_t Size(size_t offset = 0) const;
 
     private:
-        VmaAllocator      allocator = VK_NULL_HANDLE;
+        SmartPtr<Device>  device = VK_NULL_HANDLE;
         VmaAllocation     allocation;
         VmaAllocationInfo allocInfo;
         size_t            size;
@@ -123,8 +123,8 @@ namespace slim {
     public:                                                       \
         friend class BufferPool<NAME>;                            \
         using PoolType = BufferPool<NAME>;                        \
-        NAME(Context *context, size_t size)                       \
-            : Buffer(context, size, BUFFER_USAGE, MEMORY_USAGE) { \
+        NAME(Device *device, size_t size)                         \
+            : Buffer(device, size, BUFFER_USAGE, MEMORY_USAGE) {  \
         }                                                         \
         virtual ~NAME() { }                                       \
     };
@@ -142,8 +142,8 @@ namespace slim {
         friend class BufferPool<IndexBuffer>;
         using PoolType = BufferPool<IndexBuffer>;
 
-        IndexBuffer(Context *context, size_t size)
-            : Buffer(context, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY) {}
+        IndexBuffer(Device *device, size_t size)
+            : Buffer(device, size, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY) {}
 
         virtual ~IndexBuffer() { }
 

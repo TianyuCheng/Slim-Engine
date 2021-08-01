@@ -3,21 +3,25 @@
 using namespace slim;
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
+            .EnableGLFW(true)
     );
 
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
     // create a buffers
-    auto buffer1 = SlimPtr<StagingBuffer>(context, 256);
-    auto buffer2 = SlimPtr<VertexBuffer>(context, 256);
-    auto buffer3 = SlimPtr<StagingBuffer>(context, 256);
+    auto buffer1 = SlimPtr<StagingBuffer>(device, 256);
+    auto buffer2 = SlimPtr<VertexBuffer>(device, 256);
+    auto buffer3 = SlimPtr<StagingBuffer>(device, 256);
 
     // copy
-    context->Execute([=](auto commandBuffer) {
+    device->Execute([=](auto commandBuffer) {
 
         // prepare data
         std::vector<uint8_t> data;
@@ -43,6 +47,6 @@ int main() {
         std::cout << "DATA[" << i << "] = " << byte << std::endl;
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

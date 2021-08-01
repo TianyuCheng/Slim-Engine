@@ -99,11 +99,11 @@ void RenderGraph::Pass::SetTexture(RenderGraph::Resource *resource) {
     usedAsTexture.push_back({ resource });
 }
 
-void RenderGraph::Pass::Execute(std::function<void(const RenderGraph &renderGraph)> cb) {
+void RenderGraph::Pass::Execute(std::function<void(const RenderInfo &renderInfo)> cb) {
     callback = cb;
 }
 
-void RenderGraph::Pass::Execute() {
+void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     RenderFrame* renderFrame = graph->GetRenderFrame();
 
     // allocate resource if necessary
@@ -115,9 +115,9 @@ void RenderGraph::Pass::Execute() {
     for (auto &attachment : usedAsColorResolveAttachment) attachment.resource->Allocate(renderFrame);
 
     if (compute) {
-        ExecuteCompute();
+        ExecuteCompute(commandBuffer);
     } else {
-        ExecuteGraphics();
+        ExecuteGraphics(commandBuffer);
     }
 
     // update reference counts
@@ -137,25 +137,28 @@ void RenderGraph::Pass::Execute() {
     for (auto &attachment : usedAsColorResolveAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
 }
 
-void RenderGraph::Pass::ExecuteCompute() {
-    CommandBuffer* commandBuffer = graph->GetComputeCommandBuffer();
-
+void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     // texture layout transition
     for (auto &texture : usedAsTexture) {
         commandBuffer->PrepareForShaderRead(texture.resource->image);
     }
 
+    // TODO: add other types of resources which needs layout transition
+
     // execute compute callback
-    callback(*graph);
+    RenderInfo info;
+    info.renderGraph = graph;
+    info.renderFrame = graph->GetRenderFrame();
+    info.renderPass = nullptr;
+    info.commandBuffer = commandBuffer;
+    callback(info);
 }
 
-void RenderGraph::Pass::ExecuteGraphics() {
+void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     // prepare a render pass
     RenderPassDesc renderPassDesc;
     FramebufferDesc framebufferDesc;
     std::vector<VkClearValue> clearValues;
-
-    CommandBuffer* commandBuffer = graph->GetGraphicsCommandBuffer();
 
     auto inferLoadOp = [](const ResourceMetadata &attachment) -> VkAttachmentLoadOp {
         if (attachment.clearValue.has_value())
@@ -261,14 +264,20 @@ void RenderGraph::Pass::ExecuteGraphics() {
     beginInfo.framebuffer = *framebuffer;
     beginInfo.renderPass = *renderPass;
     beginInfo.renderArea.offset = { 0, 0 };
-    beginInfo.renderArea.extent = graph->GetRenderFrame()->GetExtent();
+    beginInfo.renderArea.extent = extent;
     beginInfo.clearValueCount = clearValues.size();
     beginInfo.pClearValues = clearValues.data();
     beginInfo.pNext = nullptr;
     vkCmdBeginRenderPass(*commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+    RenderInfo info;
+    info.renderGraph = graph;
+    info.renderFrame = renderFrame;
+    info.renderPass = renderPass;
+    info.commandBuffer = commandBuffer;
+
     // execute draw callback
-    callback(*graph);
+    callback(info);
 
     // end render pass
     vkCmdEndRenderPass(*commandBuffer);
@@ -291,20 +300,8 @@ RenderPass* RenderGraph::GetRenderPass() const {
     return renderPass.get();
 }
 
-CommandBuffer* RenderGraph::GetGraphicsCommandBuffer() const {
-    if (!graphicsCommandBuffer.get()) {
-        graphicsCommandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
-        graphicsCommandBuffer->Begin();
-    }
-    return graphicsCommandBuffer.get();
-}
-
-CommandBuffer* RenderGraph::GetComputeCommandBuffer() const {
-    if (!computeCommandBuffer.get()) {
-        computeCommandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
-        computeCommandBuffer->Begin();
-    }
-    return computeCommandBuffer.get();
+CommandBuffer* RenderGraph::GetCommandBuffer() const {
+    return commandBuffer.get();
 }
 
 RenderGraph::Pass* RenderGraph::CreateRenderPass(const std::string &name) {
@@ -372,8 +369,66 @@ void RenderGraph::CompilePass(Pass *pass) {
     timeline.push_back(pass);
 }
 
+void RenderGraph::UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, Resource* resource) const {
+    for (const auto& writerPass : resource->writers) {
+        if (!writerPass->commandBuffer) continue;
+        // for color attachments
+        for (const auto& res : writerPass->usedAsColorAttachment) {
+            if (res.resource == resource) {
+                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                return;
+            }
+        }
+        for (const auto& res : writerPass->usedAsColorResolveAttachment) {
+            if (res.resource == resource) {
+                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                return;
+            }
+        }
+        // for depth stencil attachments
+        for (const auto& res : writerPass->usedAsDepthAttachment) {
+            if (res.resource == resource) {
+                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                return;
+            }
+        }
+        for (const auto& res : writerPass->usedAsStencilAttachment) {
+            if (res.resource == resource) {
+                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                return;
+            }
+        }
+        for (const auto& res : writerPass->usedAsDepthStencilAttachment) {
+            if (res.resource == resource) {
+                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                return;
+            }
+        }
+        // for all other types
+        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        return;
+    }
+}
+
+bool RenderGraph::HasComputePassDependency(Pass* pass) const {
+    // input
+    for (const auto& meta : pass->usedAsTexture)
+        for (const auto& writerPass : meta.resource->writers)
+            if (writerPass->compute)
+                return true;
+    return false;
+}
+
 void RenderGraph::Execute() {
     if (!compiled) Compile();
+
+    // NOTE: Technically we will need a compute buffer for each compute pass.
+    // For dependency synchronization, any draw pass that needs input from compute pass
+    // would require separate command buffer;
+
+    // remember last graphics command buffer
+    CommandBuffer* lastGraphicsCommandBuffer = nullptr;
+    Semaphore* lastGraphicsSemaphore = nullptr;
 
     for (Pass *pass : timeline) {
         // don't execute a pass if it is executed
@@ -381,21 +436,89 @@ void RenderGraph::Execute() {
         if (pass->visited) continue;
         if (!pass->retained) continue;
 
-        // execute and mark the pass
-        pass->Execute();
+        CommandBuffer* commandBuffer = nullptr;
+
+        // create new command buffer for each pass
+        if (pass->compute) {
+            pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
+            pass->signalSemaphore = renderFrame->RequestSemaphore();
+            pass->commandBuffer->Signal(pass->signalSemaphore); // all compute passes need to signal, otherwise it should be culled
+            pass->commandBuffer->Begin();
+            commandBuffer = pass->commandBuffer;
+            // execute the pass
+            pass->Execute(pass->commandBuffer);
+        } else {
+            if (HasComputePassDependency(pass)) {
+                // request new command buffer
+                pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
+                pass->signalSemaphore = renderFrame->RequestSemaphore();
+                // update dependencies between command buffer
+                if (lastGraphicsCommandBuffer && lastGraphicsSemaphore) {
+                    lastGraphicsCommandBuffer->Signal(lastGraphicsSemaphore);                               // signal from previous graphics command buffer
+                    pass->commandBuffer->Wait(lastGraphicsSemaphore, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);   // wait from current graphics command buffer
+                }
+                // update current command buffer handles
+                lastGraphicsCommandBuffer = pass->commandBuffer;
+                lastGraphicsSemaphore = pass->signalSemaphore;
+                lastGraphicsCommandBuffer->Begin();
+            }
+            if (!lastGraphicsCommandBuffer) {
+                lastGraphicsCommandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
+                lastGraphicsSemaphore = renderFrame->RequestSemaphore();
+                lastGraphicsCommandBuffer->Begin();
+            }
+            // execute the pass
+            pass->Execute(lastGraphicsCommandBuffer);
+        }
         pass->visited = true;
+
+        // resolving command buffer dependencies
+        for (const auto& meta : pass->usedAsTexture) {
+            UpdateCommandBufferDependencies(pass->commandBuffer, meta.resource);
+        }
     }
 
-    if (computeCommandBuffer.get()) {
-        computeCommandBuffer->End();
-    }
-
-    if (graphicsCommandBuffer.get()) {
-        // trans
+    // adding a layout transition
+    if (lastGraphicsCommandBuffer) {
+        // present src layout transition
         GPUImage2D* backbuffer = renderFrame->GetBackBuffer();
-        graphicsCommandBuffer->PrepareForPresentSrc(backbuffer);
-        graphicsCommandBuffer->End();
-        renderFrame->Present(GetGraphicsCommandBuffer());
+        lastGraphicsCommandBuffer->PrepareForPresentSrc(backbuffer);
+    }
+
+    // stop command buffer recording for all
+    for (Pass *pass : timeline) {
+        if (pass->commandBuffer && pass->commandBuffer != lastGraphicsCommandBuffer) {
+            pass->commandBuffer->End();
+        }
+    }
+    lastGraphicsCommandBuffer->End();
+
+    // submit all command buffers
+    std::vector<VkSubmitInfo> computeSubmits = {};
+    std::vector<VkSubmitInfo> graphicsSubmits = {};
+    for (Pass *pass : timeline) {
+        if (pass->commandBuffer && pass->commandBuffer.get() != lastGraphicsCommandBuffer) {
+            if (pass->compute) {
+                computeSubmits.push_back(pass->commandBuffer->GetSubmitInfo());
+            } else {
+                graphicsSubmits.push_back(pass->commandBuffer->GetSubmitInfo());
+            }
+        }
+    }
+    if (computeSubmits.size()) {
+        ErrorCheck(vkQueueSubmit(renderFrame->GetDevice()->GetComputeQueue(),
+                                 computeSubmits.size(), computeSubmits.data(),
+                                 *renderFrame->GetComputeFinishFence()),
+                    "submit compute commands");
+    }
+    if (graphicsSubmits.size()) {
+        ErrorCheck(vkQueueSubmit(renderFrame->GetDevice()->GetGraphicsQueue(),
+                                 graphicsSubmits.size(), graphicsSubmits.data(),
+                                 *renderFrame->GetGraphicsFinishFence()),
+                    "submit graphics commands");
+    }
+    if (lastGraphicsCommandBuffer) {
+        renderFrame->Present(lastGraphicsCommandBuffer);
     }
 }
 

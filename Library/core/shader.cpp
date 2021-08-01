@@ -28,9 +28,9 @@ std::vector<uint8_t> LoadSpirvShader(const std::string &path) {
     return content;
 }
 
-Shader::Shader(Context *context, ShaderType type, VkShaderStageFlagBits stage,
+Shader::Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage,
                const std::string &entry, const std::string &file)
-    : context(context), entry(entry) {
+    : device(device), entry(entry) {
 
     // load data
     std::vector<uint8_t> code;
@@ -49,7 +49,7 @@ Shader::Shader(Context *context, ShaderType type, VkShaderStageFlagBits stage,
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-    ErrorCheck(vkCreateShaderModule(context->GetDevice(), &createInfo, nullptr, &handle), "create shader");
+    ErrorCheck(vkCreateShaderModule(*device, &createInfo, nullptr, &handle), "create shader");
 
     // prepare shader stage info
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -60,7 +60,7 @@ Shader::Shader(Context *context, ShaderType type, VkShaderStageFlagBits stage,
 
 Shader::~Shader() {
     if (handle) {
-        vkDestroyShaderModule(context->GetDevice(), handle, nullptr);
+        vkDestroyShaderModule(*device, handle, nullptr);
         handle = nullptr;
     }
 }

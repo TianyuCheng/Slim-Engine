@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/hasher.h"
-#include "core/context.h"
+#include "core/device.h"
 #include "core/renderpass.h"
 #include "utility/interface.h"
 
@@ -28,11 +28,11 @@ namespace slim {
 
     class Framebuffer final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkFramebuffer> {
     public:
-        Framebuffer(Context *context, FramebufferDesc &desc);
+        Framebuffer(Device *device, FramebufferDesc &desc);
         virtual ~Framebuffer();
 
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
     };
 
 } // end of namespace slim

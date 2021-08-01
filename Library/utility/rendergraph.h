@@ -6,7 +6,7 @@
 #include <functional>
 #include <vulkan/vulkan.h>
 
-#include "core/context.h"
+#include "core/device.h"
 #include "core/commands.h"
 #include "core/image.h"
 #include "core/renderpass.h"
@@ -14,6 +14,17 @@
 #include "utility/interface.h"
 
 namespace slim {
+
+    class RenderGraph;
+    class RenderFrame;
+    class CommandBuffer;
+
+    struct RenderInfo {
+        RenderGraph* renderGraph;
+        RenderFrame* renderFrame;
+        RenderPass* renderPass;
+        CommandBuffer* commandBuffer;
+    };
 
     class RenderGraph final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
@@ -76,12 +87,12 @@ namespace slim {
 
             void SetTexture(RenderGraph::Resource *resource);
 
-            void Execute(std::function<void(const RenderGraph &renderGraph)> callback);
+            void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
         private:
-            void Execute();
-            void ExecuteGraphics();
-            void ExecuteCompute();
+            void Execute(CommandBuffer* commandBuffer);
+            void ExecuteGraphics(CommandBuffer* commandBuffer);
+            void ExecuteCompute(CommandBuffer* commandBuffer);
 
         private:
             struct ResourceMetadata {
@@ -93,6 +104,8 @@ namespace slim {
             RenderGraph *graph;
 
             bool compute = false;
+            SmartPtr<Semaphore> signalSemaphore = nullptr;
+            SmartPtr<CommandBuffer> commandBuffer = nullptr;
 
             // runtime decision
             bool visited = false;
@@ -106,7 +119,7 @@ namespace slim {
             std::vector<ResourceMetadata> usedAsDepthStencilAttachment = {};
             std::vector<ResourceMetadata> usedAsColorResolveAttachment = {};
 
-            std::function<void(const RenderGraph &renderGraph)> callback;
+            std::function<void(const RenderInfo &renderTools)> callback;
         };
 
         // -------------------------------------------------------------------------------
@@ -124,18 +137,18 @@ namespace slim {
 
         RenderPass*            GetRenderPass() const;
         RenderFrame*           GetRenderFrame() const;
-        CommandBuffer*         GetComputeCommandBuffer() const;
-        CommandBuffer*         GetGraphicsCommandBuffer() const;
+        CommandBuffer*         GetCommandBuffer() const;
 
     private:
         void                   CompilePass(Pass *pass);
         void                   CompileResource(Resource *resource);
+        void                   UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, Resource* resource) const;
+        bool                   HasComputePassDependency(Pass* pass) const;
 
     private:
         SmartPtr<RenderFrame> renderFrame;
-        mutable SmartPtr<CommandBuffer> computeCommandBuffer;
-        mutable SmartPtr<CommandBuffer> graphicsCommandBuffer;
         mutable SmartPtr<RenderPass> renderPass;
+        mutable SmartPtr<CommandBuffer> commandBuffer;
         std::vector<SmartPtr<RenderGraph::Pass>> passes = {};
         std::vector<SmartPtr<RenderGraph::Resource>> resources = {};
         std::vector<RenderGraph::Pass*> timeline = {};

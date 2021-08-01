@@ -120,6 +120,7 @@ add_subdirectory(Examples/Multisampling)
 add_subdirectory(Examples/TextureMapping)
 add_subdirectory(Examples/RenderToTexture)
 add_subdirectory(Examples/SceneGraph)
+add_subdirectory(Examples/DynamicUniform)
 
 #     _                _ _           _   _
 #    / \   _ __  _ __ | (_) ___ __ _| |_(_) ___  _ __

@@ -9,7 +9,7 @@
 
 using namespace slim;
 
-DearImGui::DearImGui(Context* context) : context(context) {
+DearImGui::DearImGui(Device* device, Window* window) : device(device), window(window) {
     InitImGui();
     InitRenderPass();
     InitDescriptorPool();
@@ -19,13 +19,15 @@ DearImGui::DearImGui(Context* context) : context(context) {
 }
 
 DearImGui::~DearImGui() {
+    ImGui_ImplVulkan_Shutdown();
+
     if (renderPass) {
-        vkDestroyRenderPass(context->GetDevice(), renderPass, nullptr);
+        vkDestroyRenderPass(*device, renderPass, nullptr);
         renderPass = VK_NULL_HANDLE;
     }
 
     if (descriptorPool) {
-        vkDestroyDescriptorPool(context->GetDevice(), descriptorPool, nullptr);
+        vkDestroyDescriptorPool(*device, descriptorPool, nullptr);
         descriptorPool = VK_NULL_HANDLE;
     }
 }
@@ -61,13 +63,13 @@ void DearImGui::InitDescriptorPool() {
     createInfo.poolSizeCount = poolSizes.size();
     createInfo.pPoolSizes = poolSizes.data();
     createInfo.maxSets = 1000;
-    ErrorCheck(vkCreateDescriptorPool(context->GetDevice(), &createInfo, nullptr, &descriptorPool),
+    ErrorCheck(vkCreateDescriptorPool(*device, &createInfo, nullptr, &descriptorPool),
             "create a descriptor pool for imgui");
 }
 
 void DearImGui::InitRenderPass() {
     VkAttachmentDescription colorAttachment = {};
-    colorAttachment.format = context->GetWindow()->GetFormat();
+    colorAttachment.format = window->GetFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -102,24 +104,24 @@ void DearImGui::InitRenderPass() {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    ErrorCheck(vkCreateRenderPass(context->GetDevice(), &renderPassInfo, nullptr, &renderPass), "create imgui render pass");
+    ErrorCheck(vkCreateRenderPass(*device, &renderPassInfo, nullptr, &renderPass), "create imgui render pass");
 }
 
 void DearImGui::InitGlfw() {
-    ImGui_ImplGlfw_InitForVulkan(context->GetWindow()->window, true);
+    ImGui_ImplGlfw_InitForVulkan(window->GetWindow(), true);
 }
 
 void DearImGui::InitVulkan() {
     ImGui_ImplVulkan_InitInfo info;
-    info.Instance = context->instance;
-    info.PhysicalDevice = context->physicalDevice;
-    info.Device = context->device;
-    info.QueueFamily = context->queueFamilyIndices.graphics.value();
+    info.Instance = device->GetContext()->GetInstance();
+    info.PhysicalDevice = device->GetContext()->GetPhysicalDevice();
+    info.Device = *device;
+    info.QueueFamily = device->GetQueueFamilyIndices().graphics.value();
     info.PipelineCache = VK_NULL_HANDLE;
     info.DescriptorPool = descriptorPool;
     info.Subpass = 0;
-    info.MinImageCount = context->GetWindow()->swapchainImages.size();
-    info.ImageCount = context->GetWindow()->swapchainImages.size();
+    info.MinImageCount = window->swapchainImages.size();
+    info.ImageCount = window->swapchainImages.size();
     info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     info.Allocator = nullptr;
     info.CheckVkResultFn = [](VkResult result) {
@@ -131,13 +133,13 @@ void DearImGui::InitVulkan() {
 }
 
 void DearImGui::InitFontAtlas() {
-    auto frame = SlimPtr<RenderFrame>(context);
+    auto frame = SlimPtr<RenderFrame>(device);
     auto commandBuffer = frame->RequestCommandBuffer(VK_QUEUE_TRANSFER_BIT);
     commandBuffer->Begin();
     ImGui_ImplVulkan_CreateFontsTexture(*commandBuffer);
     commandBuffer->End();
     commandBuffer->Submit();
-    context->WaitIdle();
+    device->WaitIdle();
 }
 
 void DearImGui::Begin() const {

@@ -48,7 +48,7 @@ PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name,
 // |_|   |_| .__/ \___|_|_|_| |_|\___|_____\__,_|\__, |\___/ \__,_|\__|
 //         |_|                                   |___/
 
-PipelineLayout::PipelineLayout(Context *context, const PipelineLayoutDesc &desc) : context(context) {
+PipelineLayout::PipelineLayout(Device *device, const PipelineLayoutDesc &desc) : device(device) {
     Init(desc, desc.bindings);
 
     for (uint32_t i = 0; i < desc.pushConstantNames.size(); i++) {
@@ -81,10 +81,10 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
         layoutCreateInfo.pBindings = vkBindings.data();
         layoutCreateInfo.flags = 0;
         layoutCreateInfo.pNext = nullptr;
-        ErrorCheck(vkCreateDescriptorSetLayout(context->GetDevice(), &layoutCreateInfo, nullptr, &layout),
+        ErrorCheck(vkCreateDescriptorSetLayout(*device, &layoutCreateInfo, nullptr, &layout),
                 "create descriptor set layout");
 
-        // create a set layout from context
+        // create a set layout from device
         descriptorSetLayouts.push_back(layout);
 
         // create a mapping from resource name to descriptor set layout and binding
@@ -99,20 +99,20 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
     pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
     pipelineLayoutCreateInfo.pushConstantRangeCount = desc.pushConstantRange.size();
     pipelineLayoutCreateInfo.pPushConstantRanges = desc.pushConstantRange.data();
-    ErrorCheck(vkCreatePipelineLayout(context->GetDevice(), &pipelineLayoutCreateInfo, nullptr, &handle), "create pipeline layout");
+    ErrorCheck(vkCreatePipelineLayout(*device, &pipelineLayoutCreateInfo, nullptr, &handle), "create pipeline layout");
 }
 
 PipelineLayout::~PipelineLayout() {
     for (auto descriptorSetLayout : descriptorSetLayouts)
-        vkDestroyDescriptorSetLayout(context->GetDevice(), descriptorSetLayout, nullptr);
+        vkDestroyDescriptorSetLayout(*device, descriptorSetLayout, nullptr);
 
     if (handle) {
-        vkDestroyPipelineLayout(context->GetDevice(), handle, nullptr);
+        vkDestroyPipelineLayout(*device, handle, nullptr);
         handle = VK_NULL_HANDLE;
     }
 }
 
-bool PipelineLayout::HasAttrib(const std::string &name) const {
+bool PipelineLayout::HasBinding(const std::string &name) const {
     return mappings.find(name) != mappings.end();
 }
 
@@ -144,7 +144,7 @@ Descriptor::~Descriptor() {
 }
 
 void Descriptor::Update() {
-    VkDevice device = pool->GetContext()->GetDevice();
+    VkDevice device = *pool->GetDevice();
     vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 
     writes.clear();
@@ -152,12 +152,17 @@ void Descriptor::Update() {
     bufferInfos.clear();
 }
 
-bool Descriptor::HasAttrib(const std::string &name) const {
-    return pipelineLayout->HasAttrib(name);
+bool Descriptor::HasBinding(const std::string &name) const {
+    return pipelineLayout->HasBinding(name);
+}
+
+std::tuple<uint32_t, uint32_t> Descriptor::GetBinding(const std::string &name) {
+    auto [_, set, binding] = FindDescriptorSet(name);
+    return std::make_tuple(set, binding);
 }
 
 void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *sampler) {
-    auto info = FindDescriptorSet(name);
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
 
     VkDescriptorImageInfo imageInfo = {};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -168,8 +173,8 @@ void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *samp
     VkWriteDescriptorSet update = {};
     update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     update.pNext = nullptr;
-    update.dstSet = info.first;
-    update.dstBinding = info.second;
+    update.dstSet = descriptorSet;
+    update.dstBinding = binding;
     update.dstArrayElement = 0;
     update.descriptorCount = 1;
     update.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -184,6 +189,10 @@ void Descriptor::SetUniform(const std::string &name, Buffer *buffer, size_t offs
     SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, offset, size);
 }
 
+void Descriptor::SetDynamic(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
+    SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, offset, size);
+}
+
 void Descriptor::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, offset, size);
 }
@@ -191,7 +200,7 @@ void Descriptor::SetStorage(const std::string &name, Buffer *buffer, size_t offs
 void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size) {
     buffer->Flush();
 
-    auto info = FindDescriptorSet(name);
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
 
     VkDescriptorBufferInfo bufferInfo = {};
     bufferInfo.buffer = (VkBuffer) *buffer;
@@ -202,8 +211,8 @@ void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptor
     VkWriteDescriptorSet update = {};
     update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     update.pNext = nullptr;
-    update.dstSet = info.first;
-    update.dstBinding = info.second;
+    update.dstSet = descriptorSet;
+    update.dstBinding = binding;
     update.dstArrayElement = 0;
     update.descriptorCount = 1;
     update.descriptorType = descriptorType;
@@ -214,7 +223,22 @@ void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptor
     writes.push_back(update);
 }
 
-std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::string &name) {
+void Descriptor::SetDynamicOffset(const std::string &name, uint32_t offset) {
+    auto [_, set, binding] = FindDescriptorSet(name);
+    SetDynamicOffset(set, binding, offset);
+}
+
+void Descriptor::SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset) {
+    if (dynamicOffsets.size() <= set)
+        dynamicOffsets.resize(set + 1);
+
+    if (dynamicOffsets[set].size() <= binding)
+        dynamicOffsets[set].resize(binding + 1);
+
+    dynamicOffsets[set][binding] = offset;
+}
+
+std::tuple<VkDescriptorSet, uint32_t, uint32_t> Descriptor::FindDescriptorSet(const std::string &name) {
     auto indexOf = [](const std::vector<VkDescriptorSetLayout> &layouts, VkDescriptorSetLayout target) {
         for (uint32_t i = 0; i < layouts.size(); i++)
             if (layouts[i] == target)
@@ -237,12 +261,14 @@ std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::st
     while (descriptorSets.size() <= set)
         descriptorSets.push_back(VK_NULL_HANDLE);
 
-    if (descriptorSets[set] == VK_NULL_HANDLE) {
+    if (descriptorSets[set] == VK_NULL_HANDLE)
         descriptorSets[set] = pool->Request(layout);
-    }
+
+    while (dynamicOffsets.size() <= set)
+        dynamicOffsets.push_back({ });
 
     descriptorSet = descriptorSets[set];
-    return std::make_pair(descriptorSet, binding);
+    return std::make_tuple(descriptorSet, set, binding);
 }
 
 //  ____                      _       _             ____             _
@@ -252,7 +278,7 @@ std::pair<VkDescriptorSet, uint32_t> Descriptor::FindDescriptorSet(const std::st
 // |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|  |_|   \___/ \___/|_|
 //                             |_|
 
-DescriptorPool::DescriptorPool(Context *context, uint32_t size) : context(context), maxPoolSets(size) {
+DescriptorPool::DescriptorPool(Device *device, uint32_t size) : device(device), maxPoolSets(size) {
     // initialize descriptor pool sizes
     static std::unordered_map<VkDescriptorType, float> resourceAllocations = {
         { VK_DESCRIPTOR_TYPE_SAMPLER,                1.0f },
@@ -277,14 +303,14 @@ DescriptorPool::~DescriptorPool() {
 
     // destroy descriptor pool
     for (const auto &pool : pools) {
-        vkDestroyDescriptorPool(context->GetDevice(), pool, nullptr);
+        vkDestroyDescriptorPool(*device, pool, nullptr);
     }
 }
 
 void DescriptorPool::Reset() {
     // clearing allocated descriptors
     for (const auto &pool : pools) {
-        ErrorCheck(vkResetDescriptorPool(context->GetDevice(), pool, (VkDescriptorPoolResetFlags) 0), "reset descriptor pool");
+        ErrorCheck(vkResetDescriptorPool(*device, pool, (VkDescriptorPoolResetFlags) 0), "reset descriptor pool");
     }
 
     // reset allocated count
@@ -306,7 +332,7 @@ uint32_t DescriptorPool::FindAvailablePoolIndex(uint32_t index) {
         createInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
         VkDescriptorPool pool = VK_NULL_HANDLE;
-        ErrorCheck(vkCreateDescriptorPool(context->GetDevice(), &createInfo, nullptr, &pool), "create new descriptor pool");
+        ErrorCheck(vkCreateDescriptorPool(*device, &createInfo, nullptr, &pool), "create new descriptor pool");
 
         pools.push_back(pool);
         poolSetCounts.push_back(0);
@@ -329,7 +355,7 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
     allocInfo.descriptorPool     = pools[poolIndex];
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout;
-    ErrorCheck(vkAllocateDescriptorSets(context->GetDevice(), &allocInfo, &descriptorSet), "allocate a descriptor set");
+    ErrorCheck(vkAllocateDescriptorSets(*device, &allocInfo, &descriptorSet), "allocate a descriptor set");
 
     // increment allocated set counter in the pool
     poolSetCounts[poolIndex]++;
@@ -351,9 +377,9 @@ PipelineDesc::PipelineDesc(const std::string &name, VkPipelineBindPoint bindPoin
 
 }
 
-void PipelineDesc::Initialize(Context* context) {
+void PipelineDesc::Initialize(Device* device) {
     if (!pipelineLayout) {
-        pipelineLayout = SlimPtr<PipelineLayout>(context, pipelineLayoutDesc);
+        pipelineLayout = SlimPtr<PipelineLayout>(device, pipelineLayoutDesc);
     }
 }
 
@@ -627,13 +653,13 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetViewportScissors(const std::vecto
 // |_|   |_| .__/ \___|_|_|_| |_|\___|
 //         |_|
 
-Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
+Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
     #ifndef NDEBUG
     assert(desc.name.length() > 0 && "PipelineDesc must have a name!");
     assert(desc.renderPass && "PipelineDesc must have a valid renderPass!");
     #endif
 
-    desc.Initialize(context);
+    desc.Initialize(device);
     layout = desc.Layout();
 
     // vertex attributes & input bindings
@@ -679,11 +705,11 @@ Pipeline::Pipeline(Context *context, GraphicsPipelineDesc &desc) : context(conte
     desc.handle.pNext = VK_NULL_HANDLE;
     desc.handle.layout = *layout;
 
-    ErrorCheck(vkCreateGraphicsPipelines(context->GetDevice(), VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create graphics pipeline");
+    ErrorCheck(vkCreateGraphicsPipelines(*device, VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create graphics pipeline");
 }
 
-Pipeline::Pipeline(Context *context, ComputePipelineDesc &desc) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_COMPUTE) {
-    desc.Initialize(context);
+Pipeline::Pipeline(Device *device, ComputePipelineDesc &desc) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_COMPUTE) {
+    desc.Initialize(device);
     layout = desc.Layout();
 
     desc.handle.basePipelineHandle = handle;
@@ -691,10 +717,10 @@ Pipeline::Pipeline(Context *context, ComputePipelineDesc &desc) : context(contex
     desc.handle.flags = 0;
     desc.handle.layout = *layout;
 
-    ErrorCheck(vkCreateComputePipelines(context->GetDevice(), VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create compute pipeline");
+    ErrorCheck(vkCreateComputePipelines(*device, VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create compute pipeline");
 }
 
-Pipeline::Pipeline(Context *context, RayTracingPipelineDesc &) : context(context), bindPoint(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
+Pipeline::Pipeline(Device *device, RayTracingPipelineDesc &) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
     throw std::runtime_error("raytracing pipeline not implemented!");
 }
 
@@ -702,7 +728,7 @@ Pipeline::~Pipeline() {
     layout.reset();
 
     if (handle) {
-        vkDestroyPipeline(context->GetDevice(), handle, nullptr);
+        vkDestroyPipeline(*device, handle, nullptr);
         handle = VK_NULL_HANDLE;
     }
 }

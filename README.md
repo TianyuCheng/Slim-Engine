@@ -5,33 +5,17 @@ Slim Engine
 Architecture
 ------------
 
-* Frame Graph
+* Render Graph
     - Reference: [FrameGraph: Extensible Rendering Architecture in Frostbite](https://www.gdcvault.com/play/1024612/FrameGraph-Extensible-Rendering-Architecture-in)
     - **Slim Engine** implements a simplified FrameGraph. It benefits from the main concept of FrameGraph, and implements a functional, code driven framework for organizing resources and render pass dependencies within a frame.
     - Things I have implemented
         - virtual resources and passes creation
         - actual resource allocation and deallocation based on reference counting
         - automatic resource layout transition (attachments are transitioned by render passes already by Vulkan, textures layouts are transitioned by RenderGraph)
+        - async compute, which is a must-have feature if we are going for complete GPU driven pipeline (however, I have not validated the correctness of this feature)
     - Things I have not implemnted
-        - async compute. This is a must-have feature if we are going for complete GPU driven pipeline.
         - interface for preserve attachments. I have not really used preserve attachments in the existing examples. I will have them implemented when I need it.
         - interface for multi-subpass render passes (useful for tile-based architecture). This feature is differently exposed across different APIs (DX12, Metal). I need to think about how to expose it.
-
-* Scene Graph
-    - **Slim Engine** implements a primitive scene graph system.
-    - Each scene node contains a **Transform** object, which provides functionality for local transformation.
-    - Each scene node contains a **Submesh** and a **Material** for rendering.
-    - **Render()** will filter out the culled objects, and sort objects based on object types and distance.
-        - Opaque objects are sorted from front to back.
-        - Background objects (e.g. Skybox) are sorted from front to back.
-        - Unordered objects (e.g. OIT rendered particles) are not sorted.
-        - Transparent objects are sorted from back to front for correct blending.
-    - **Render()** will group objects by material to avoid frequent descriptor update.
-
-* Material System
-    - **Slim Engine** implements a low level material system, where material is mostly just a wrapper for pipeline object.
-    - Each material contains exactly one graphics pipeline. It is responsible for binding graphics pipeline, binding material-specific descriptors.
-    - Material must provide 2 function objects: **PrepareMaterial** and **PrepareSceneNode** for updating descriptors for material and scene nodes respectively.
 
 Examples
 --------
@@ -116,7 +100,6 @@ Dependencies
 * glm
 * stb
 * tinygltf
-* stduuid
 * imgui (DearImGui)
 * imnodes
 

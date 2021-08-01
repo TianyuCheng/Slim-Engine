@@ -8,28 +8,37 @@ struct Vertex {
 };
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
-            .EnableValidation(true),
+            .EnableValidation(true)
+            .EnableGLFW(true)
+    );
+
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
+    // create a slim window
+    auto window = SlimPtr<Window>(
+        device,
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Multisampling")
+            .SetTitle("Depth Buffering")
     );
 
     // create vertex and index buffers
-    auto vBuffer = SlimPtr<VertexBuffer>(context, 4 * sizeof(Vertex));
-    auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
+    auto vBuffer = SlimPtr<VertexBuffer>(device, 4 * sizeof(Vertex));
+    auto iBuffer = SlimPtr<IndexBuffer>(device, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
 
     // initialize
-    context->Execute([=](CommandBuffer *commandBuffer) {
+    device->Execute([=](CommandBuffer *commandBuffer) {
         // prepare vertex data
         std::vector<Vertex> positions = {
             { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec3(1.0f, 0.0f, 0.0f) },
@@ -49,7 +58,6 @@ int main() {
     VkSampleCountFlagBits multisamples = VK_SAMPLE_COUNT_8_BIT;
 
     // window
-    auto window = context->GetWindow();
     while (!window->ShouldClose()) {
         // query image from swapchain
         auto frame = window->AcquireNext();
@@ -66,9 +74,9 @@ int main() {
             colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->SetColorResolve(backBuffer);
-            colorPass->Execute([=](const RenderGraph &graph) {
-                auto renderFrame = graph.GetRenderFrame();
-                auto commandBuffer = graph.GetGraphicsCommandBuffer();
+            colorPass->Execute([=](const RenderInfo &info) {
+                auto renderFrame = info.renderFrame;
+                auto commandBuffer = info.commandBuffer;
                 auto pipeline = renderFrame->RequestPipeline(
                     GraphicsPipelineDesc()
                         .SetName("colorPass")
@@ -82,7 +90,7 @@ int main() {
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
                         .SetSampleCount(multisamples)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-                        .SetRenderPass(graph.GetRenderPass())
+                        .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
                             .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
@@ -127,6 +135,6 @@ int main() {
         window->PollEvents();
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

@@ -5,7 +5,7 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-#include "core/context.h"
+#include "core/device.h"
 #include "utility/interface.h"
 
 namespace slim {
@@ -63,11 +63,11 @@ namespace slim {
 
     class RenderPass final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkRenderPass> {
     public:
-        RenderPass(Context *context, const RenderPassDesc &desc);
-        ~RenderPass();
+        RenderPass(Device *device, const RenderPassDesc &desc);
+        virtual ~RenderPass();
 
     private:
-        SmartPtr<Context> context;
+        SmartPtr<Device> device;
     };
 
 } // end of namespace slim

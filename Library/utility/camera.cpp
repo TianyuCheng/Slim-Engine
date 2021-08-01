@@ -22,9 +22,9 @@ void Camera::LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::ve
     view = glm::lookAt(eye, center, up);
 }
 
-bool Camera::Cull(SceneNode *, float &) const {
-    return true;
-}
+// bool Camera::Cull(SceneNode *, float &) const {
+//     return true;
+// }
 
 void Camera::Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const {
     struct Uniform {

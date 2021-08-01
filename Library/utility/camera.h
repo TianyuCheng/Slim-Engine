@@ -14,17 +14,17 @@ namespace slim {
 
     class SceneNode;
 
-    class Camera {
+    class Camera : public ReferenceCountable {
     public:
         Camera(const std::string &name);
         virtual ~Camera() = default;
 
         virtual std::string GetName() const { return name; }
 
-        // perform frustum culling
-        // return true for things do not need to be culled
-        // return false for things needs to be culled
-        virtual bool Cull(SceneNode *node, float &distance) const;
+        // // perform frustum culling
+        // // return true for things do not need to be culled
+        // // return false for things needs to be culled
+        // virtual bool Cull(SceneNode *node, float &distance) const;
 
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up);
 
@@ -35,6 +35,10 @@ namespace slim {
         virtual void Perspective(float fovy, float aspect, float near, float far);
 
         void Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const;
+
+        const glm::mat4& GetView() const { return view; }
+
+        const glm::mat4& GetProjection() const { return proj; }
 
     private:
         std::string name;

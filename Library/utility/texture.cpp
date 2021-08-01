@@ -47,7 +47,7 @@ GPUImage2D* TextureLoader::Load2DLDR(CommandBuffer *commandBuffer,
         default: throw std::runtime_error("invalid number of channels while loading texture image");
     }
 
-    GPUImage2D* image = new GPUImage2D(commandBuffer->GetContext(), format, VkExtent2D { width, height }, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_USAGE_SAMPLED_BIT);
+    GPUImage2D* image = new GPUImage2D(commandBuffer->GetDevice(), format, VkExtent2D { width, height }, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_USAGE_SAMPLED_BIT);
     commandBuffer->CopyDataToImage(data, size, image, {0, 0, 0}, {width, height, 1}, 0, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT);
     commandBuffer->GenerateMipmaps(image, filter);
     commandBuffer->PrepareForShaderRead(image);
@@ -70,7 +70,7 @@ GPUImage2D* TextureLoader::Load2DHDR(CommandBuffer *commandBuffer,
         default: throw std::runtime_error("invalid number of channels while loading texture image");
     }
 
-    GPUImage2D* image = new GPUImage2D(commandBuffer->GetContext(), format, VkExtent2D { width, height }, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_USAGE_SAMPLED_BIT);
+    GPUImage2D* image = new GPUImage2D(commandBuffer->GetDevice(), format, VkExtent2D { width, height }, mipLevels, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_USAGE_SAMPLED_BIT);
     commandBuffer->CopyDataToImage(data, size, image, {0, 0, 0}, {width, height, 1}, 0, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT);
     commandBuffer->GenerateMipmaps(image, filter);
     commandBuffer->PrepareForShaderRead(image);

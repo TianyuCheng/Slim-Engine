@@ -4,21 +4,30 @@
 using namespace slim;
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
-            .EnableValidation(true),
+            .EnableValidation(true)
+            .EnableGLFW(true)
+    );
+
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
+    // create a slim window
+    auto window = SlimPtr<Window>(
+        device,
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Scene Graph")
+            .SetTitle("Depth Buffering")
     );
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/simple.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/simple.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
 
     // create technique
     auto technique = SlimPtr<Technique>();
@@ -34,68 +43,72 @@ int main() {
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddPushConstant("Xform", 0, sizeof(glm::mat4), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Color",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)));
+                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Color",  2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)));
 
     // create the first material
-    auto material1 = SlimPtr<Material>(context, technique);
+    auto material1 = SlimPtr<Material>(device, technique);
     material1->SetUniform("Color", glm::vec3(1.0f, 1.0f, 0.0f));
 
     // create the second material
-    auto material2 = SlimPtr<Material>(context, technique);
+    auto material2 = SlimPtr<Material>(device, technique);
     material2->SetUniform("Color", glm::vec3(0.0f, 1.0f, 1.0f));
 
     // create mesh and its submeshes
-    auto mesh = SlimPtr<Mesh>(CreateMesh(context));
-    auto submesh = Submesh(mesh, 0, 0, 36);
+    auto mesh = SlimPtr<Mesh>(CreateMesh(device));
 
-    // create a scene
-    auto scene = SlimPtr<SceneNode>("scene");
-    auto child1 = SlimPtr<SceneNode>("child1", scene);
-    auto child2 = SlimPtr<SceneNode>("child2", scene);
-    auto child11 = SlimPtr<SceneNode>("child1.1", child1);
-    auto child21 = SlimPtr<SceneNode>("child2.1", child2);
+    // create scene
+    auto sceneMgr = SlimPtr<SceneManager>();
+    auto scene    = sceneMgr->Create<Scene>("scene");
+    auto scene1   = sceneMgr->Create<Scene>("child0.1", scene);
+    auto scene11  = sceneMgr->Create<Scene>("child1.1", scene1);
+    auto scene2   = sceneMgr->Create<Scene>("child0.2", scene);
+    auto scene21  = sceneMgr->Create<Scene>("child2.1", scene2);
     {
-        child1->SetMesh(submesh);
-        child1->SetMaterial(material1);
-        child1->Translate(1.0f, 0.0f, 0.0f);
+        scene1->SetMesh(mesh);
+        scene1->SetMaterial(material1);
+        scene1->SetDrawIndexed(0, 36, 0);
+        scene1->Translate(1.0f, 0.0f, 0.0f);
 
-        child11->SetMesh(submesh);
-        child11->SetMaterial(material1);
-        child11->Translate(0.0f, 1.0f, 0.0f);
-        child11->Scale(0.5f, 0.5f, 0.5f);
+        scene11->SetMesh(mesh);
+        scene11->SetMaterial(material1);
+        scene11->SetDrawIndexed(0, 36, 0);
+        scene11->Translate(0.0f, 1.0f, 0.0f);
+        scene11->Scale(0.5f, 0.5f, 0.5f);
 
-        child2->SetMesh(submesh);
-        child2->SetMaterial(material2);
-        child2->Translate(-1.0f, 0.0f, 0.0f);
+        scene2->SetMesh(mesh);
+        scene2->SetMaterial(material2);
+        scene2->SetDrawIndexed(0, 36, 0);
+        scene2->Translate(-1.0f, 0.0f, 0.0f);
 
-        child21->SetMesh(submesh);
-        child21->SetMaterial(material2);
-        child21->Translate(0.0f, 1.0f, 0.0f);
-        child21->Scale(0.5f, 0.5f, 0.5f);
+        scene21->SetMesh(mesh);
+        scene21->SetMaterial(material2);
+        scene21->SetDrawIndexed(0, 36, 0);
+        scene21->Translate(0.0f, 1.0f, 0.0f);
+        scene21->Scale(0.5f, 0.5f, 0.5f);
     }
-    scene->Init();
 
     // render
-    auto window = context->GetWindow();
     while (!window->ShouldClose()) {
         // query image from swapchain
         auto frame = window->AcquireNext();
 
         // create a camera
-        Camera camera("camera");
-        camera.LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        camera.Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
+        auto camera = SlimPtr<Camera>("camera");
+        camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
 
         // transform scene nodes
-        child1->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), +0.025);
-        child2->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), -0.025);
+        scene1->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), +0.025);
+        scene2->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), -0.025);
         scene->Update();
 
-        // scenegraph for rendering organization
-        auto sceneGraph = SlimPtr<SceneGraph>(scene);
-        sceneGraph->Cull(camera);
+        // sceneFilter result + sorting
+        auto sceneFilter = SlimPtr<SceneFilter>();
+        sceneFilter->Cull(scene, camera);
+        sceneFilter->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
+        sceneFilter->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::FrontToback);
 
         // rendergraph-based design
         RenderGraph renderGraph(frame);
@@ -106,8 +119,8 @@ int main() {
             auto colorPass = renderGraph.CreateRenderPass("color");
             colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
-            colorPass->Execute([=](const RenderGraph &renderGraph) {
-                sceneGraph->Render(renderGraph, camera, RenderQueue::Opaque, SortingOrder::FrontToback);
+            colorPass->Execute([&](const RenderInfo &info) {
+                MeshRenderer(info).Draw(camera, sceneFilter, RenderQueue::Geometry, RenderQueue::GeometryLast);
             });
         }
         renderGraph.Execute();
@@ -116,6 +129,6 @@ int main() {
         window->PollEvents();
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

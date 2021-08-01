@@ -6,9 +6,9 @@ struct Vertex {
     glm::vec3 position;
 };
 
-inline Mesh* CreateMesh(Context *context) {
+inline Mesh* CreateMesh(Device *device) {
     Mesh* mesh = new Mesh();
-    context->Execute([=](CommandBuffer *commandBuffer) {
+    device->Execute([&](CommandBuffer *commandBuffer) {
         // prepare vertex data
         std::vector<glm::vec3> positions = {
             // position

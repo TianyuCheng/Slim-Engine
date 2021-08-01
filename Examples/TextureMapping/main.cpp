@@ -8,28 +8,40 @@ struct Vertex {
 };
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
-            .EnableValidation(true),
+            .EnableValidation(true)
+            .EnableGLFW(true)
+    );
+
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
+    // create a slim window
+    auto window = SlimPtr<Window>(
+        device,
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Multisampling")
+            .SetTitle("Depth Buffering")
     );
 
     // create vertex and index buffers
-    auto vBuffer = SlimPtr<VertexBuffer>(context, 4 * sizeof(Vertex));
-    auto iBuffer = SlimPtr<IndexBuffer>(context, 256);
+    auto vBuffer = SlimPtr<VertexBuffer>(device, 4 * sizeof(Vertex));
+    auto iBuffer = SlimPtr<IndexBuffer>(device, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(context, "main", "shaders/textured.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(context, "main", "shaders/textured.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/textured.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/textured.frag.spv");
+
+    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(device, SamplerDesc());
+    SmartPtr<GPUImage2D> texture;
 
     // initialize
-    context->Execute([=](CommandBuffer *commandBuffer) {
+    device->Execute([&](CommandBuffer *commandBuffer) {
         // prepare vertex data
         std::vector<Vertex> positions = {
             { glm::vec3(-0.5f, -0.5f,  0.5f), glm::vec2(0.0f, 0.0f) },
@@ -44,20 +56,11 @@ int main() {
 
         commandBuffer->CopyDataToBuffer(positions, vBuffer);
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
+
+        texture = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
     });
 
-    // create texture
-    auto renderFrame = SlimPtr<RenderFrame>(context);
-    auto commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_TRANSFER_BIT);
-    commandBuffer->Begin();
-    SmartPtr<Sampler> sampler = SlimPtr<Sampler>(context, SamplerDesc());
-    SmartPtr<GPUImage2D> texture = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
-    commandBuffer->End();
-    commandBuffer->Submit();
-    context->WaitIdle();
-
     // window
-    auto window = context->GetWindow();
     while (!window->ShouldClose()) {
         // query image from swapchain
         auto frame = window->AcquireNext();
@@ -72,9 +75,9 @@ int main() {
             auto colorPass = graph.CreateRenderPass("color");
             colorPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
-            colorPass->Execute([=](const RenderGraph &graph) {
-                auto renderFrame = graph.GetRenderFrame();
-                auto commandBuffer = graph.GetGraphicsCommandBuffer();
+            colorPass->Execute([=](const RenderInfo &info) {
+                auto renderFrame = info.renderFrame;
+                auto commandBuffer = info.commandBuffer;
                 auto pipeline = renderFrame->RequestPipeline(
                     GraphicsPipelineDesc()
                         .SetName("colorPass")
@@ -87,7 +90,7 @@ int main() {
                         .SetViewport(frame->GetExtent())
                         .SetCullMode(VK_CULL_MODE_BACK_BIT)
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-                        .SetRenderPass(graph.GetRenderPass())
+                        .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
                             .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
@@ -125,6 +128,6 @@ int main() {
         window->PollEvents();
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

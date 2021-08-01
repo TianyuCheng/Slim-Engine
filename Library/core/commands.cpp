@@ -4,8 +4,8 @@
 
 using namespace slim;
 
-CommandBuffer::CommandBuffer(Context *context, VkQueue queue, VkCommandBuffer commandBuffer)
-    : context(context), queue(queue) {
+CommandBuffer::CommandBuffer(Device *device, VkQueue queue, VkCommandBuffer commandBuffer)
+    : device(device), queue(queue) {
     handle = commandBuffer;
 }
 
@@ -17,6 +17,9 @@ CommandBuffer::~CommandBuffer() {
 
 void CommandBuffer::Reset() {
     stagingBuffers.clear();
+    waitSemaphores.clear();
+    signalSemaphores.clear();
+    waitStages.clear();
 }
 
 void CommandBuffer::Begin() {
@@ -78,24 +81,57 @@ void CommandBuffer::Submit() {
 }
 
 void CommandBuffer::Wait(Semaphore *semaphore, VkPipelineStageFlags stages) {
-    waitSemaphores.push_back(*semaphore);
-    waitStages.push_back(stages);
+    VkSemaphore sema = *semaphore;
+    auto it = std::find(waitSemaphores.begin(), waitSemaphores.end(), sema);
+    if (it == waitSemaphores.end()) {
+        waitSemaphores.push_back(sema);
+        waitStages.push_back(stages);
+    }
 }
 
 void CommandBuffer::Signal(Semaphore *semaphore) {
-    signalSemaphores.push_back(*semaphore);
+    VkSemaphore sema = *semaphore;
+    auto it = std::find(signalSemaphores.begin(), signalSemaphores.end(), sema);
+    if (it == signalSemaphores.end()) {
+        signalSemaphores.push_back(sema);
+    }
 }
 
 void CommandBuffer::Signal(Fence *fence) {
     signalFence = *fence;
 }
 
+VkSubmitInfo CommandBuffer::GetSubmitInfo() const {
+    VkSubmitInfo submit = {};
+    submit.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit.commandBufferCount = 1;
+    submit.pCommandBuffers = &handle;
+    submit.signalSemaphoreCount = signalSemaphores.size();
+    submit.pSignalSemaphores = signalSemaphores.data();
+    submit.waitSemaphoreCount = waitSemaphores.size();
+    submit.pWaitSemaphores = waitSemaphores.data();
+    submit.pWaitDstStageMask = waitStages.data();
+    submit.pNext = nullptr;
+    return submit;
+}
+
 void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset) {
+    // host visible
+    // memory mapped
     if (buffer->HostVisible()) {
         buffer->SetData(data, size, offset);
-    } else {
-        // copy buffer to buffer
-        stagingBuffers.emplace_back(new StagingBuffer(GetContext(), size));
+    }
+
+    // buffer update
+    // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/vkCmdUpdateBuffer.html
+    else if (offset < 65536 && size % 4 == 0 && offset % 4 == 0) {
+        vkCmdUpdateBuffer(handle, *buffer, offset, size, data);
+    }
+
+    // use staging buffer
+    // fallback
+    else {
+        stagingBuffers.emplace_back(new StagingBuffer(device, size));
         auto staging = stagingBuffers.back().get();
         staging->SetData(data, size);
         CopyBufferToBuffer(staging, 0, buffer, offset, size);
@@ -108,7 +144,7 @@ void CommandBuffer::CopyDataToImage(void *data, size_t size, Image *image,
                                     VkImageAspectFlags aspectMask) {
     PrepareForTransferDst(image);
 
-    stagingBuffers.emplace_back(new StagingBuffer(GetContext(), size));
+    stagingBuffers.emplace_back(new StagingBuffer(device, size));
     auto stagingBuffer = stagingBuffers.back().get();
     stagingBuffer->SetData(data, size);
     CopyBufferToImage(stagingBuffer, 0, 0, extent.height, image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
@@ -336,9 +372,13 @@ void CommandBuffer::BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint b
 
     // bind descriptor set individually (need to optimize it later)
     // TODO: batch descriptor sets binding if possible
-    for (uint32_t i = 0; i < descriptor->descriptorSets.size(); i++)
-        if (descriptor->descriptorSets[i] != VK_NULL_HANDLE)
-            vkCmdBindDescriptorSets(handle, bindPoint, layout, i, 1, &descriptor->descriptorSets[i], 0, nullptr);
+    for (uint32_t i = 0; i < descriptor->descriptorSets.size(); i++) {
+        if (descriptor->descriptorSets[i] != VK_NULL_HANDLE) {
+            uint32_t dynamicOffsetCount = descriptor->dynamicOffsets[i].size();
+            uint32_t* dynamicOffsetData = descriptor->dynamicOffsets[i].data();
+            vkCmdBindDescriptorSets(handle, bindPoint, layout, i, 1, &descriptor->descriptorSets[i], dynamicOffsetCount, dynamicOffsetData);
+        }
+    }
 }
 
 void CommandBuffer::BindIndexBuffer(IndexBuffer *buffer, size_t offset) {
@@ -370,9 +410,9 @@ void CommandBuffer::PushConstants(PipelineLayout *layout, size_t offset, const v
     vkCmdPushConstants(handle, *layout, stages, offset, size, value);
 }
 
-CommandPool::CommandPool(Context *context, uint32_t queueFamilyIndex) : context(context) {
+CommandPool::CommandPool(Device *device, uint32_t queueFamilyIndex) : device(device) {
     // get device queue
-    vkGetDeviceQueue(context->GetDevice(), queueFamilyIndex, 0, &queue);
+    vkGetDeviceQueue(*device, queueFamilyIndex, 0, &queue);
 
     // create command pool
     VkCommandPoolCreateInfo createInfo = {};
@@ -382,7 +422,7 @@ CommandPool::CommandPool(Context *context, uint32_t queueFamilyIndex) : context(
     createInfo.pNext = nullptr;
 
     // error checking
-    ErrorCheck(vkCreateCommandPool(context->GetDevice(), &createInfo, nullptr, &handle), "create command pool");
+    ErrorCheck(vkCreateCommandPool(*device, &createInfo, nullptr, &handle), "create command pool");
 }
 
 CommandPool::~CommandPool() {
@@ -392,14 +432,14 @@ CommandPool::~CommandPool() {
     secondaryCommandBuffers.clear();
 
     if (handle) {
-        vkDestroyCommandPool(context->GetDevice(), handle, nullptr);
+        vkDestroyCommandPool(*device, handle, nullptr);
         handle = nullptr;
     }
 }
 
 void CommandPool::Reset() {
     // always use pool to reset all command buffers
-    ErrorCheck(vkResetCommandPool(context->GetDevice(), handle, 0), "reset command pool");
+    ErrorCheck(vkResetCommandPool(*device, handle, 0), "reset command pool");
 
     // clearing staging buffers
     for (auto commandBuffer : primaryCommandBuffers) commandBuffer->Reset();
@@ -418,7 +458,7 @@ CommandBuffer* CommandPool::Request(VkCommandBufferLevel level) {
 
 CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
     if (activePrimaryCommandBuffers < primaryCommandBuffers.size()) {
-        return primaryCommandBuffers[activePrimaryCommandBuffers].get();
+        return primaryCommandBuffers[activePrimaryCommandBuffers++].get();
     }
 
     // command buffer allocation info
@@ -431,16 +471,17 @@ CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
 
     // allocate command buffer
     VkCommandBuffer commandBuffer;
-    ErrorCheck(vkAllocateCommandBuffers(context->GetDevice(), &allocInfo, &commandBuffer), "allocate command buffer");
+    ErrorCheck(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer), "allocate command buffer");
 
     // adding a new command buffer
-    primaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(context.get(), queue, commandBuffer));
+    primaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(device, queue, commandBuffer));
+    activePrimaryCommandBuffers++;
     return primaryCommandBuffers.back().get();
 }
 
 CommandBuffer* CommandPool::RequestSecondaryCommandBufer() {
     if (activeSecondaryCommandBuffers < secondaryCommandBuffers.size()) {
-        return secondaryCommandBuffers[activeSecondaryCommandBuffers].get();
+        return secondaryCommandBuffers[activeSecondaryCommandBuffers++].get();
     }
 
     // command buffer allocation info
@@ -453,9 +494,10 @@ CommandBuffer* CommandPool::RequestSecondaryCommandBufer() {
 
     // allocate command buffer
     VkCommandBuffer commandBuffer;
-    ErrorCheck(vkAllocateCommandBuffers(context->GetDevice(), &allocInfo, &commandBuffer), "allocate command buffer")
+    ErrorCheck(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer), "allocate command buffer")
 
     // adding a new command buffer
-    secondaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(context.get(), queue, commandBuffer));
+    secondaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(device, queue, commandBuffer));
+    activeSecondaryCommandBuffers++;
     return secondaryCommandBuffers.back().get();
 }

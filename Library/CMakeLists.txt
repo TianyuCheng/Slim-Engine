@@ -12,6 +12,8 @@ set(SLIM_CORE_SOURCES
     core/commands.cpp
     core/context.h
     core/context.cpp
+    core/device.h
+    core/device.cpp
     core/framebuffer.h
     core/framebuffer.cpp
     core/image.h
@@ -52,8 +54,9 @@ set(SLIM_UTILITY_SOURCES
     utility/interface.h
     utility/stb.h
     utility/stb.cpp
-    utility/gltf.h
-    utility/gltf.cpp
+    utility/tinygltf.h
+    utility/tinygltf.cpp
+    utility/filesystem.h
     utility/color.h
     utility/color.cpp
     utility/texture.h
@@ -82,6 +85,10 @@ set(SLIM_UTILITY_SOURCES
     utility/assets.cpp
     utility/boundingbox.h
     utility/boundingbox.cpp
+    utility/culling.h
+    utility/culling.cpp
+    utility/meshrenderer.h
+    utility/meshrenderer.cpp
 )
 
 add_library(slim SHARED

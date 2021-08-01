@@ -4,55 +4,55 @@
 
 using namespace slim;
 
-Semaphore::Semaphore(Context *context) : context(context) {
+Semaphore::Semaphore(Device *device) : device(device) {
     VkSemaphoreCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     createInfo.flags = 0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateSemaphore(context->GetDevice(), &createInfo, nullptr, &handle), "create semaphore");
+    ErrorCheck(vkCreateSemaphore(*device, &createInfo, nullptr, &handle), "create semaphore");
 }
 
 Semaphore::~Semaphore() {
     if (handle) {
-        vkDestroySemaphore(context->GetDevice(), handle, nullptr);
+        vkDestroySemaphore(*device, handle, nullptr);
         handle = nullptr;
     }
 }
 
-Fence::Fence(Context *context, bool signaled) : context(context)  {
+Fence::Fence(Device *device, bool signaled) : device(device)  {
     VkFenceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     createInfo.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0x0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateFence(context->GetDevice(), &createInfo, nullptr, &handle), "create fence");
+    ErrorCheck(vkCreateFence(*device, &createInfo, nullptr, &handle), "create fence");
 }
 
 Fence::~Fence() {
     if (handle) {
-        vkDestroyFence(context->GetDevice(), handle, nullptr);
+        vkDestroyFence(*device, handle, nullptr);
         handle = nullptr;
     }
 }
 
 void Fence::Reset() const {
-    ErrorCheck(vkResetFences(context->GetDevice(), 1, &handle), "reset fence");
+    ErrorCheck(vkResetFences(*device, 1, &handle), "reset fence");
 }
 
 void Fence::Wait(uint64_t timeout) const {
-    ErrorCheck(vkWaitForFences(context->GetDevice(), 1, &handle, VK_TRUE, timeout), "wait for fence");
+    ErrorCheck(vkWaitForFences(*device, 1, &handle, VK_TRUE, timeout), "wait for fence");
 }
 
-Event::Event(Context *context, bool deviceOnly) : context(context)  {
+Event::Event(Device *device, bool deviceOnly) : device(device)  {
     VkEventCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
     createInfo.flags = deviceOnly ? VK_EVENT_CREATE_DEVICE_ONLY_BIT_KHR : 0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateEvent(context->GetDevice(), &createInfo, nullptr, &handle), "create event");
+    ErrorCheck(vkCreateEvent(*device, &createInfo, nullptr, &handle), "create event");
 }
 
 Event::~Event() {
     if (handle) {
-        vkDestroyEvent(context->GetDevice(), handle, nullptr);
+        vkDestroyEvent(*device, handle, nullptr);
         handle = nullptr;
     }
 }

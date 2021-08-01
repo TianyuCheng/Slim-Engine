@@ -2,9 +2,10 @@
 #define SLIM_HPP
 
 // core
+#include "core/context.h"
+#include "core/device.h"
 #include "core/buffer.h"
 #include "core/commands.h"
-#include "core/context.h"
 #include "core/image.h"
 #include "core/pipeline.h"
 #include "core/renderpass.h"
@@ -20,11 +21,13 @@
 #include "utility/texture.h"
 #include "utility/camera.h"
 #include "utility/transform.h"
-#include "utility/material.h"
-#include "utility/mesh.h"
 #include "utility/skinnedmesh.h"
 #include "utility/scenegraph.h"
 #include "utility/rendergraph.h"
+#include "utility/mesh.h"
+#include "utility/material.h"
+#include "utility/culling.h"
+#include "utility/meshrenderer.h"
 
 // third party
 #include <imgui.h>

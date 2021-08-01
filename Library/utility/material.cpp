@@ -2,16 +2,16 @@
 
 using namespace slim;
 
-Material::Material(Context *context, Technique *technique) : technique(technique) {
+Material::Material(Device *device, Technique *technique) : technique(technique) {
     // a material should not need too many descriptors,
     // 32 should be large enough for most cases without
     // needing to create additional descriptorPool
-    descriptorPool = SlimPtr<DescriptorPool>(context, 32);
-    uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(context);
+    descriptorPool = SlimPtr<DescriptorPool>(device, 32);
+    uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(device);
 
     // need to initialize layout
     for (Technique::Pass &pass : *technique) {
-        pass.desc.Initialize(context);
+        pass.desc.Initialize(device);
     }
 
     // initialize descriptors
@@ -26,19 +26,19 @@ Material::~Material() {
 
 void Material::SetTexture(const std::string &name, Image *texture, Sampler *sampler) {
     for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasAttrib(name))
+        if (descriptor->HasBinding(name))
             descriptor->SetTexture(name, texture, sampler);
 }
 
 void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasAttrib(name))
+        if (descriptor->HasBinding(name))
             descriptor->SetUniform(name, buffer, offset ,size);
 }
 
 void Material::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasAttrib(name))
+        if (descriptor->HasBinding(name))
             descriptor->SetStorage(name, buffer, offset ,size);
 }
 

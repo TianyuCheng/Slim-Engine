@@ -7,6 +7,15 @@ struct Vertex {
     glm::vec3 color;
 };
 
+struct UBOView {
+    glm::mat4 proj;
+    glm::mat4 view;
+};
+
+struct alignas(256) UBOInstance {
+    glm::mat4 model;
+};
+
 int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
@@ -88,39 +97,46 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding("UBOView",     0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding("UBOInstance", 1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
                         )
                 );
 
-                glm::mat4 model = glm::mat4(1.0);
-                glm::mat4 view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-                glm::mat4 proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
-
                 commandBuffer->BindPipeline(pipeline);
 
-                // mesh 1
+                // prepare camera uniform buffer
+                auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 {
-                    glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
-                    glm::mat4 mvp = proj * view * m;
-                    auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                    commandBuffer->BindDescriptor(descriptor);
-                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
-                    commandBuffer->BindIndexBuffer(iBuffer);
+                    UBOView uboView;
+                    uboView.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
+                    uboView.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+                    descriptor->SetUniform("UBOView", renderFrame->RequestUniformBuffer(uboView));
+                }
+
+                uint32_t N = 10;
+
+                // prepare dynamic uniform buffer
+                auto descriptorDynmaic = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
+                {
+                    std::vector<UBOInstance> uboInstances;
+                    for (uint32_t i = 0; i < N; i++) {
+                        glm::mat4 model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
+                        uboInstances.push_back({ model });
+                    }
+                    descriptorDynmaic->SetDynamic("UBOInstance", renderFrame->RequestUniformBuffer(uboInstances), 0, sizeof(UBOInstance));
+                }
+
+                // draw objects
+                commandBuffer->BindVertexBuffer(0, vBuffer, 0);
+                commandBuffer->BindIndexBuffer(iBuffer);
+                commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+                auto [set, binding] = descriptorDynmaic->GetBinding("UBOInstance");
+                for (uint32_t i = 0; i < N; i++) {
+                    descriptorDynmaic->SetDynamicOffset(set, binding, i * sizeof(UBOInstance));
+                    commandBuffer->BindDescriptor(descriptorDynmaic, VK_PIPELINE_BIND_POINT_GRAPHICS);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 
-                // mesh 2
-                {
-                    glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, -1.0));
-                    glm::mat4 mvp = proj * view * m;
-                    auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                    commandBuffer->BindDescriptor(descriptor);
-                    commandBuffer->BindVertexBuffer(0, vBuffer, 0);
-                    commandBuffer->BindIndexBuffer(iBuffer);
-                    commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
-                }
             });
         }
 

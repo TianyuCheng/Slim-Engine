@@ -9,7 +9,7 @@
 #include <vulkan/vulkan.h>
 
 #include "core/hasher.h"
-#include "core/context.h"
+#include "core/device.h"
 #include "utility/interface.h"
 
 namespace slim {
@@ -39,10 +39,10 @@ namespace slim {
 
     class Sampler final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkSampler> {
     public:
-        explicit Sampler(Context *context, const SamplerDesc &desc);
+        explicit Sampler(Device *device, const SamplerDesc &desc);
         virtual ~Sampler();
     private:
-        Context* context = nullptr;
+        Device* device = nullptr;
     };
 
 } // end of namespace slim

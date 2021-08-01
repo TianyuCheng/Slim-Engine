@@ -3,23 +3,31 @@
 using namespace slim;
 
 int main() {
-    // create a vulkan context
+    // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
-            .EnableValidation(true),
+            .EnableValidation(true)
+            .EnableGLFW(true)
+    );
+
+    // create a slim device
+    auto device = SlimPtr<Device>(context);
+
+    // create a slim window
+    auto window = SlimPtr<Window>(
+        device,
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Dear ImGui")
+            .SetTitle("Depth Buffering")
     );
 
     // create ui handle
-    auto ui = SlimPtr<DearImGui>(context);
+    auto ui = SlimPtr<DearImGui>(device, window);
 
     // window
-    auto window = context->GetWindow();
     while (!window->ShouldClose()) {
         // query image from swapchain
         auto frame = window->AcquireNext();
@@ -31,9 +39,8 @@ int main() {
 
             auto uiPass = graph.CreateRenderPass("ui");
             uiPass->SetColor(backBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
-            uiPass->Execute([=](const RenderGraph &graph) {
-                auto commandBuffer = graph.GetGraphicsCommandBuffer();
-                ui->Draw(commandBuffer);
+            uiPass->Execute([=](const RenderInfo &info) {
+                ui->Draw(info.commandBuffer);
             });
         }
 
@@ -49,6 +56,6 @@ int main() {
         window->PollEvents();
     }
 
-    context->WaitIdle();
+    device->WaitIdle();
     return EXIT_SUCCESS;
 }

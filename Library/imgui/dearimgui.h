@@ -5,7 +5,8 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-#include "core/context.h"
+#include "core/device.h"
+#include "core/window.h"
 #include "core/commands.h"
 #include "utility/interface.h"
 
@@ -14,8 +15,7 @@ namespace slim {
     // GUI is responsible for storing frame-scoped data for rendering purpose.
     class DearImGui final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        explicit DearImGui(Context *context);
-        explicit DearImGui(Context *context, VkImage image);
+        explicit DearImGui(Device *device, Window *window);
         virtual ~DearImGui();
 
         void Begin() const;
@@ -31,7 +31,8 @@ namespace slim {
         void InitFontAtlas();
 
     private:
-        Context* context = nullptr;
+        SmartPtr<Device> device = nullptr;
+        SmartPtr<Window> window = nullptr;
         VkRenderPass renderPass = VK_NULL_HANDLE;
         VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     };

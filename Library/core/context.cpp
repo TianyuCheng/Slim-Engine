@@ -1,15 +1,27 @@
-#include <iostream>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include "core/debug.h"
-#include "core/window.h"
 #include "core/context.h"
-#include "core/renderframe.h"
+#include "core/debug.h"
 
 using namespace slim;
 
+ContextDesc::ContextDesc() {
+    // initialize physical device features
+    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features.pNext = nullptr;
+    features.features = {};
+
+    // initialize separate depth stencil layouts
+    dsf.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
+    dsf.separateDepthStencilLayouts = VK_FALSE;
+    dsf.pNext = nullptr;
+}
+
 ContextDesc& ContextDesc::EnableValidation(bool value) {
+    if (value) {
+        PrepareForValidation();
+    }
     validation = value;
     return *this;
 }
@@ -24,86 +36,26 @@ ContextDesc& ContextDesc::EnableCompute(bool value) {
     return *this;
 }
 
-Context::Context(const ContextDesc &contextDesc) {
-    // prepare extensions and layers
-    PrepareForViewport();
-    if (contextDesc.validation)
-        PrepareForValidation();
-
-    // initialization
-    InitInstance(contextDesc);
-    InitDebuggerMessener(contextDesc);
-    InitPhysicalDevice(contextDesc);
-    InitLogicalDevice(contextDesc);
-    InitMemoryAllocator(contextDesc);
+ContextDesc& ContextDesc::EnableGLFW(bool value) {
+    if (value) {
+        PrepareForGlfw();
+        PrepareForViewport();
+        PrepareForSwapchain();
+    }
+    present = value;
+    return *this;
 }
 
-Context::Context(const ContextDesc &contextDesc, const WindowDesc &windowDesc) {
-    contextDesc.present = true;
-    glfwInit();
-
-    // prepare extensions and layers
-    PrepareForWindow();
-    PrepareForSwapchain();
-    PrepareForViewport();
-    if (contextDesc.validation)
-        PrepareForValidation();
-
-    // initialization
-    InitInstance(contextDesc);
-    InitDebuggerMessener(contextDesc);
-    InitSurface(contextDesc);
-    InitPhysicalDevice(contextDesc);
-    InitLogicalDevice(contextDesc);
-    InitMemoryAllocator(contextDesc);
-
-    // create a window for swapchain supports
-    window = new Window(this, windowDesc);
+ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
+    dsf.separateDepthStencilLayouts = VK_TRUE;
+    dsf.pNext = features.pNext;
+    features.pNext = &dsf;
+    return *this;
 }
 
-Context::~Context() {
-    WaitIdle();
-
-    // clean up glfw window system
-    if (window) {
-        delete window;
-        window = nullptr;
-        glfwTerminate();
-    }
-
-    // clean up memory allocator
-    if (allocator) {
-        vmaDestroyAllocator(allocator);
-        allocator = VK_NULL_HANDLE;
-    }
-
-    // clean up logical device
-    if (device) {
-        vkDestroyDevice(device, nullptr);
-        device = VK_NULL_HANDLE;
-    }
-
-    // clean up surface
-    if (surface)  {
-        vkDestroySurfaceKHR(instance, surface, nullptr);
-        surface = VK_NULL_HANDLE;
-    }
-
-    // clean up debug messenger
-    if (debugMessenger) {
-        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-        debugMessenger = VK_NULL_HANDLE;
-    }
-
-    // clean up vulkan instance
-    if (instance) {
-        vkDestroyInstance(instance, nullptr);
-        instance = VK_NULL_HANDLE;
-    }
-}
-
-void Context::PrepareForWindow() {
+void ContextDesc::PrepareForGlfw() {
     // query for glfw extensions
+    glfwInit();
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -111,18 +63,18 @@ void Context::PrepareForWindow() {
         instanceExtensions.push_back(glfwExtensions[i]);
 }
 
-void Context::PrepareForSwapchain() {
-    // SWAPCHAIN: contains the extension for swapchain for presentation
-    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-}
-
-void Context::PrepareForViewport() {
+void ContextDesc::PrepareForViewport() {
     // MAINTENANCE1: contains the extension to allow negative height on viewport.
     // This would allow an OpenGL style viewport.
     deviceExtensions.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
 }
 
-void Context::PrepareForValidation() {
+void ContextDesc::PrepareForSwapchain() {
+    // SWAPCHAIN: contains the extension for swapchain for presentation
+    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+}
+
+void ContextDesc::PrepareForValidation() {
     validationLayers.push_back("VK_LAYER_KHRONOS_validation");
     instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
@@ -152,7 +104,55 @@ void Context::PrepareForValidation() {
     }
 }
 
-void Context::InitInstance(const ContextDesc &desc) {
+VkSurfaceKHR ContextDesc::PrepareSurface(VkInstance instance) const {
+    // Vulkan is available, at least for compute
+    if (!glfwVulkanSupported())
+        throw std::runtime_error("GLFW does not support Vulkan!");
+
+    // for Vulkan, use GLFW_NO_API
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    // create a glfw window
+    GLFWwindow *window = glfwCreateWindow(128, 128, "dummy", nullptr, nullptr);
+
+    // This surface is a dummy one for picking physical device
+    // create vulkan surface from glfw
+    VkSurfaceKHR surface = VK_NULL_HANDLE;;
+    ErrorCheck(glfwCreateWindowSurface(instance, window, nullptr, &surface), "create a dummy window surface");
+
+    glfwDestroyWindow(window);
+
+    return surface;
+}
+
+Context::Context(const ContextDesc& desc) : desc(desc) {
+    InitInstance(desc);
+    InitDebuggerMessener(desc);
+    InitSurface(desc);
+    InitPhysicalDevice(desc);
+}
+
+Context::~Context() {
+    // clean up surface
+    if (surface)  {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        surface = VK_NULL_HANDLE;
+    }
+
+    // clean up debug messenger
+    if (debugMessenger) {
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        debugMessenger = VK_NULL_HANDLE;
+    }
+
+    // clean up vulkan instance
+    if (instance) {
+        vkDestroyInstance(instance, nullptr);
+        instance = VK_NULL_HANDLE;
+    }
+}
+
+void Context::InitInstance(const ContextDesc& desc) {
     // prepare application info
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -166,14 +166,14 @@ void Context::InitInstance(const ContextDesc &desc) {
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
-    createInfo.ppEnabledExtensionNames = instanceExtensions.data();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(desc.instanceExtensions.size());
+    createInfo.ppEnabledExtensionNames = desc.instanceExtensions.data();
 
     // prepare debug info
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
     if (desc.validation) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(desc.validationLayers.size());
+        createInfo.ppEnabledLayerNames = desc.validationLayers.data();
         FillVulkanDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
     } else {
@@ -185,7 +185,7 @@ void Context::InitInstance(const ContextDesc &desc) {
     ErrorCheck(vkCreateInstance(&createInfo, nullptr, &instance), "create instance");
 }
 
-void Context::InitDebuggerMessener(const ContextDesc &desc) {
+void Context::InitDebuggerMessener(const ContextDesc& desc) {
     if (!desc.validation) return;
 
     // prepare the debug messenger
@@ -196,24 +196,8 @@ void Context::InitDebuggerMessener(const ContextDesc &desc) {
     ErrorCheck(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger), "setup debug messenger");
 }
 
-void Context::InitSurface(const ContextDesc &desc) {
-    (void) desc;
-
-    // Vulkan is available, at least for compute
-    if (!glfwVulkanSupported())
-        throw std::runtime_error("GLFW does not support Vulkan!");
-
-    // for Vulkan, use GLFW_NO_API
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-    // create a glfw window
-    GLFWwindow *window = glfwCreateWindow(128, 128, "dummy", nullptr, nullptr);
-
-    // This surface is a dummy one for picking physical device
-    // create vulkan surface from glfw
-    ErrorCheck(glfwCreateWindowSurface(instance, window, nullptr, &surface), "create a dummy window surface");
-
-    glfwDestroyWindow(window);
+void Context::InitSurface(const ContextDesc& desc) {
+    surface = desc.PrepareSurface(instance);
 }
 
 void Context::InitPhysicalDevice(const ContextDesc &desc) {
@@ -263,7 +247,7 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
     // store scores of all devices
     std::vector<std::pair<VkPhysicalDevice,int>> candidates;
     for (const auto& device : devices) {
-        bool adequate = CheckDeviceExtensionSupport(device, deviceExtensions);
+        bool adequate = CheckDeviceExtensionSupport(device, desc.deviceExtensions);
         if (adequate) {
             int score = rateDevice(device, surface);
             candidates.push_back(std::make_pair(device, score));
@@ -283,139 +267,4 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
     if (physicalDevice == VK_NULL_HANDLE) {
         throw std::runtime_error("Failed to find a suitable GPU!");
     }
-}
-
-void Context::InitLogicalDevice(const ContextDesc &desc) {
-    // query device extensions (portability subset)
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-    for (const auto &extension : availableExtensions)
-        if (std::string(extension.extensionName) == "VK_KHR_portability_subset")
-            deviceExtensions.push_back(extension.extensionName);
-
-    // update queue family indices
-    queueFamilyIndices = FindQueueFamilyIndices(physicalDevice, surface);
-
-    // uniquify queue family indices
-    std::set<uint32_t> uniqueQueueFamilies;
-    if (queueFamilyIndices.compute.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.compute.value());
-    if (queueFamilyIndices.graphics.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.graphics.value());
-    if (queueFamilyIndices.present.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.present.value());
-
-    // prepare queue infos
-    float queuePriority = 1.0f;
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    for (uint32_t index : uniqueQueueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo = {};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = index;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
-
-    // prepare device features
-    VkPhysicalDeviceFeatures deviceFeatures = {};
-
-    // prepare device info
-    VkDeviceCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
-    createInfo.queueCreateInfoCount = queueCreateInfos.size();
-    createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    createInfo.pNext = nullptr;
-
-    // enable validation if needed
-    if (desc.validation) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    } else {
-        createInfo.enabledLayerCount = 0;
-    }
-
-    // // TODO: support separate depth stencil layout
-    // // query separate depth stencil layout
-    // VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures dsf = {};
-    // {
-    //     dsf.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
-    //     VkPhysicalDeviceFeatures2 query = {};
-    //     query.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    //     query.pNext = &dsf;
-    //     vkGetPhysicalDeviceFeatures2(physicalDevice, &query);
-    //     createInfo.pNext = &dsf;
-    // }
-
-    // create logical device
-    ErrorCheck(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "create logical device");
-
-    // retrieve compute queue if necessary
-    if (queueFamilyIndices.compute.has_value()) {
-        vkGetDeviceQueue(device, queueFamilyIndices.compute.value(), 0, &computeQueue);
-    }
-
-    // retrieve graphics queue if necessary
-    if (queueFamilyIndices.graphics.has_value()) {
-        vkGetDeviceQueue(device, queueFamilyIndices.graphics.value(), 0, &graphicsQueue);
-    }
-
-    // retrieve present queue if necessary
-    if (queueFamilyIndices.present.has_value()) {
-        vkGetDeviceQueue(device, queueFamilyIndices.present.value(), 0, &presentQueue);
-    }
-}
-
-void Context::InitMemoryAllocator(const ContextDesc &desc) {
-    (void) desc;
-
-    VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = physicalDevice;
-    allocatorInfo.device = device;
-    allocatorInfo.instance = instance;
-
-    ErrorCheck(vmaCreateAllocator(&allocatorInfo, &allocator), "create vma allocator");
-}
-
-void Context::WaitIdle() const {
-    ErrorCheck(vkDeviceWaitIdle(device), "device wait idle");
-}
-
-Window* Context::GetWindow() const {
-    return window;
-}
-
-VkDevice Context::GetDevice() const {
-    return device;
-}
-
-VmaAllocator Context::GetMemoryAllocator() const {
-    return allocator;
-}
-
-QueueFamilyIndices Context::GetQueueFamilyIndices() const {
-    return queueFamilyIndices;
-}
-
-void Context::Execute(std::function<void(CommandBuffer*)> callback, VkQueueFlagBits queue) {
-    RenderFrame frame(this);
-    auto commandBuffer = frame.RequestCommandBuffer(queue);
-    commandBuffer->Begin();
-    callback(commandBuffer);
-    commandBuffer->End();
-    commandBuffer->Submit();
-    WaitIdle();
-}
-
-void Context::Execute(std::function<void(RenderFrame*, CommandBuffer*)> callback, VkQueueFlagBits queue) {
-    RenderFrame frame(this);
-    auto commandBuffer = frame.RequestCommandBuffer(queue);
-    auto renderFrame = SlimPtr<RenderFrame>(this);
-    commandBuffer->Begin();
-    callback(renderFrame.get(), commandBuffer);
-    commandBuffer->End();
-    commandBuffer->Submit();
-    WaitIdle();
 }

@@ -6,7 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <VmaUsage.h>
 
-#include "core/context.h"
+#include "core/device.h"
 #include "utility/interface.h"
 
 namespace slim {
@@ -19,11 +19,11 @@ namespace slim {
 
     class Shader : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkShaderModule> {
     public:
-        explicit Shader(Context *context, ShaderType type, VkShaderStageFlagBits stage, const std::string &entry, const std::string &path);
+        explicit Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage, const std::string &entry, const std::string &path);
         virtual ~Shader();
         VkPipelineShaderStageCreateInfo GetInfo() const;
     private:
-        Context* context = nullptr;
+        Device* device = nullptr;
         std::string entry = "main";
         VkPipelineShaderStageCreateInfo info = {};
     };
@@ -31,7 +31,7 @@ namespace slim {
     #define SHADER_VARIANT(NAME, TYPE, STAGE)                                                                                     \
     class NAME final : public Shader {                                                                                            \
     public:                                                                                                                       \
-        NAME(Context *context, const std::string &entry, const std::string &path) : Shader(context, TYPE, STAGE, entry, path) { } \
+        NAME(Device *device, const std::string &entry, const std::string &path) : Shader(device, TYPE, STAGE, entry, path) { } \
         virtual ~NAME() { }                                                                                                       \
     };
 
