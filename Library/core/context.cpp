@@ -11,11 +11,6 @@ ContextDesc::ContextDesc() {
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features.pNext = nullptr;
     features.features = {};
-
-    // initialize separate depth stencil layouts
-    dsf.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
-    dsf.separateDepthStencilLayouts = VK_FALSE;
-    dsf.pNext = nullptr;
 }
 
 ContextDesc& ContextDesc::EnableValidation(bool value) {
@@ -47,9 +42,30 @@ ContextDesc& ContextDesc::EnableGLFW(bool value) {
 }
 
 ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
-    dsf.separateDepthStencilLayouts = VK_TRUE;
-    dsf.pNext = features.pNext;
-    features.pNext = &dsf;
+    // enable separate depth stencil layout
+    deviceFeatures.separateDepthStencilLayout.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
+    deviceFeatures.separateDepthStencilLayout.separateDepthStencilLayouts = VK_TRUE;
+    // connect to features
+    deviceFeatures.separateDepthStencilLayout.pNext = features.pNext;
+    features.pNext = &deviceFeatures.separateDepthStencilLayout;
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableDescriptorIndexing() {
+    // add instance extensions
+    instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    // add device extensions
+    deviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+    deviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+    // add physical device features
+    deviceFeatures.descriptorIndexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    deviceFeatures.descriptorIndexing.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    deviceFeatures.descriptorIndexing.runtimeDescriptorArray = VK_TRUE;
+    deviceFeatures.descriptorIndexing.descriptorBindingVariableDescriptorCount = VK_TRUE;
+    deviceFeatures.descriptorIndexing.descriptorBindingPartiallyBound = VK_TRUE;
+    // connect to features
+    deviceFeatures.descriptorIndexing.pNext = features.pNext;
+    features.pNext = &deviceFeatures.descriptorIndexing;
     return *this;
 }
 

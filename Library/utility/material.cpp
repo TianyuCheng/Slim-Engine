@@ -33,13 +33,13 @@ void Material::SetTexture(const std::string &name, Image *texture, Sampler *samp
 void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     for (Descriptor* descriptor : descriptors)
         if (descriptor->HasBinding(name))
-            descriptor->SetUniform(name, buffer, offset ,size);
+            descriptor->SetUniform(name, BufferAlloc { buffer, offset ,size });
 }
 
 void Material::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     for (Descriptor* descriptor : descriptors)
         if (descriptor->HasBinding(name))
-            descriptor->SetStorage(name, buffer, offset ,size);
+            descriptor->SetStorage(name, BufferAlloc { buffer, offset ,size });
 }
 
 void Material::Bind(uint32_t index,

@@ -7,12 +7,12 @@ struct Vertex {
     glm::vec3 color;
 };
 
-struct UBOView {
+struct CameraData {
     glm::mat4 proj;
     glm::mat4 view;
 };
 
-struct alignas(256) UBOInstance {
+struct ModelData {
     glm::mat4 model;
 };
 
@@ -24,6 +24,7 @@ int main() {
             .EnableGraphics(true)
             .EnableValidation(true)
             .EnableGLFW(true)
+            .EnableDescriptorIndexing()
     );
 
     // create a slim device
@@ -70,6 +71,9 @@ int main() {
         auto frame = window->AcquireNext();
         float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
 
+        constexpr uint32_t C = 32;      // we won't be using all of them
+        constexpr uint32_t N = 10;      // we only draw 10 objects
+
         // rendergraph-based design
         RenderGraph graph(frame);
         {
@@ -97,43 +101,39 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddBinding("UBOView",     0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding("UBOInstance", 1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddPushConstant("Object", 0, sizeof(int), VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding     ("Camera", 0, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBindingArray("Models", 0, 1, C, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
                         )
                 );
 
                 commandBuffer->BindPipeline(pipeline);
 
-                // prepare camera uniform buffer
+                // prepare camera and model uniform buffer
                 auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 {
-                    UBOView uboView;
-                    uboView.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
-                    uboView.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-                    descriptor->SetUniform("UBOView", renderFrame->RequestUniformBuffer(uboView));
-                }
+                    CameraData cameraData;
+                    cameraData.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
+                    cameraData.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(cameraData));
 
-                uint32_t N = 10;
-
-                // prepare dynamic uniform buffer
-                auto descriptorDynmaic = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                {
-                    std::vector<UBOInstance> uboInstances;
+                    std::vector<BufferAlloc> modelUniforms;
+                    auto modelBuffer = renderFrame->RequestUniformBuffer(sizeof(ModelData) * N);
+                    ModelData* modelData = modelBuffer->GetData<ModelData>();
                     for (uint32_t i = 0; i < N; i++) {
-                        glm::mat4 model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
-                        uboInstances.push_back({ model });
+                        modelData[i].model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
+                        modelUniforms.push_back(BufferAlloc { modelBuffer, i * sizeof(ModelData), sizeof(ModelData) });
                     }
-                    descriptorDynmaic->SetDynamic("UBOInstance", renderFrame->RequestUniformBuffer(uboInstances), sizeof(UBOInstance));
+                    descriptor->SetUniforms("Models", modelUniforms);
                 }
+                commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
                 // draw objects
                 commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                 commandBuffer->BindIndexBuffer(iBuffer);
                 commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
-                auto [set, binding] = descriptorDynmaic->GetBinding("UBOInstance");
                 for (uint32_t i = 0; i < N; i++) {
-                    descriptorDynmaic->SetDynamicOffset(set, binding, i * sizeof(UBOInstance));
-                    commandBuffer->BindDescriptor(descriptorDynmaic, VK_PIPELINE_BIND_POINT_GRAPHICS);
+                    commandBuffer->PushConstants(pipeline->Layout(), "Object", &i);
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 
@@ -144,6 +144,8 @@ int main() {
 
         // window update
         window->PollEvents();
+
+        break;
     }
 
     device->WaitIdle();

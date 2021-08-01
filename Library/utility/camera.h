@@ -21,11 +21,6 @@ namespace slim {
 
         virtual std::string GetName() const { return name; }
 
-        // // perform frustum culling
-        // // return true for things do not need to be culled
-        // // return false for things needs to be culled
-        // virtual bool Cull(SceneNode *node, float &distance) const;
-
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up);
 
         virtual void Ortho(float left, float right, float bottom, float top, float near, float far);
@@ -33,8 +28,6 @@ namespace slim {
         virtual void Frustum(float left, float right, float bottom, float top, float near, float far);
 
         virtual void Perspective(float fovy, float aspect, float near, float far);
-
-        void Bind(CommandBuffer* commandBuffer, RenderFrame *renderFrame, PipelineLayout *layout) const;
 
         const glm::mat4& GetView() const { return view; }
 

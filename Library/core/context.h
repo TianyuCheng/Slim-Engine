@@ -25,14 +25,25 @@ namespace slim {
         virtual ~ContextDesc() = default;
 
         // configure basic requirements
-        ContextDesc& EnableValidation(bool value);
-        ContextDesc& EnableGraphics(bool value);
-        ContextDesc& EnableCompute(bool value);
-        ContextDesc& EnableGLFW(bool value);
+        ContextDesc& EnableValidation(bool value = true);
+        ContextDesc& EnableGraphics(bool value = true);
+        ContextDesc& EnableCompute(bool value = true);
+        ContextDesc& EnableGLFW(bool value = true);
 
-        // configure physical device features
+        // configure device features
         ContextDesc& EnableSeparateDepthStencilLayout();
-        ContextDesc& SetDeviceFeatures(VkPhysicalDeviceFeatures features);
+        ContextDesc& EnableDescriptorIndexing();
+
+        // allow finer-grain tuning by users
+        VkPhysicalDeviceFeatures& GetDeviceFeatures() {
+            return features.features;
+        }
+        VkPhysicalDeviceDescriptorIndexingFeatures& GetDescriptorIndexingFeatures() {
+            return deviceFeatures.descriptorIndexing;
+        }
+        VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures& GetSeparateDepthStencilLayoutFeatures() {
+            return deviceFeatures.separateDepthStencilLayout;
+        }
 
     private:
         void PrepareForGlfw();
@@ -49,7 +60,10 @@ namespace slim {
 
         // physical device features
         VkPhysicalDeviceFeatures2 features = {};
-        VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures dsf = {};
+        struct {
+            VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures separateDepthStencilLayout = {};
+            VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexing = {};
+        } deviceFeatures;
 
         // extensions + validation layers
         std::vector<const char*> instanceExtensions = {};

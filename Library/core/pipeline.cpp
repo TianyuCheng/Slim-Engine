@@ -22,12 +22,12 @@ PipelineLayoutDesc& PipelineLayoutDesc::AddPushConstant(const std::string &name,
 }
 
 PipelineLayoutDesc& PipelineLayoutDesc::AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                                   VkDescriptorType descriptorType, VkShaderStageFlags stages) {
-    return AddBindingArray(name, set, binding, 1, descriptorType, stages);
+                                                   VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags) {
+    return AddBindingArray(name, set, binding, 1, descriptorType, stages, flags);
 }
 
 PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                                        VkDescriptorType descriptorType, VkShaderStageFlags stages) {
+                                                        VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags) {
     auto it = bindings.find(set);
     if (it == bindings.end()) {
         bindings.insert(std::make_pair(set, std::vector<DescriptorSetLayoutBinding>()));
@@ -35,7 +35,7 @@ PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name,
     }
 
     it->second.push_back(DescriptorSetLayoutBinding {
-        name, VkDescriptorSetLayoutBinding { binding, descriptorType, count, stages, nullptr }
+        name, binding, descriptorType, count, stages, flags,
     });
 
     return *this;
@@ -68,10 +68,30 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
         for (const auto &binding : kv.second)
             hashValue = HashCombine(hashValue, binding);
 
+        bool needDescriptorFlags = false;
+
         // prepare descriptor set layout
+        std::vector<VkDescriptorBindingFlags> bindingFlags;
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-        for (const auto &binding : kv.second)
-            vkBindings.push_back(binding.binding);
+        for (const auto &binding : kv.second) {
+            bindingFlags.push_back(binding.bindingFlags);
+            vkBindings.push_back(VkDescriptorSetLayoutBinding {
+                binding.binding,
+                binding.descriptorType,
+                binding.descriptorCount,
+                binding.stageFlags,
+                nullptr
+            });
+            if (binding.bindingFlags) needDescriptorFlags = true;
+        }
+
+        // prepare descriptor binding flags
+        VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo = {};
+        if (needDescriptorFlags) {
+            bindingFlagsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+            bindingFlagsCreateInfo.bindingCount = bindingFlags.size();
+            bindingFlagsCreateInfo.pBindingFlags = bindingFlags.data();
+        }
 
         // create descriptor set layout
         VkDescriptorSetLayout layout;
@@ -81,6 +101,10 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
         layoutCreateInfo.pBindings = vkBindings.data();
         layoutCreateInfo.flags = 0;
         layoutCreateInfo.pNext = nullptr;
+        if (needDescriptorFlags) {
+            bindingFlagsCreateInfo.pNext = layoutCreateInfo.pNext;
+            layoutCreateInfo.pNext = &bindingFlagsCreateInfo;
+        }
         ErrorCheck(vkCreateDescriptorSetLayout(*device, &layoutCreateInfo, nullptr, &layout),
                 "create descriptor set layout");
 
@@ -89,7 +113,7 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
 
         // create a mapping from resource name to descriptor set layout and binding
         for (const auto &binding : kv.second)
-            mappings.insert(std::make_pair(binding.name, std::make_pair(layout, binding.binding.binding)));
+            mappings.insert(std::make_pair(binding.name, std::make_pair(layout, binding.binding)));
     }
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
@@ -162,62 +186,172 @@ std::tuple<uint32_t, uint32_t> Descriptor::GetBinding(const std::string &name) {
 }
 
 void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *sampler) {
+    SetTextures(name, { image }, { sampler });
+}
+
+void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers) {
     auto [descriptorSet, _, binding] = FindDescriptorSet(name);
 
-    VkDescriptorImageInfo imageInfo = {};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = image->AsTexture();
-    imageInfo.sampler = *sampler;
-    imageInfos.push_back(imageInfo);
+    #ifdef NDEBUG
+    if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && imageNum != samplerNum) {
+        throw std::runtime_error("The number of images and samplers must match for combined image+sampler");
+    }
+    #endif
+
+    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
+    auto& infos = imageInfos.back();
+    infos.reserve(images.size());
+
+    for (uint32_t i = 0; i < images.size(); i++) {
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = images[i]->AsTexture();
+        imageInfo.sampler = *samplers[i];
+        infos.push_back(imageInfo);
+    }
 
     VkWriteDescriptorSet update = {};
     update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     update.dstSet = descriptorSet;
     update.dstBinding = binding;
     update.dstArrayElement = 0;
-    update.descriptorCount = 1;
-    update.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    update.pImageInfo = &imageInfos.back();
+    update.descriptorCount = infos.size();
+    update.pImageInfo = infos.data();
     update.pBufferInfo = nullptr;
     update.pTexelBufferView = nullptr;
 
     writes.push_back(update);
 }
 
-void Descriptor::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
-    SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, offset, size);
+void Descriptor::SetImage(const std::string &name, Image *image) {
+    SetImages(name, { image });
 }
 
-void Descriptor::SetDynamic(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
-    SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, offset, size);
-}
-
-void Descriptor::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
-    SetBuffer(name, buffer, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, offset, size);
-}
-
-void Descriptor::SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size) {
-    buffer->Flush();
-
+void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &images) {
     auto [descriptorSet, _, binding] = FindDescriptorSet(name);
 
-    VkDescriptorBufferInfo bufferInfo = {};
-    bufferInfo.buffer = (VkBuffer) *buffer;
-    bufferInfo.offset = offset;
-    bufferInfo.range = size == 0 ? buffer->Size() : size;
-    bufferInfos.push_back(bufferInfo);
+    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
+    auto& infos = imageInfos.back();
+    infos.reserve(images.size());
+
+    for (auto image : images) {
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = image->AsTexture();
+        imageInfo.sampler = nullptr;
+        infos.push_back(imageInfo);
+    }
 
     VkWriteDescriptorSet update = {};
     update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     update.dstSet = descriptorSet;
     update.dstBinding = binding;
     update.dstArrayElement = 0;
-    update.descriptorCount = 1;
+    update.descriptorCount = infos.size();
+    update.pImageInfo = infos.data();
+    update.pBufferInfo = nullptr;
+    update.pTexelBufferView = nullptr;
+
+    writes.push_back(update);
+}
+
+void Descriptor::SetSampler(const std::string &name, Sampler *sampler) {
+    SetSamplers(name, { sampler });
+}
+
+void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers) {
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
+
+    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
+    auto& infos = imageInfos.back();
+    infos.reserve(samplers.size());
+
+    for (auto sampler : samplers) {
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = nullptr;
+        imageInfo.sampler = *sampler;
+        infos.push_back(imageInfo);
+    }
+
+    VkWriteDescriptorSet update = {};
+    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+    update.dstSet = descriptorSet;
+    update.dstBinding = binding;
+    update.dstArrayElement = 0;
+    update.descriptorCount = infos.size();
+    update.pImageInfo = infos.data();
+    update.pBufferInfo = nullptr;
+    update.pTexelBufferView = nullptr;
+
+    writes.push_back(update);
+}
+
+void Descriptor::SetUniform(const std::string &name, Buffer* buffer) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { BufferAlloc(buffer) });
+}
+
+void Descriptor::SetUniform(const std::string &name, const BufferAlloc& alloc) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { alloc });
+}
+
+void Descriptor::SetUniforms(const std::string &name, const std::vector<BufferAlloc> &allocs) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, allocs);
+}
+
+void Descriptor::SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { BufferAlloc(buffer, 0, elemSize) });
+}
+
+void Descriptor::SetDynamic(const std::string &name, const BufferAlloc& alloc) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { alloc });
+}
+
+void Descriptor::SetStorage(const std::string &name, Buffer* buffer) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { BufferAlloc(buffer) });
+}
+
+void Descriptor::SetStorage(const std::string &name, const BufferAlloc& alloc) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { alloc });
+}
+
+void Descriptor::SetStorages(const std::string &name, const std::vector<BufferAlloc>& allocs) {
+    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, allocs);
+}
+
+void Descriptor::SetBuffer(const std::string &name, VkDescriptorType descriptorType, const std::vector<BufferAlloc> &bufferAllocs) {
+    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
+
+    bufferInfos.push_back(std::vector<VkDescriptorBufferInfo> { });
+    auto& infos = bufferInfos.back();
+    infos.reserve(bufferAllocs.size());
+
+    // flush buffer
+    for (const auto& alloc : bufferAllocs) {
+        alloc.buffer->Flush();
+        VkDescriptorBufferInfo info = {};
+        info.buffer = *alloc.buffer;
+        info.offset = alloc.offset;
+        info.range = alloc.size == 0 ? alloc.buffer->Size() : alloc.size;
+        infos.push_back(info);
+    }
+
+    VkWriteDescriptorSet update = {};
+    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    update.pNext = nullptr;
     update.descriptorType = descriptorType;
+    update.dstSet = descriptorSet;
+    update.dstBinding = binding;
+    update.dstArrayElement = 0;
+    update.descriptorCount = infos.size();
     update.pImageInfo = nullptr;
-    update.pBufferInfo = &bufferInfos.back();
+    update.pBufferInfo = infos.data();
     update.pTexelBufferView = nullptr;
 
     writes.push_back(update);
@@ -346,7 +480,7 @@ uint32_t DescriptorPool::FindAvailablePoolIndex(uint32_t index) {
     return FindAvailablePoolIndex(index + 1);
 }
 
-VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
+VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout, uint32_t variableDescriptorCount) {
     poolIndex = FindAvailablePoolIndex(poolIndex);
 
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
@@ -355,6 +489,16 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout) {
     allocInfo.descriptorPool     = pools[poolIndex];
     allocInfo.descriptorSetCount = 1;
     allocInfo.pSetLayouts        = &layout;
+
+    VkDescriptorSetVariableDescriptorCountAllocateInfo setCounts;
+    if (variableDescriptorCount) {
+        setCounts.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+        setCounts.descriptorSetCount = 1;
+        setCounts.pDescriptorCounts = &variableDescriptorCount;
+        setCounts.pNext = nullptr;
+        allocInfo.pNext = &setCounts;
+    }
+
     ErrorCheck(vkAllocateDescriptorSets(*device, &allocInfo, &descriptorSet), "allocate a descriptor set");
 
     // increment allocated set counter in the pool

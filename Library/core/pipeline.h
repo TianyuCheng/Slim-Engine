@@ -28,6 +28,18 @@ namespace slim {
         uint32_t offset;
     };
 
+    struct BufferAlloc {
+        Buffer* buffer;
+        size_t offset = 0;
+        size_t size = 0;
+
+        BufferAlloc(Buffer* buffer) : buffer(buffer), offset(0), size(buffer->Size()) {
+        }
+
+        BufferAlloc(Buffer* buffer, size_t offset, size_t size) : buffer(buffer), offset(offset), size(size) {
+        }
+    };
+
     //  ____  _            _ _            _                            _   ____
     // |  _ \(_)_ __   ___| (_)_ __   ___| |    __ _ _   _  ___  _   _| |_|  _ \  ___  ___  ___
     // | |_) | | '_ \ / _ \ | | '_ \ / _ \ |   / _` | | | |/ _ \| | | | __| | | |/ _ \/ __|/ __|
@@ -36,8 +48,12 @@ namespace slim {
     //         |_|                                   |___/
 
     struct DescriptorSetLayoutBinding {
-        std::string                  name;
-        VkDescriptorSetLayoutBinding binding;
+        std::string              name;
+        uint32_t                 binding;
+        VkDescriptorType         descriptorType;
+        uint32_t                 descriptorCount;
+        VkShaderStageFlags       stageFlags;
+        VkDescriptorBindingFlags bindingFlags;
     };
 
     class PipelineLayoutDesc final {
@@ -47,9 +63,9 @@ namespace slim {
         PipelineLayoutDesc& AddPushConstant(const std::string &name, uint32_t offset, uint32_t size,
                                             VkShaderStageFlags stages);
         PipelineLayoutDesc& AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                       VkDescriptorType descriptorType, VkShaderStageFlags stages);
+                                       VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags = 0);
         PipelineLayoutDesc& AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                            VkDescriptorType descriptorType, VkShaderStageFlags stages);
+                                            VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags = 0);
     private:
         mutable std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> bindings;
         std::vector<std::string> pushConstantNames;
@@ -95,10 +111,39 @@ namespace slim {
     public:
         explicit Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout);
         virtual ~Descriptor();
-        void SetUniform(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
-        void SetDynamic(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
-        void SetStorage(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
+
+        // binding a uniform buffer, with offset and size for the target buffer
+        void SetUniform(const std::string &name, Buffer *buffer);
+        void SetUniform(const std::string &name, const BufferAlloc &bufferAlloc);
+        void SetUniforms(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
+
+        // binding a dynamic uniform buffer, with offset and size for the target buffer
+        // NOTE: size is for each individual uniform element in the buffer
+        void SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize);
+        void SetDynamic(const std::string &name, const BufferAlloc &bufferAlloc);
+
+        // binding a storage buffer, with offset and size for the target buffer
+        void SetStorage(const std::string &name, Buffer *buffer);
+        void SetStorage(const std::string &name, const BufferAlloc &bufferAlloc);
+        void SetStorages(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
+
+        // binding a combined image + sampler
         void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
+
+        // binding a combined image + sampler
+        void SetTextures(const std::string &name, const std::vector<Image*> &texture, const std::vector<Sampler*> &sampler);
+
+        // binding image uniform
+        void SetImage(const std::string &name, Image *image);
+
+        // binding image array uniform
+        void SetImages(const std::string &name, const std::vector<Image*> &images);
+
+        // binding sampler uniform
+        void SetSampler(const std::string &name, Sampler *sampler);
+
+        // binding image array uniform
+        void SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers);
 
         bool HasBinding(const std::string &name) const;
         std::tuple<uint32_t, uint32_t> GetBinding(const std::string &name);
@@ -108,13 +153,13 @@ namespace slim {
     private:
         void Update();
         std::tuple<VkDescriptorSet, uint32_t, uint32_t> FindDescriptorSet(const std::string &name);
-        void SetBuffer(const std::string &name, Buffer *buffer, VkDescriptorType descriptorType, size_t offset, size_t size);
+        void SetBuffer(const std::string &name, VkDescriptorType descriptorType, const std::vector<BufferAlloc> &bufferAlloc);
     private:
         SmartPtr<DescriptorPool> pool;
         SmartPtr<PipelineLayout> pipelineLayout;
         std::vector<VkWriteDescriptorSet> writes;
-        std::list<VkDescriptorBufferInfo> bufferInfos;
-        std::list<VkDescriptorImageInfo> imageInfos;
+        std::list<std::vector<VkDescriptorBufferInfo>> bufferInfos;
+        std::list<std::vector<VkDescriptorImageInfo>> imageInfos;
         std::vector<VkDescriptorSet> descriptorSets;
         std::vector<std::vector<uint32_t>> dynamicOffsets;
     };
@@ -132,7 +177,7 @@ namespace slim {
         explicit DescriptorPool(Device *device, uint32_t poolSize);
         virtual ~DescriptorPool();
         void Reset();
-        VkDescriptorSet Request(VkDescriptorSetLayout layout);
+        VkDescriptorSet Request(VkDescriptorSetLayout layout, uint32_t variableDescriptorCount = 0);
         Device* GetDevice() const { return device; }
     private:
         uint32_t FindAvailablePoolIndex(uint32_t poolIndex);
@@ -307,10 +352,11 @@ namespace std {
         size_t operator()(const slim::DescriptorSetLayoutBinding& obj) const {
             size_t hash = 0x0;
             hash = slim::HashCombine(hash, obj.name);
-            hash = slim::HashCombine(hash, obj.binding.binding);
-            hash = slim::HashCombine(hash, obj.binding.descriptorCount);
-            hash = slim::HashCombine(hash, obj.binding.descriptorType);
-            hash = slim::HashCombine(hash, obj.binding.stageFlags);
+            hash = slim::HashCombine(hash, obj.binding);
+            hash = slim::HashCombine(hash, obj.descriptorCount);
+            hash = slim::HashCombine(hash, obj.descriptorType);
+            hash = slim::HashCombine(hash, obj.stageFlags);
+            hash = slim::HashCombine(hash, obj.bindingFlags);
             return hash;
         }
     };

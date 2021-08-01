@@ -47,6 +47,8 @@ namespace slim {
         Transient<GPUImage2D>    RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
         Semaphore*               RequestSemaphore();
 
+        UniformBuffer*           RequestUniformBuffer(size_t size);
+
         template <typename T>
         UniformBuffer*           RequestUniformBuffer(const T &value);
 

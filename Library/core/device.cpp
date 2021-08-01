@@ -42,6 +42,13 @@ void Device::InitLogicalDevice() {
         if (std::string(extension.extensionName) == "VK_KHR_portability_subset")
             deviceExtensions.push_back(extension.extensionName);
 
+    // list all device extensions
+    if (deviceExtensions.size()) {
+        std::cout << "[CreateDevice] with extensions: " << std::endl;
+        for (auto &extension : deviceExtensions)
+            std::cout << "- " << extension << std::endl;
+    }
+
     // update queue family indices
     queueFamilyIndices = FindQueueFamilyIndices(physicalDevice, surface);
 
@@ -63,17 +70,15 @@ void Device::InitLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    VkPhysicalDeviceFeatures features = {};
-
     // prepare device info
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     createInfo.pQueueCreateInfos = queueCreateInfos.data();
     createInfo.queueCreateInfoCount = queueCreateInfos.size();
-    createInfo.pEnabledFeatures = &features;
+    createInfo.pEnabledFeatures = nullptr;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    createInfo.pNext = nullptr;
+    createInfo.pNext = &context->GetDescription().features;
 
     // enable validation if needed
     if (desc.validation) {

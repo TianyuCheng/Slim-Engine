@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <iostream>
 #include <functional>
 #include <vulkan/vulkan.h>
 #include <VmaUsage.h>

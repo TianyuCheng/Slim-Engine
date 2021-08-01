@@ -53,16 +53,6 @@ namespace slim {
                              VkImageAspectFlags aspectMask);
 
         template <typename T>
-        void PushConstants(PipelineLayout* layout, const std::string &name, const T &data) {
-            PushConstants(layout, name, &data);
-        }
-
-        template <typename T>
-        void PushConstants(PipelineLayout* layout, size_t offset, const T &data, VkShaderStageFlags stages) {
-            PushConstants(layout, offset, &data, sizeof(T), stages);
-        }
-
-        template <typename T>
         void CopyDataToBuffer(const T &data, Buffer *buffer, size_t offset = 0);
 
         template <typename T>

@@ -165,6 +165,10 @@ Transient<GPUImage2D> RenderFrame::RequestGPUImage2D(VkFormat format, VkExtent2D
     return gpuImagePool->Request(format, extent, mipLevels, samples, imageUsage);
 }
 
+UniformBuffer* RenderFrame::RequestUniformBuffer(size_t size) {
+    return uniformBufferPool->Request(size);
+}
+
 Semaphore* RenderFrame::RequestSemaphore() {
     if (activeSemahoreCount < semaphorePool.size()) {
         return semaphorePool[activeSemahoreCount++];
