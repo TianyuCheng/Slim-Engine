@@ -78,7 +78,8 @@ int main() {
         auto frame = window->AcquireNext();
         float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
 
-        constexpr uint32_t C = 32;     // we won't be using all of them, on MoltenVk -> # sampled images=128, # samplers=16
+        constexpr uint32_t T = 32;      // on MoltenVk -> sampled images=128
+        // constexpr uint32_t S = 16;      // on MoltenVk -> max samplers=16
         constexpr uint32_t N = 10;      // we only draw 10 objects
 
         // rendergraph-based design
@@ -110,8 +111,8 @@ int main() {
                         .SetPipelineLayout(PipelineLayoutDesc()
                             .AddPushConstant("Material", 0, sizeof(int), VK_SHADER_STAGE_VERTEX_BIT)
                             .AddBinding     ("Camera",   0, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBindingArray("Sampler",  0, 1, 1, VK_DESCRIPTOR_TYPE_SAMPLER,        VK_SHADER_STAGE_FRAGMENT_BIT)
-                            .AddBindingArray("Images",   1, 0, C, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) // bindless
+                            .AddBinding     ("Sampler",  0, 1,    VK_DESCRIPTOR_TYPE_SAMPLER,        VK_SHADER_STAGE_FRAGMENT_BIT)
+                            .AddBindingArray("Images",   1, 0, T, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) // bindless
                             .AddBinding     ("Models",   2, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                         )
                 );

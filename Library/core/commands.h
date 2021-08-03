@@ -8,6 +8,7 @@
 #include "core/buffer.h"
 #include "core/device.h"
 #include "core/pipeline.h"
+#include "core/descriptor.h"
 #include "core/synchronization.h"
 #include "utility/interface.h"
 

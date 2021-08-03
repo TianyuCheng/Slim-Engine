@@ -22,6 +22,8 @@ set(SLIM_CORE_SOURCES
     core/sampler.cpp
     core/pipeline.h
     core/pipeline.cpp
+    core/descriptor.h
+    core/descriptor.cpp
     core/renderframe.h
     core/renderframe.cpp
     core/renderpass.h

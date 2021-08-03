@@ -49,11 +49,17 @@ namespace slim {
 
     struct DescriptorSetLayoutBinding {
         std::string              name;
+        uint32_t                 set;
         uint32_t                 binding;
         VkDescriptorType         descriptorType;
         uint32_t                 descriptorCount;
         VkShaderStageFlags       stageFlags;
         VkDescriptorBindingFlags bindingFlags;
+    };
+
+    struct DescriptorSetLayout {
+        VkDescriptorSetLayout layout;
+        std::vector<DescriptorSetLayoutBinding> bindings;
     };
 
     class PipelineLayoutDesc final {
@@ -80,114 +86,23 @@ namespace slim {
     //         |_|                                   |___/
 
     class PipelineLayout final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkPipelineLayout> {
-        friend class Descriptor;
         friend class std::hash<PipelineLayout>;
     public:
         explicit PipelineLayout(Device *device, const PipelineLayoutDesc &desc);
         virtual ~PipelineLayout();
 
         bool HasBinding(const std::string &name) const;
-        std::tuple<size_t, size_t, VkShaderStageFlags> GetPushConstant(const std::string &name) const;
+        const DescriptorSetLayout& GetSetBindings(uint32_t set) const { return descriptorSetLayouts[set]; }
+        const DescriptorSetLayout& GetSetBinding(const std::string &name, uint32_t& indexAccessor) const;
+        const VkPushConstantRange& GetPushConstant(const std::string &name) const;
     private:
         void Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings);
     private:
         SmartPtr<Device> device;
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        std::unordered_map<std::string, std::pair<VkDescriptorSetLayout, uint32_t>> mappings;
+        std::vector<DescriptorSetLayout> descriptorSetLayouts;
         std::unordered_map<std::string, std::tuple<uint32_t, uint32_t>> bindings;
         std::unordered_map<std::string, VkPushConstantRange> pushConstants;
         size_t hashValue;
-    };
-
-    //  ____                      _       _
-    // |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __
-    // | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__|
-    // | |_| |  __/\__ \ (__| |  | | |_) | || (_) | |
-    // |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|
-    //                             |_|
-
-    class Descriptor final : public NotCopyable, public NotMovable, public ReferenceCountable {
-        friend class CommandBuffer;
-    public:
-        explicit Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout);
-        virtual ~Descriptor();
-
-        // binding a uniform buffer, with offset and size for the target buffer
-        void SetUniform(const std::string &name, Buffer *buffer);
-        void SetUniform(const std::string &name, const BufferAlloc &bufferAlloc);
-        void SetUniforms(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
-
-        // binding a dynamic uniform buffer, with offset and size for the target buffer
-        // NOTE: size is for each individual uniform element in the buffer
-        void SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize);
-        void SetDynamic(const std::string &name, const BufferAlloc &bufferAlloc);
-
-        // binding a storage buffer, with offset and size for the target buffer
-        void SetStorage(const std::string &name, Buffer *buffer);
-        void SetStorage(const std::string &name, const BufferAlloc &bufferAlloc);
-        void SetStorages(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
-
-        // binding a combined image + sampler
-        void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
-
-        // binding a combined image + sampler
-        void SetTextures(const std::string &name, const std::vector<Image*> &texture, const std::vector<Sampler*> &sampler);
-
-        // binding image uniform
-        void SetImage(const std::string &name, Image *image);
-
-        // binding image array uniform
-        void SetImages(const std::string &name, const std::vector<Image*> &images);
-
-        // binding sampler uniform
-        void SetSampler(const std::string &name, Sampler *sampler);
-
-        // binding image array uniform
-        void SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers);
-
-        bool HasBinding(const std::string &name) const;
-        std::tuple<uint32_t, uint32_t> GetBinding(const std::string &name);
-
-        void SetDynamicOffset(const std::string &name, uint32_t offset);
-        void SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset);
-    private:
-        void Update();
-        std::tuple<VkDescriptorSet, uint32_t, uint32_t> FindDescriptorSet(const std::string &name, uint32_t variableDescriptorCount = 0);
-        void SetBuffer(const std::string &name, VkDescriptorType descriptorType, const std::vector<BufferAlloc> &bufferAlloc);
-    private:
-        SmartPtr<DescriptorPool> pool;
-        SmartPtr<PipelineLayout> pipelineLayout;
-        std::vector<VkWriteDescriptorSet> writes;
-        std::list<std::vector<VkDescriptorBufferInfo>> bufferInfos;
-        std::list<std::vector<VkDescriptorImageInfo>> imageInfos;
-        std::vector<VkDescriptorSet> descriptorSets;
-        std::vector<std::vector<uint32_t>> dynamicOffsets;
-    };
-
-    //  ____                      _       _             ____             _
-    // |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __|  _ \ ___   ___ | |
-    // | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__| |_) / _ \ / _ \| |
-    // | |_| |  __/\__ \ (__| |  | | |_) | || (_) | |  |  __/ (_) | (_) | |
-    // |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|  |_|   \___/ \___/|_|
-    //                             |_|
-
-    class DescriptorPool final : public ReferenceCountable {
-        friend class Descriptor;
-    public:
-        explicit DescriptorPool(Device *device, uint32_t poolSize);
-        virtual ~DescriptorPool();
-        void Reset();
-        VkDescriptorSet Request(VkDescriptorSetLayout layout, uint32_t variableDescriptorCount = 0);
-        Device* GetDevice() const { return device; }
-    private:
-        uint32_t FindAvailablePoolIndex(uint32_t poolIndex);
-    private:
-        SmartPtr<Device> device;
-        uint32_t poolIndex = 0;
-        uint32_t maxPoolSets;
-        std::vector<VkDescriptorPool> pools;
-        std::vector<VkDescriptorPoolSize> poolSizes;
-        std::vector<uint32_t> poolSetCounts;
     };
 
     //  ____  _            _ _              ____

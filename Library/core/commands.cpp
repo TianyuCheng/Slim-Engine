@@ -402,8 +402,8 @@ void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<Buffer
 }
 
 void CommandBuffer::PushConstants(PipelineLayout *layout, const std::string &name, const void *value) {
-    const auto& [offset, size, stages] = layout->GetPushConstant(name);
-    PushConstants(layout, offset, value, size, stages);
+    const VkPushConstantRange& range = layout->GetPushConstant(name);
+    PushConstants(layout, range.offset, value, range.size, range.stageFlags);
 }
 
 void CommandBuffer::PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages) {

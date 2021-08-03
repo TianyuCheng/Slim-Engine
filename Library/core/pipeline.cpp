@@ -1,6 +1,7 @@
 #include "core/debug.h"
-#include "core/commands.h"
 #include "core/vkutils.h"
+#include "core/commands.h"
+#include "core/descriptor.h"
 #include "core/renderframe.h"
 
 using namespace slim;
@@ -35,7 +36,7 @@ PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name,
     }
 
     it->second.push_back(DescriptorSetLayoutBinding {
-        name, binding, descriptorType, count, stages, flags,
+        name, set, binding, descriptorType, count, stages, flags,
     });
 
     return *this;
@@ -62,6 +63,8 @@ PipelineLayout::PipelineLayout(Device *device, const PipelineLayoutDesc &desc) :
 void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings) {
     hashValue = 0x0;
 
+    std::vector<VkDescriptorSetLayout> descriptorSetLayoutHandles = {};
+
     // iteratively create descriptor set layouts
     for (auto &kv : bindings) {
         hashValue = HashCombine(hashValue, kv.first);
@@ -70,27 +73,21 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
 
         bool needDescriptorFlags = false;
 
+        const std::vector<DescriptorSetLayoutBinding>& setBindings = kv.second;
+
         // prepare descriptor set layout
         std::vector<VkDescriptorBindingFlags> bindingFlags;
         std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-        for (const auto &binding : kv.second) {
+        for (const auto &binding : setBindings) {
             bindingFlags.push_back(binding.bindingFlags);
             vkBindings.push_back(VkDescriptorSetLayoutBinding {
                 binding.binding,
                 binding.descriptorType,
                 binding.descriptorCount,
                 binding.stageFlags,
-                nullptr
+                nullptr // immutable samplers
             });
             if (binding.bindingFlags) needDescriptorFlags = true;
-        }
-
-        // prepare descriptor binding flags
-        VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo = {};
-        if (needDescriptorFlags) {
-            bindingFlagsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-            bindingFlagsCreateInfo.bindingCount = bindingFlags.size();
-            bindingFlagsCreateInfo.pBindingFlags = bindingFlags.data();
         }
 
         // create descriptor set layout
@@ -101,26 +98,40 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
         layoutCreateInfo.pBindings = vkBindings.data();
         layoutCreateInfo.flags = 0;
         layoutCreateInfo.pNext = nullptr;
+
+        // prepare descriptor binding flags
+        VkDescriptorSetLayoutBindingFlagsCreateInfo bindingFlagsCreateInfo = {};
         if (needDescriptorFlags) {
+            bindingFlagsCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+            bindingFlagsCreateInfo.bindingCount = bindingFlags.size();
+            bindingFlagsCreateInfo.pBindingFlags = bindingFlags.data();
             bindingFlagsCreateInfo.pNext = layoutCreateInfo.pNext;
             layoutCreateInfo.pNext = &bindingFlagsCreateInfo;
         }
+
         ErrorCheck(vkCreateDescriptorSetLayout(*device, &layoutCreateInfo, nullptr, &layout),
                 "create descriptor set layout");
 
         // create a set layout from device
-        descriptorSetLayouts.push_back(layout);
+        descriptorSetLayoutHandles.push_back(layout);
+        descriptorSetLayouts.push_back(DescriptorSetLayout {
+            layout, setBindings
+        });
 
         // create a mapping from resource name to descriptor set layout and binding
-        for (const auto &binding : kv.second)
-            mappings.insert(std::make_pair(binding.name, std::make_pair(layout, binding.binding)));
+        uint32_t setIndex = descriptorSetLayouts.size() - 1;
+        for (uint32_t bindingIndex = 0; bindingIndex < setBindings.size(); bindingIndex++) {
+            this->bindings.insert(std::make_pair(
+                    setBindings[bindingIndex].name,
+                    std::make_tuple(setIndex, bindingIndex)));
+        }
     }
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pNext = nullptr;
-    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayouts.size();
-    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayouts.data();
+    pipelineLayoutCreateInfo.setLayoutCount = descriptorSetLayoutHandles.size();
+    pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayoutHandles.data();
     pipelineLayoutCreateInfo.pushConstantRangeCount = desc.pushConstantRange.size();
     pipelineLayoutCreateInfo.pPushConstantRanges = desc.pushConstantRange.data();
     ErrorCheck(vkCreatePipelineLayout(*device, &pipelineLayoutCreateInfo, nullptr, &handle), "create pipeline layout");
@@ -128,7 +139,7 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
 
 PipelineLayout::~PipelineLayout() {
     for (auto descriptorSetLayout : descriptorSetLayouts)
-        vkDestroyDescriptorSetLayout(*device, descriptorSetLayout, nullptr);
+        vkDestroyDescriptorSetLayout(*device, descriptorSetLayout.layout, nullptr);
 
     if (handle) {
         vkDestroyPipelineLayout(*device, handle, nullptr);
@@ -137,10 +148,24 @@ PipelineLayout::~PipelineLayout() {
 }
 
 bool PipelineLayout::HasBinding(const std::string &name) const {
-    return mappings.find(name) != mappings.end();
+    return bindings.find(name) != bindings.end();
 }
 
-std::tuple<size_t, size_t, VkShaderStageFlags> PipelineLayout::GetPushConstant(const std::string &name) const {
+const DescriptorSetLayout& PipelineLayout::GetSetBinding(const std::string &name, uint32_t& indexAccessor) const {
+    const auto it = bindings.find(name);
+
+    #ifndef NDEBUG
+    if (it == bindings.end()) {
+        throw std::runtime_error("[PipelineLayout] Failed to find binding == " + name);
+    }
+    #endif
+
+    auto [setIndex, bindingIndex] = it->second;
+    indexAccessor = bindingIndex;   // update reference value
+    return descriptorSetLayouts[setIndex];
+}
+
+const VkPushConstantRange& PipelineLayout::GetPushConstant(const std::string &name) const {
     auto it = pushConstants.find(name);
 
     #ifndef NDEBUG
@@ -149,361 +174,7 @@ std::tuple<size_t, size_t, VkShaderStageFlags> PipelineLayout::GetPushConstant(c
     }
     #endif
 
-    const auto &pushConstant = it->second;
-    return std::make_tuple(pushConstant.offset, pushConstant.size, pushConstant.stageFlags);
-}
-
-//  ____                      _       _
-// |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __
-// | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__|
-// | |_| |  __/\__ \ (__| |  | | |_) | || (_) | |
-// |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|
-//                             |_|
-
-Descriptor::Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout)
-    : pool(pool), pipelineLayout(pipelineLayout) {
-}
-
-Descriptor::~Descriptor() {
-}
-
-void Descriptor::Update() {
-    VkDevice device = *pool->GetDevice();
-    vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
-
-    writes.clear();
-    imageInfos.clear();
-    bufferInfos.clear();
-}
-
-bool Descriptor::HasBinding(const std::string &name) const {
-    return pipelineLayout->HasBinding(name);
-}
-
-std::tuple<uint32_t, uint32_t> Descriptor::GetBinding(const std::string &name) {
-    auto [_, set, binding] = FindDescriptorSet(name);
-    return std::make_tuple(set, binding);
-}
-
-void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *sampler) {
-    SetTextures(name, { image }, { sampler });
-}
-
-void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name, images.size());
-
-    #ifdef NDEBUG
-    if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && imageNum != samplerNum) {
-        throw std::runtime_error("The number of images and samplers must match for combined image+sampler");
-    }
-    #endif
-
-    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
-    auto& infos = imageInfos.back();
-    infos.reserve(images.size());
-
-    for (uint32_t i = 0; i < images.size(); i++) {
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = images[i]->AsTexture();
-        imageInfo.sampler = *samplers[i];
-        infos.push_back(imageInfo);
-    }
-
-    VkWriteDescriptorSet update = {};
-    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    update.pNext = nullptr;
-    update.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    update.dstSet = descriptorSet;
-    update.dstBinding = binding;
-    update.dstArrayElement = 0;
-    update.descriptorCount = infos.size();
-    update.pImageInfo = infos.data();
-    update.pBufferInfo = nullptr;
-    update.pTexelBufferView = nullptr;
-
-    writes.push_back(update);
-}
-
-void Descriptor::SetImage(const std::string &name, Image *image) {
-    SetImages(name, { image });
-}
-
-void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &images) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name, images.size());
-
-    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
-    auto& infos = imageInfos.back();
-    infos.reserve(images.size());
-
-    for (auto image : images) {
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = image->AsTexture();
-        imageInfo.sampler = nullptr;
-        infos.push_back(imageInfo);
-    }
-
-    VkWriteDescriptorSet update = {};
-    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    update.pNext = nullptr;
-    update.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-    update.dstSet = descriptorSet;
-    update.dstBinding = binding;
-    update.dstArrayElement = 0;
-    update.descriptorCount = infos.size();
-    update.pImageInfo = infos.data();
-    update.pBufferInfo = nullptr;
-    update.pTexelBufferView = nullptr;
-
-    writes.push_back(update);
-}
-
-void Descriptor::SetSampler(const std::string &name, Sampler *sampler) {
-    SetSamplers(name, { sampler });
-}
-
-void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name, samplers.size());
-
-    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
-    auto& infos = imageInfos.back();
-    infos.reserve(samplers.size());
-
-    for (auto sampler : samplers) {
-        VkDescriptorImageInfo imageInfo = {};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = nullptr;
-        imageInfo.sampler = *sampler;
-        infos.push_back(imageInfo);
-    }
-
-    VkWriteDescriptorSet update = {};
-    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    update.pNext = nullptr;
-    update.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-    update.dstSet = descriptorSet;
-    update.dstBinding = binding;
-    update.dstArrayElement = 0;
-    update.descriptorCount = infos.size();
-    update.pImageInfo = infos.data();
-    update.pBufferInfo = nullptr;
-    update.pTexelBufferView = nullptr;
-
-    writes.push_back(update);
-}
-
-void Descriptor::SetUniform(const std::string &name, Buffer* buffer) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { BufferAlloc(buffer) });
-}
-
-void Descriptor::SetUniform(const std::string &name, const BufferAlloc& alloc) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { alloc });
-}
-
-void Descriptor::SetUniforms(const std::string &name, const std::vector<BufferAlloc> &allocs) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, allocs);
-}
-
-void Descriptor::SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { BufferAlloc(buffer, 0, elemSize) });
-}
-
-void Descriptor::SetDynamic(const std::string &name, const BufferAlloc& alloc) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { alloc });
-}
-
-void Descriptor::SetStorage(const std::string &name, Buffer* buffer) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { BufferAlloc(buffer) });
-}
-
-void Descriptor::SetStorage(const std::string &name, const BufferAlloc& alloc) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { alloc });
-}
-
-void Descriptor::SetStorages(const std::string &name, const std::vector<BufferAlloc>& allocs) {
-    SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, allocs);
-}
-
-void Descriptor::SetBuffer(const std::string &name, VkDescriptorType descriptorType, const std::vector<BufferAlloc> &bufferAllocs) {
-    auto [descriptorSet, _, binding] = FindDescriptorSet(name);
-
-    bufferInfos.push_back(std::vector<VkDescriptorBufferInfo> { });
-    auto& infos = bufferInfos.back();
-    infos.reserve(bufferAllocs.size());
-
-    // flush buffer
-    for (const auto& alloc : bufferAllocs) {
-        alloc.buffer->Flush();
-        VkDescriptorBufferInfo info = {};
-        info.buffer = *alloc.buffer;
-        info.offset = alloc.offset;
-        info.range = alloc.size == 0 ? alloc.buffer->Size() : alloc.size;
-        infos.push_back(info);
-    }
-
-    VkWriteDescriptorSet update = {};
-    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    update.pNext = nullptr;
-    update.descriptorType = descriptorType;
-    update.dstSet = descriptorSet;
-    update.dstBinding = binding;
-    update.dstArrayElement = 0;
-    update.descriptorCount = infos.size();
-    update.pImageInfo = nullptr;
-    update.pBufferInfo = infos.data();
-    update.pTexelBufferView = nullptr;
-
-    writes.push_back(update);
-}
-
-void Descriptor::SetDynamicOffset(const std::string &name, uint32_t offset) {
-    auto [_, set, binding] = FindDescriptorSet(name);
-    SetDynamicOffset(set, binding, offset);
-}
-
-void Descriptor::SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset) {
-    if (dynamicOffsets.size() <= set)
-        dynamicOffsets.resize(set + 1);
-
-    if (dynamicOffsets[set].size() <= binding)
-        dynamicOffsets[set].resize(binding + 1);
-
-    dynamicOffsets[set][binding] = offset;
-}
-
-std::tuple<VkDescriptorSet, uint32_t, uint32_t> Descriptor::FindDescriptorSet(const std::string &name, uint32_t variableDescriptorCount) {
-    auto indexOf = [](const std::vector<VkDescriptorSetLayout> &layouts, VkDescriptorSetLayout target) {
-        for (uint32_t i = 0; i < layouts.size(); i++)
-            if (layouts[i] == target)
-                return i;
-        return 0xffffffff;
-    };
-
-    VkDescriptorSet descriptorSet;
-
-    auto it = pipelineLayout->mappings.find(name);
-    if (it == pipelineLayout->mappings.end()) {
-        throw std::runtime_error("Failed to find binding with name: " + name);
-    }
-
-    VkDescriptorSetLayout layout = it->second.first;
-    uint32_t set = indexOf(pipelineLayout->descriptorSetLayouts, layout);
-    uint32_t binding = it->second.second;
-
-    // augment the descriptor sets array
-    while (descriptorSets.size() <= set)
-        descriptorSets.push_back(VK_NULL_HANDLE);
-
-    if (descriptorSets[set] == VK_NULL_HANDLE)
-        descriptorSets[set] = pool->Request(layout, variableDescriptorCount);
-
-    while (dynamicOffsets.size() <= set)
-        dynamicOffsets.push_back({ });
-
-    descriptorSet = descriptorSets[set];
-    return std::make_tuple(descriptorSet, set, binding);
-}
-
-//  ____                      _       _             ____             _
-// |  _ \  ___  ___  ___ _ __(_)_ __ | |_ ___  _ __|  _ \ ___   ___ | |
-// | | | |/ _ \/ __|/ __| '__| | '_ \| __/ _ \| '__| |_) / _ \ / _ \| |
-// | |_| |  __/\__ \ (__| |  | | |_) | || (_) | |  |  __/ (_) | (_) | |
-// |____/ \___||___/\___|_|  |_| .__/ \__\___/|_|  |_|   \___/ \___/|_|
-//                             |_|
-
-DescriptorPool::DescriptorPool(Device *device, uint32_t size) : device(device), maxPoolSets(size) {
-    // initialize descriptor pool sizes
-    static std::unordered_map<VkDescriptorType, float> resourceAllocations = {
-        { VK_DESCRIPTOR_TYPE_SAMPLER,                1.0f },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          1.0f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0f },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1.0f },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.0f },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2.0f },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 2.0f },
-    };
-
-    for (const auto &kv : resourceAllocations) {
-        VkDescriptorPoolSize poolSize = {};
-        poolSize.type = kv.first;
-        poolSize.descriptorCount = static_cast<uint32_t>(size * kv.second);
-        poolSizes.push_back(poolSize);
-    }
-}
-
-DescriptorPool::~DescriptorPool() {
-    Reset();
-
-    // destroy descriptor pool
-    for (const auto &pool : pools) {
-        vkDestroyDescriptorPool(*device, pool, nullptr);
-    }
-}
-
-void DescriptorPool::Reset() {
-    // clearing allocated descriptors
-    for (const auto &pool : pools) {
-        ErrorCheck(vkResetDescriptorPool(*device, pool, (VkDescriptorPoolResetFlags) 0), "reset descriptor pool");
-    }
-
-    // reset allocated count
-    std::fill(poolSetCounts.begin(), poolSetCounts.end(), 0x0);
-
-    // reset pool index
-    poolIndex = 0;
-}
-
-uint32_t DescriptorPool::FindAvailablePoolIndex(uint32_t index) {
-    // check if we need to allocate new pool
-    if (index >= poolSetCounts.size()) {
-        // allocate a new descriptor pool
-        VkDescriptorPoolCreateInfo createInfo = {};
-        createInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-        createInfo.poolSizeCount = poolSizes.size();
-        createInfo.pPoolSizes    = poolSizes.data();
-        createInfo.maxSets       = maxPoolSets;
-        createInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
-
-        VkDescriptorPool pool = VK_NULL_HANDLE;
-        ErrorCheck(vkCreateDescriptorPool(*device, &createInfo, nullptr, &pool), "create new descriptor pool");
-
-        pools.push_back(pool);
-        poolSetCounts.push_back(0);
-        return pools.size() - 1;
-    }
-
-    if (poolSetCounts[index] < maxPoolSets) {
-        return index;
-    }
-
-    return FindAvailablePoolIndex(index + 1);
-}
-
-VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout, uint32_t variableDescriptorCount) {
-    poolIndex = FindAvailablePoolIndex(poolIndex);
-
-    VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-    VkDescriptorSetAllocateInfo allocInfo = {};
-    allocInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool     = pools[poolIndex];
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts        = &layout;
-
-    VkDescriptorSetVariableDescriptorCountAllocateInfo setCounts;
-    if (variableDescriptorCount) {
-        setCounts.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
-        setCounts.descriptorSetCount = 1;
-        setCounts.pDescriptorCounts = &variableDescriptorCount;
-        setCounts.pNext = nullptr;
-        allocInfo.pNext = &setCounts;
-    }
-
-    ErrorCheck(vkAllocateDescriptorSets(*device, &allocInfo, &descriptorSet), "allocate a descriptor set");
-
-    // increment allocated set counter in the pool
-    poolSetCounts[poolIndex]++;
-    return descriptorSet;
+    return it->second;
 }
 
 //  ____  _            _ _              ____
