@@ -113,16 +113,7 @@ endfunction()
 # |_____/_/\_\__,_|_| |_| |_| .__/|_|\___||___/
 #                           |_|
 # ---------------------------------------------------------------
-add_subdirectory(Examples/BufferCopy)
-add_subdirectory(Examples/Compute)
-add_subdirectory(Examples/DearImGui)
-add_subdirectory(Examples/DepthBuffering)
-add_subdirectory(Examples/Multisampling)
-add_subdirectory(Examples/TextureMapping)
-add_subdirectory(Examples/RenderToTexture)
-add_subdirectory(Examples/SceneGraph)
-add_subdirectory(Examples/DynamicUniform)
-add_subdirectory(Examples/Bindless)
+add_subdirectory(Examples)
 
 #     _                _ _           _   _
 #    / \   _ __  _ __ | (_) ___ __ _| |_(_) ___  _ __
@@ -131,4 +122,4 @@ add_subdirectory(Examples/Bindless)
 # /_/   \_\ .__/| .__/|_|_|\___\__,_|\__|_|\___/|_| |_|
 #         |_|   |_|
 
-add_subdirectory(Applications/GLTFViewer)
+add_subdirectory(Applications)

@@ -1,0 +1,8 @@
+---
+# We will use defaults from LLVM style
+# but change the indentations to 4 spaces
+BasedOnStyle: LLVM
+IndentWidth: 4
+
+---
+Language: Cpp
