@@ -22,7 +22,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Depth Buffering")
+            .SetTitle("Scene Graph + Material System")
     );
 
     // create vertex and fragment shaders
@@ -108,7 +108,7 @@ int main() {
         auto sceneFilter = SlimPtr<SceneFilter>();
         sceneFilter->Cull(scene, camera);
         sceneFilter->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
-        sceneFilter->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::FrontToback);
+        sceneFilter->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // rendergraph-based design
         RenderGraph renderGraph(frame);
@@ -120,7 +120,8 @@ int main() {
             colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->Execute([&](const RenderInfo &info) {
-                MeshRenderer(info).Draw(camera, sceneFilter, RenderQueue::Geometry, RenderQueue::GeometryLast);
+                MeshRenderer renderer(info);
+                renderer.Draw(camera, sceneFilter->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
         }
         renderGraph.Execute();

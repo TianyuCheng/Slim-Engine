@@ -25,21 +25,60 @@ Material::~Material() {
 }
 
 void Material::SetTexture(const std::string &name, Image *texture, Sampler *sampler) {
-    for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasBinding(name))
+    #ifndef NDEBUG
+    bool found = false;
+    #endif
+    for (Descriptor* descriptor : descriptors) {
+        if (descriptor->HasBinding(name)) {
             descriptor->SetTexture(name, texture, sampler);
+            #ifndef NDEBUG
+            found = true;
+            #endif
+        }
+    }
+    #ifndef NDEBUG
+    if (!found) {
+        throw std::runtime_error("[Material::SetTexture] no binding named '" + name + "'");
+    }
+    #endif
 }
 
 void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
-    for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasBinding(name))
+    #ifndef NDEBUG
+    bool found = false;
+    #endif
+    for (Descriptor* descriptor : descriptors) {
+        if (descriptor->HasBinding(name)) {
             descriptor->SetUniform(name, BufferAlloc { buffer, offset ,size });
+            #ifndef NDEBUG
+            found = true;
+            #endif
+        }
+    }
+    #ifndef NDEBUG
+    if (!found) {
+        throw std::runtime_error("[Material::SetUniform] no binding named '" + name + "'");
+    }
+    #endif
 }
 
 void Material::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
-    for (Descriptor* descriptor : descriptors)
-        if (descriptor->HasBinding(name))
+    #ifndef NDEBUG
+    bool found = false;
+    #endif
+    for (Descriptor* descriptor : descriptors) {
+        if (descriptor->HasBinding(name)) {
             descriptor->SetStorage(name, BufferAlloc { buffer, offset ,size });
+            #ifndef NDEBUG
+            found = true;
+            #endif
+        }
+    }
+    #ifndef NDEBUG
+    if (!found) {
+        throw std::runtime_error("[Material::SetStorage] no binding named '" + name + "'");
+    }
+    #endif
 }
 
 void Material::Bind(uint32_t index,

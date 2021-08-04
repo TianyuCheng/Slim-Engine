@@ -22,6 +22,10 @@ Descriptor::~Descriptor() {
 }
 
 void Descriptor::Update() {
+    if (writes.empty()) {
+        return;
+    }
+
     auto it = std::max_element(writeDescriptorSets.begin(), writeDescriptorSets.end());
 
     // clear descriptor sets
@@ -104,8 +108,10 @@ void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> 
     writes.push_back(update);
     writeDescriptorSets.push_back(set);
 
-    if (flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)
-        variableDescriptorCounts[set] = images.size();
+    if ((flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0U) {
+        variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(images.size()),
+                                                 variableDescriptorCounts[set]);
+    }
 }
 
 void Descriptor::SetImage(const std::string &name, Image *image) {
@@ -119,7 +125,7 @@ void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &i
     auto& infos = imageInfos.back();
     infos.reserve(images.size());
 
-    for (auto image : images) {
+    for (auto* image : images) {
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = image->AsTexture();
@@ -142,8 +148,10 @@ void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &i
     writes.push_back(update);
     writeDescriptorSets.push_back(set);
 
-    if (flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)
-        variableDescriptorCounts[set] = images.size();
+    if ((flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0U) {
+        variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(images.size()),
+                                                 variableDescriptorCounts[set]);
+    }
 }
 
 void Descriptor::SetSampler(const std::string &name, Sampler *sampler) {
@@ -157,7 +165,7 @@ void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*
     auto& infos = imageInfos.back();
     infos.reserve(samplers.size());
 
-    for (auto sampler : samplers) {
+    for (auto* sampler : samplers) {
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageInfo.imageView = nullptr;
@@ -180,8 +188,10 @@ void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*
     writes.push_back(update);
     writeDescriptorSets.push_back(set);
 
-    if (flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)
-        variableDescriptorCounts[set] = samplers.size();
+    if ((flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0U) {
+        variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(samplers.size()),
+                                                 variableDescriptorCounts[set]);
+    }
 }
 
 void Descriptor::SetUniform(const std::string &name, Buffer* buffer) {
@@ -248,8 +258,10 @@ void Descriptor::SetBuffer(const std::string &name, VkDescriptorType descriptorT
     writes.push_back(update);
     writeDescriptorSets.push_back(set);
 
-    if (flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT)
-        variableDescriptorCounts[set] = bufferAllocs.size();
+    if ((flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0U) {
+        variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(bufferAllocs.size()),
+                                                 variableDescriptorCounts[set]);
+    }
 }
 
 void Descriptor::SetDynamicOffset(const std::string &name, uint32_t offset) {
@@ -258,11 +270,13 @@ void Descriptor::SetDynamicOffset(const std::string &name, uint32_t offset) {
 }
 
 void Descriptor::SetDynamicOffset(uint32_t set, uint32_t binding, uint32_t offset) {
-    if (dynamicOffsets.size() <= set)
+    if (dynamicOffsets.size() <= set) {
         dynamicOffsets.resize(set + 1);
+    }
 
-    if (dynamicOffsets[set].size() <= binding)
+    if (dynamicOffsets[set].size() <= binding) {
         dynamicOffsets[set].resize(binding + 1);
+    }
 
     dynamicOffsets[set][binding] = offset;
 }
@@ -275,8 +289,9 @@ std::tuple<uint32_t, uint32_t, VkDescriptorBindingFlags> Descriptor::FindDescrip
     uint32_t binding = layout.bindings[indexAccessor].binding;
     VkDescriptorBindingFlags flags = layout.bindings[indexAccessor].bindingFlags;
 
-    if (dynamicOffsets.size() <= set)
+    if (dynamicOffsets.size() <= set) {
         dynamicOffsets.resize(set + 1);
+    }
 
     return std::make_tuple(set, binding, flags);
 }
@@ -291,13 +306,13 @@ std::tuple<uint32_t, uint32_t, VkDescriptorBindingFlags> Descriptor::FindDescrip
 DescriptorPool::DescriptorPool(Device *device, uint32_t size) : device(device), maxPoolSets(size) {
     // initialize descriptor pool sizes
     static std::unordered_map<VkDescriptorType, float> resourceAllocations = {
-        { VK_DESCRIPTOR_TYPE_SAMPLER,                1.0f },
-        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          1.0f },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0f },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1.0f },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.0f },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2.0f },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 2.0f },
+        { VK_DESCRIPTOR_TYPE_SAMPLER,                1.0F },
+        { VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          1.0F },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1.0F },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1.0F },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1.0F },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         2.0F },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 2.0F },
     };
 
     for (const auto &kv : resourceAllocations) {

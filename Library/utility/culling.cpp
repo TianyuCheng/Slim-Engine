@@ -2,12 +2,16 @@
 
 using namespace slim;
 
-bool SortDrawableAscending(const Drawable& d1, const Drawable& d2) {
-    return d1.distanceToCamera < d2.distanceToCamera;
-}
+namespace slim {
 
-bool SortDrawableDescending(const Drawable& d1, const Drawable& d2) {
-    return d1.distanceToCamera > d2.distanceToCamera;
+    bool SortDrawableAscending(const Drawable& d1, const Drawable& d2) {
+        return d1.distanceToCamera < d2.distanceToCamera;
+    }
+
+    bool SortDrawableDescending(const Drawable& d1, const Drawable& d2) {
+        return d1.distanceToCamera > d2.distanceToCamera;
+    }
+
 }
 
 void SceneFilter::Cull(Scene* scene, Camera* camera) {
@@ -16,13 +20,14 @@ void SceneFilter::Cull(Scene* scene, Camera* camera) {
     });
 }
 
-bool SceneFilter::CullSceneNode(Scene* scene, Camera* camera) {
+bool SceneFilter::CullSceneNode(Scene* scene, Camera*) {
     // when user configures this object to be invisible
     if (!scene->IsVisible()) return false;
 
     // TODO: perform camera-based frustum culling
     bool visible = true;
     float distance = 0.0f;
+
     if (!visible) return false;
 
     // find mesh
@@ -44,16 +49,16 @@ bool SceneFilter::CullSceneNode(Scene* scene, Camera* camera) {
             queueIt = objects.find(pass.queue);
         }
         // drawable
-        queueIt->second.push_back(Drawable { scene, distance });
+        queueIt->second.push_back(Drawable { scene, pass.queue, distance, });
     }
 
     return true;
 }
 
-void SceneFilter::Sort(uint32_t first, uint32_t last, SortingOrder sorting) {
+void SceneFilter::Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting) {
     for (auto& kv : objects) {
         RenderQueue queue = kv.first;
-        if (queue >= first && queue <= last) {
+        if (queue >= firstQueue && queue <= lastQueue) {
             switch (sorting) {
                 case SortingOrder::FrontToback:
                     std::sort(kv.second.begin(), kv.second.end(), SortDrawableAscending);
@@ -66,4 +71,15 @@ void SceneFilter::Sort(uint32_t first, uint32_t last, SortingOrder sorting) {
             }
         }
     }
+}
+
+View<Drawable> SceneFilter::GetDrawables(uint32_t firstQueue, uint32_t lastQueue) {
+    View<Drawable> drawables;
+    for (auto& kv : objects) {
+        RenderQueue queue = kv.first;
+        if (queue >= firstQueue && queue <= lastQueue) {
+            drawables.Concat(kv.second.begin(), kv.second.end());
+        }
+    }
+    return drawables;
 }

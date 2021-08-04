@@ -8,6 +8,7 @@ cmake_minimum_required(VERSION 3.3.0)
 #               |__/
 # ---------------------------------------------------------------
 project(slim LANGUAGES CXX)
+# set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 
 #  ____                            _                 _
 # |  _ \  ___ _ __   ___ _ __   __| | ___ _ __   ___(_) ___  ___

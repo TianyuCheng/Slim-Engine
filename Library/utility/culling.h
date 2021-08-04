@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "utility/mesh.h"
+#include "utility/view.h"
 #include "utility/material.h"
 #include "utility/technique.h"
 #include "utility/interface.h"
@@ -12,10 +13,16 @@
 
 namespace slim {
 
+    // data structure for objects to be drawn
     struct Drawable {
-        Scene* node = nullptr;
-        float distanceToCamera = 0.0;
+        Scene* node;
+        RenderQueue queue;
+        float distanceToCamera;
     };
+
+    // helper functions for sorting
+    bool SortDrawableAscending(const Drawable& d1, const Drawable& d2);
+    bool SortDrawableDescending(const Drawable& d1, const Drawable& d2);
 
     using RenderQueueMap = std::map<RenderQueue, std::vector<Drawable>>;
 
@@ -23,12 +30,13 @@ namespace slim {
     public:
         void Cull(Scene* scene, Camera* camera);
         void Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting);
-        void Draw(uint32_t firstQueue, uint32_t lastQueue);
+
+        View<Drawable> GetDrawables(uint32_t firstQueue, uint32_t lastQueue);
 
     private:
         bool CullSceneNode(Scene* scene, Camera* camera);
 
-    public:
+    private:
         RenderQueueMap objects;
     };
 

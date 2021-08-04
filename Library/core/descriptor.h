@@ -37,10 +37,10 @@ namespace slim {
         void SetStorages(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
 
         // binding a combined image + sampler
-        void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
+        void SetTexture(const std::string &name, Image *image, Sampler *sampler);
 
         // binding a combined image + sampler
-        void SetTextures(const std::string &name, const std::vector<Image*> &texture, const std::vector<Sampler*> &sampler);
+        void SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers);
 
         // binding image uniform
         void SetImage(const std::string &name, Image *image);
