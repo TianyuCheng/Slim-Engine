@@ -224,7 +224,7 @@ ComputePipelineDesc& ComputePipelineDesc::SetPipelineLayout(const PipelineLayout
 }
 
 ComputePipelineDesc& ComputePipelineDesc::SetComputeShader(Shader* shader) {
-    handle.stage = shader->GetInfo();
+    computeShader = shader;
     return *this;
 }
 
@@ -392,12 +392,12 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::AddVertexBinding(uint32_t binding, u
 }
 
 GraphicsPipelineDesc& GraphicsPipelineDesc::SetVertexShader(Shader* shader) {
-    shaderInfos.push_back(shader->GetInfo());
+    vertexShader = shader;
     return *this;
 }
 
 GraphicsPipelineDesc& GraphicsPipelineDesc::SetFragmentShader(Shader* shader) {
-    shaderInfos.push_back(shader->GetInfo());
+    fragmentShader = shader;
     return *this;
 }
 
@@ -477,6 +477,11 @@ Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device),
     desc.Initialize(device);
     layout = desc.Layout();
 
+    // shader infos
+    std::vector<VkPipelineShaderStageCreateInfo> shaderCreateInfos = {};
+    if (desc.vertexShader) shaderCreateInfos.push_back(desc.vertexShader->GetInfo());
+    if (desc.fragmentShader) shaderCreateInfos.push_back(desc.fragmentShader->GetInfo());
+
     // vertex attributes & input bindings
     VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = {};
     vertexInputStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -515,8 +520,8 @@ Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device),
     desc.handle.pViewportState = &viewportStateCreateInfo;
     desc.handle.renderPass = *desc.renderPass;
     desc.handle.subpass = 0;
-    desc.handle.stageCount = desc.shaderInfos.size();
-    desc.handle.pStages = desc.shaderInfos.data();
+    desc.handle.stageCount = shaderCreateInfos.size();
+    desc.handle.pStages = shaderCreateInfos.data();
     desc.handle.pNext = VK_NULL_HANDLE;
     desc.handle.layout = *layout;
 
@@ -527,10 +532,14 @@ Pipeline::Pipeline(Device *device, ComputePipelineDesc &desc) : device(device), 
     desc.Initialize(device);
     layout = desc.Layout();
 
+    // shader infos
+    VkPipelineShaderStageCreateInfo shaderCreateInfo = desc.computeShader->GetInfo();
+
     desc.handle.basePipelineHandle = handle;
     desc.handle.basePipelineIndex = 0;
     desc.handle.flags = 0;
     desc.handle.layout = *layout;
+    desc.handle.stage = shaderCreateInfo;
 
     ErrorCheck(vkCreateComputePipelines(*device, VK_NULL_HANDLE, 1, &desc.handle, nullptr, &handle), "create compute pipeline");
 }

@@ -24,6 +24,7 @@
 #include "utility/skinnedmesh.h"
 #include "utility/scenegraph.h"
 #include "utility/rendergraph.h"
+#include "utility/filesystem.h"
 #include "utility/mesh.h"
 #include "utility/material.h"
 #include "utility/culling.h"

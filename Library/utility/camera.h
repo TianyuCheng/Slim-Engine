@@ -12,8 +12,6 @@
 
 namespace slim {
 
-    class SceneNode;
-
     class Camera : public ReferenceCountable {
     public:
         Camera(const std::string &name);

@@ -151,6 +151,9 @@ namespace slim {
 
         ComputePipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layout);
         ComputePipelineDesc& SetComputeShader(Shader* shader);
+
+    private:
+        SmartPtr<Shader> computeShader;
     };
 
     //   ____                 _     _
@@ -204,6 +207,8 @@ namespace slim {
 
     private:
         SmartPtr<RenderPass> renderPass;
+        SmartPtr<Shader> vertexShader;
+        SmartPtr<Shader> fragmentShader;
 
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCreateInfo = {};
         VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
@@ -215,7 +220,6 @@ namespace slim {
         std::vector<VkVertexInputAttributeDescription> vertexAttributes = {};
         std::vector<VkVertexInputBindingDescription> inputBindings = {};
         std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments = {};
-        std::vector<VkPipelineShaderStageCreateInfo> shaderInfos = {};
         std::vector<VkDynamicState> dynamicStates = {};
         std::vector<VkViewport> viewports = {};
         std::vector<VkRect2D> scissors = {};

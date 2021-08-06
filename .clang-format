@@ -1,8 +1,14 @@
 ---
-# We will use defaults from LLVM style
+# We will use defaults from Google style
 # but change the indentations to 4 spaces
-BasedOnStyle: LLVM
-IndentWidth: 4
+BasedOnStyle: Google
 
 ---
 Language: Cpp
+IndentWidth: 4
+AlignConsecutiveAssignments: Consecutive
+
+---
+# Language: CMake
+# # Don't format .cmake files.
+# DisableFormat: true

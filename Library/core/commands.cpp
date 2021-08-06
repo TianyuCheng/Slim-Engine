@@ -124,7 +124,7 @@ void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, si
 
     // buffer update
     // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/vkCmdUpdateBuffer.html
-    else if (offset < 65536 && size % 4 == 0 && offset % 4 == 0) {
+    else if (size <= 65536 && size % 4 == 0 && offset % 4 == 0) {
         vkCmdUpdateBuffer(handle, *buffer, offset, size, data);
     }
 

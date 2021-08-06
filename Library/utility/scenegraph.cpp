@@ -63,6 +63,14 @@ void Scene::Translate(float x, float y, float z) {
     transform.Translate(x, y, z);
 }
 
+void Scene::SetTransform(const glm::mat4& transform) {
+    this->transform = transform;
+}
+
+void Scene::SetBoundingBox(const BoundingBox& boundingBox) {
+    this->boundingBox = boundingBox;
+}
+
 void Scene::ForEach(const std::function<bool(Scene*)> &callback) {
     std::deque<Scene*> nodes = { this };
     while (!nodes.empty()) {

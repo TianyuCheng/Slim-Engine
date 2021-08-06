@@ -14,6 +14,7 @@
 #include "utility/camera.h"
 #include "utility/mesh.h"
 #include "utility/material.h"
+#include "utility/boundingbox.h"
 #include "utility/rendergraph.h"
 
 namespace slim {
@@ -49,6 +50,8 @@ namespace slim {
         void Rotate(const glm::vec3& axis, float radians);
         void Rotate(float x, float y, float z, float w);
         void Translate(float x, float y, float z);
+        void SetTransform(const glm::mat4& transform);
+        void SetBoundingBox(const BoundingBox& boundingBox);
 
         // traversal-based operations
         void ForEach(const std::function<bool(Scene*)> &callback);
@@ -57,6 +60,7 @@ namespace slim {
     protected:
         std::string name = "";
         Transform transform;
+        BoundingBox boundingBox;
 
         // hierarchy
         Scene* parent = nullptr;

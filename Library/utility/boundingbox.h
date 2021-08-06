@@ -16,6 +16,7 @@ namespace slim {
 
         BoundingBox operator+(const BoundingBox &box);
         BoundingBox& operator+=(const BoundingBox &box);
+
     private:
         glm::vec3 min = glm::vec3(+INF, +INF, +INF);
         glm::vec3 max = glm::vec3(-INF, -INF, -INF);
