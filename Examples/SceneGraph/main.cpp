@@ -68,23 +68,23 @@ int main() {
     {
         scene1->SetMesh(mesh);
         scene1->SetMaterial(material1);
-        scene1->SetDrawIndexed(0, 36, 0);
+        scene1->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
         scene1->Translate(1.0f, 0.0f, 0.0f);
 
         scene11->SetMesh(mesh);
         scene11->SetMaterial(material1);
-        scene11->SetDrawIndexed(0, 36, 0);
+        scene11->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
         scene11->Translate(0.0f, 1.0f, 0.0f);
         scene11->Scale(0.5f, 0.5f, 0.5f);
 
         scene2->SetMesh(mesh);
         scene2->SetMaterial(material2);
-        scene2->SetDrawIndexed(0, 36, 0);
+        scene2->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
         scene2->Translate(-1.0f, 0.0f, 0.0f);
 
         scene21->SetMesh(mesh);
         scene21->SetMaterial(material2);
-        scene21->SetDrawIndexed(0, 36, 0);
+        scene21->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
         scene21->Translate(0.0f, 1.0f, 0.0f);
         scene21->Scale(0.5f, 0.5f, 0.5f);
     }
@@ -105,10 +105,10 @@ int main() {
         scene->Update();
 
         // sceneFilter result + sorting
-        auto sceneFilter = SlimPtr<SceneFilter>();
-        sceneFilter->Cull(scene, camera);
-        sceneFilter->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
-        sceneFilter->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
+        auto culling = SlimPtr<CPUCulling>();
+        culling->Cull(scene, camera);
+        culling->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
+        culling->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // rendergraph-based design
         RenderGraph renderGraph(frame);
@@ -121,7 +121,7 @@ int main() {
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, sceneFilter->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(camera, culling->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
         }
         renderGraph.Execute();

@@ -91,6 +91,8 @@ set(SLIM_UTILITY_SOURCES
     utility/culling.cpp
     utility/meshrenderer.h
     utility/meshrenderer.cpp
+    utility/geometry.h
+    utility/geometry.cpp
 )
 
 add_library(slim SHARED

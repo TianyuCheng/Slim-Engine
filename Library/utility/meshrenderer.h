@@ -8,6 +8,7 @@
 #include "utility/camera.h"
 #include "utility/culling.h"
 #include "utility/interface.h"
+#include "utility/scenegraph.h"
 #include "utility/rendergraph.h"
 
 namespace slim {

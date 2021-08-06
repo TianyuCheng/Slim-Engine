@@ -20,6 +20,11 @@ namespace slim {
         using pointer           = T*;  // or also value_type*
         using reference         = T&;  // or also value_type&
 
+        explicit ViewIterator()
+            : view(nullptr), index(0) {
+            // initialize basic properties
+        }
+
         explicit ViewIterator(const View<T, Container>* view, Iterator iterator, uint32_t index)
             : view(view), iterator(iterator), index(index) {
             // initialize basic properties
@@ -28,8 +33,9 @@ namespace slim {
         // post increment
         ViewIterator& operator++() {
             // for empty ranges
-            if (!view)
+            if (!view) {
                 return *this;
+            }
 
             // check if this iterator reaches the end of the range
             if (++iterator == view->ranges[index].second) {
@@ -49,6 +55,9 @@ namespace slim {
         }
 
         friend bool operator==(const ViewIterator& a, const ViewIterator& b) {
+            if (a.view == nullptr && b.view == nullptr) {
+                return true;
+            }
             return a.iterator == b.iterator;
         }
 
@@ -83,11 +92,33 @@ namespace slim {
         }
 
         ViewIterator<T, Container> begin() const {
+            if (ranges.empty()) {
+                return ViewIterator<T, Container>();
+            }
             return ViewIterator<T, Container>(this, ranges[0].first, 0);
         }
 
         ViewIterator<T, Container> end() const {
+            if (ranges.empty()) {
+                return ViewIterator<T, Container>();
+            }
             return ViewIterator<T, Container>(this, ranges.back().second, ranges.size() - 1);
+        }
+
+        bool empty() const {
+            // if therre is no ranges added
+            if (ranges.empty()) {
+                return true;
+            }
+            return size() == 0;
+        }
+
+        size_t size() const {
+            size_t num = 0;
+            for (const auto& range : ranges) {
+                num += range.second - range.first;
+            }
+            return num;
         }
 
     private:

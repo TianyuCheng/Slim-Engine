@@ -4,6 +4,7 @@
 #include <list>
 #include <deque>
 #include <string>
+#include <variant>
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
@@ -19,6 +20,10 @@
 
 namespace slim {
 
+    using DrawCommand = VkDrawIndirectCommand;
+    using DrawIndexed = VkDrawIndexedIndirectCommand;
+    using DrawVariant = std::variant<DrawCommand, DrawIndexed>;
+
     class Scene : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         friend class SceneIterator;
@@ -31,15 +36,17 @@ namespace slim {
         // setters
         void SetMesh(Mesh* mesh);
         void SetMaterial(Material* material);
-        void SetDraw(uint32_t firstVertex, uint32_t vertexCount);
-        void SetDrawIndexed(uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset);
+        void SetDraw(const DrawCommand& command);
+        void SetDraw(const DrawIndexed& command);
 
         // getters
         const std::string& GetName() const { return name; }
         const Transform& GetTransform() const { return transform; }
-        bool IsVisible() const { return visible; }
         Mesh* GetMesh() const { return mesh; }
         Material* GetMaterial() const { return material; }
+        DrawVariant& GetDraw() { return drawCommand; }
+        const DrawVariant& GetDraw() const { return drawCommand; }
+        bool IsVisible() const { return visible; }
 
         // scene node hierarchy
         void AddChild(Scene* child);
@@ -70,15 +77,9 @@ namespace slim {
         SmartPtr<Mesh> mesh = nullptr;
         SmartPtr<Material> material = nullptr;
 
-    public:
         // draw params
         bool visible = true;
-        bool indexed = true;
-        struct {
-            uint32_t first = 0;
-            uint32_t count = 0;
-            uint32_t offset = 0;
-        } draw;
+        DrawVariant drawCommand;
     };
 
     // -------------------------------------------------------------

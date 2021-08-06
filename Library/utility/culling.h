@@ -26,8 +26,9 @@ namespace slim {
 
     using RenderQueueMap = std::map<RenderQueue, std::vector<Drawable>>;
 
-    class SceneFilter : public NotCopyable, public NotMovable, public ReferenceCountable {
+    class CPUCulling : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
+        void Clear();
         void Cull(Scene* scene, Camera* camera);
         void Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting);
 

@@ -9,6 +9,10 @@ MeshRenderer::~MeshRenderer() {
 }
 
 void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
+    if (drawables.empty()) {
+        return;
+    }
+
     RenderPass* renderPass = info.renderPass;
     RenderFrame* renderFrame = info.renderFrame;
     CommandBuffer* commandBuffer = info.commandBuffer;
@@ -31,14 +35,13 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
     }
 
     // nothing to draw
-    if (modelData.size() == 0) return;
+    if (modelData.empty()) return;
 
     // camera uniform + model uniform
     auto cameraUniform = renderFrame->RequestUniformBuffer(cameraData);
     auto modelUniform = renderFrame->RequestUniformBuffer(modelData);
 
     // draw
-    #if 1
     uint32_t index = 0;
     for (const Drawable& drawable : drawables) {
 
@@ -56,13 +59,15 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
         commandBuffer->BindDescriptor(descriptor);
 
         // draw
-        if (scene->indexed) {
-            commandBuffer->DrawIndexed(scene->draw.count, 1, scene->draw.first, scene->draw.offset, 0);
+        const auto& draw = scene->GetDraw();
+        if (std::holds_alternative<DrawCommand>(draw)) {
+            const auto& command = std::get<VkDrawIndirectCommand>(draw);
+            commandBuffer->Draw(command.vertexCount, command.instanceCount, command.firstVertex, command.firstInstance);
         } else {
-            commandBuffer->Draw(scene->draw.count, 1, scene->draw.first, 0);
+            const auto& command = std::get<VkDrawIndexedIndirectCommand>(draw);
+            commandBuffer->DrawIndexed(command.indexCount, command.instanceCount, command.firstIndex, command.vertexOffset, command.firstInstance);
         }
 
         index++;
     }
-    #endif
 }

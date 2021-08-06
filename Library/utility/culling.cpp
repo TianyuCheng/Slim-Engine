@@ -14,28 +14,57 @@ namespace slim {
 
 }
 
-void SceneFilter::Cull(Scene* scene, Camera* camera) {
+void CPUCulling::Clear() {
+    objects.clear();
+}
+
+void CPUCulling::Cull(Scene* scene, Camera* camera) {
     scene->ForEach([&](Scene* scene) {
         return CullSceneNode(scene, camera);
     });
 }
 
-bool SceneFilter::CullSceneNode(Scene* scene, Camera*) {
+bool CPUCulling::CullSceneNode(Scene* scene, Camera*) {
+
     // when user configures this object to be invisible
-    if (!scene->IsVisible()) return false;
+    if (!scene->IsVisible()) {
+        return false;
+    }
 
     // TODO: perform camera-based frustum culling
     bool visible = true;
     float distance = 0.0f;
 
-    if (!visible) return false;
+    if (!visible) {
+        // children objects are not visible either
+        return false;
+    }
+
+    #ifndef NDEBUG
+    bool hasMesh = scene->GetMesh() != nullptr;
+    bool hasMaterial = scene->GetMaterial() != nullptr;
+    if (hasMesh && !hasMaterial) {
+        throw std::runtime_error("Node: <" + scene->GetName() + "> has mesh but not material!");
+    }
+    if (!hasMesh && hasMaterial) {
+        throw std::runtime_error("Node: <" + scene->GetName() + "> has material but not mesh!");
+    }
+    #endif
 
     // find mesh
-    if (!scene->GetMesh()) return true;
+    if (!scene->GetMesh()) {
+        // node has nothing to draw,
+        // but allow children to be traversed
+        return true;
+    }
 
     // find material
     Material* material = scene->GetMaterial();
-    if (!material) return true;
+    if (!material) {
+        // object has no material cannot be drawn,
+        // but allow children to be traversed
+        return true;
+    }
 
     // find technique
     Technique* technique = material->GetTechnique();
@@ -55,7 +84,7 @@ bool SceneFilter::CullSceneNode(Scene* scene, Camera*) {
     return true;
 }
 
-void SceneFilter::Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting) {
+void CPUCulling::Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting) {
     for (auto& kv : objects) {
         RenderQueue queue = kv.first;
         if (queue >= firstQueue && queue <= lastQueue) {
@@ -73,7 +102,7 @@ void SceneFilter::Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sor
     }
 }
 
-View<Drawable> SceneFilter::GetDrawables(uint32_t firstQueue, uint32_t lastQueue) {
+View<Drawable> CPUCulling::GetDrawables(uint32_t firstQueue, uint32_t lastQueue) {
     View<Drawable> drawables;
     for (auto& kv : objects) {
         RenderQueue queue = kv.first;

@@ -1,4 +1,6 @@
-#include <vector>
+#ifndef GLTFVIEWER_MODEL_H
+#define GLTFVIEWER_MODEL_H
+
 #include <slim/slim.hpp>
 
 using namespace slim;
@@ -69,3 +71,5 @@ private:
     SmartPtr<Technique>               techniqueMask;
     SmartPtr<Technique>               techniqueBlend;
 };
+
+#endif // GLTFVIEWER_MODEL_H

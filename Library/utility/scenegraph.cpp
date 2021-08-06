@@ -14,17 +14,12 @@ void Scene::SetMaterial(Material* obj) {
     material = obj;
 }
 
-void Scene::SetDraw(uint32_t firstVertex, uint32_t vertexCount) {
-    indexed = false;
-    draw.first = firstVertex;
-    draw.count = vertexCount;
+void Scene::SetDraw(const DrawCommand& command) {
+    drawCommand = command;
 }
 
-void Scene::SetDrawIndexed(uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset) {
-    indexed = true;
-    draw.first = firstIndex;
-    draw.count = indexCount;
-    draw.offset = vertexOffset;
+void Scene::SetDraw(const DrawIndexed& command) {
+    drawCommand = command;
 }
 
 void Scene::AddChild(Scene* child) {
@@ -34,7 +29,9 @@ void Scene::AddChild(Scene* child) {
 void Scene::MoveTo(Scene *parent) {
     // check if parent is the same
     // skip if no movement
-    if (this->parent == parent) return;
+    if (this->parent == parent) {
+        return;
+    }
 
     // check if this node has a parent
     // remove this node from parent

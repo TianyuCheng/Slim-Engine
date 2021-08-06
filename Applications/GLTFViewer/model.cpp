@@ -1,3 +1,4 @@
+#include "config.h"
 #include "model.h"
 
 GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vShader, Shader* fShader) {
@@ -18,7 +19,8 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
             .SetFragmentShader(fShader)
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-            .SetDepthTest(VK_COMPARE_OP_LESS)
+            .SetDepthTest(VK_COMPARE_OP_LESS_OR_EQUAL)
+            .SetSampleCount(msaa)
             .SetPipelineLayout(PipelineLayoutDesc()
                 .AddBinding("Camera",           0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
                 .AddBinding("Model",            2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
@@ -256,8 +258,9 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
         prim.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // material
-        if (primitive.material > 0)
+        if (primitive.material >= 0) {
             prim.material = result.materials[primitive.material];
+        }
 
         result.primitives.push_back(prim);
 
@@ -299,9 +302,9 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
             snode->SetMesh(primitive.mesh);
             snode->SetMaterial(primitive.material);
             if (primitive.indexCount > 0) {
-                snode->SetDrawIndexed(0, primitive.indexCount, 0);
+                snode->SetDraw(DrawIndexed { primitive.indexCount, 1, 0, 0, 0 });
             } else {
-                snode->SetDraw(0, primitive.vertexCount);
+                snode->SetDraw(DrawCommand { primitive.vertexCount, 1, 0, 0 });
             }
         }
 

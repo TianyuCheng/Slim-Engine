@@ -1,5 +1,6 @@
 #include <slim/slim.hpp>
 
+#include "config.h"
 #include "model.h"
 
 using namespace slim;
@@ -34,11 +35,11 @@ int main() {
     });
 
     GLTFScene& scene = model.scenes[0];
-    scene.roots[0]->Scale(0.1, 0.1, 0.1);
+    scene.roots[0]->Scale(0.5, 0.5, 0.1);
     scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI / 2.0f);
     scene.roots[0]->Rotate(glm::vec3(1.0f, 0.0f, 0.0f), -M_PI / 2.0f);
     scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI       );
-    scene.roots[0]->Translate(0, 0, -10);
+    scene.roots[0]->Translate(0, 0, -15);
 
     // render
     while (!window->ShouldClose()) {
@@ -56,28 +57,38 @@ int main() {
         }
 
         // perform culling
-        SceneFilter filter;
+        CPUCulling culling;
         for (auto root : scene.roots) {
             root->Update();
-            filter.Cull(root, camera);
+            culling.Cull(root, camera);
         }
 
         // perform sorting
-        filter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
-        filter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
+        culling.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
+        culling.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // rendergraph-based design
         RenderGraph renderGraph(frame);
         {
-            auto colorBuffer = renderGraph.CreateResource(frame->GetBackBuffer());
-            auto depthBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
+            auto backBuffer = renderGraph.CreateResource(frame->GetBackBuffer());
+            auto depthBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, msaa);
+
+            RenderGraph::Resource* colorBuffer = nullptr;
+            if (msaa > 1) {
+                colorBuffer = renderGraph.CreateResource(frame->GetExtent(), backBuffer->GetImage()->GetFormat(), msaa);
+            } else {
+                colorBuffer = backBuffer;
+            }
 
             auto colorPass = renderGraph.CreateRenderPass("color");
             colorPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
+            if (msaa > 1) {
+                colorPass->SetColorResolve(backBuffer);
+            }
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, filter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(camera, culling.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
         }
         renderGraph.Execute();
