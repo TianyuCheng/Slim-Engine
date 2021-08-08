@@ -94,3 +94,9 @@ void Scene::Update() {
         return true;
     });
 }
+
+
+void SceneManager::Clear() {
+    roots.clear();
+    nodes.clear();
+}

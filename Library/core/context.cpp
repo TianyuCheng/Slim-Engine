@@ -40,6 +40,11 @@ ContextDesc& ContextDesc::EnableGLFW(bool value) {
     return *this;
 }
 
+ContextDesc& ContextDesc::EnableNonSolidPolygonMode() {
+    features.features.fillModeNonSolid = VK_TRUE;
+    return *this;
+}
+
 ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
     // enable separate depth stencil layout
     deviceFeatures.separateDepthStencilLayout.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;

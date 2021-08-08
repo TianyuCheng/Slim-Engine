@@ -33,6 +33,7 @@ namespace slim {
         // configure device features
         ContextDesc& EnableSeparateDepthStencilLayout();
         ContextDesc& EnableDescriptorIndexing();
+        ContextDesc& EnableNonSolidPolygonMode();
 
         // allow finer-grain tuning by users
         VkPhysicalDeviceFeatures& GetDeviceFeatures() {

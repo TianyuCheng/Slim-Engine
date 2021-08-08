@@ -260,6 +260,8 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
         // material
         if (primitive.material >= 0) {
             prim.material = result.materials[primitive.material];
+        } else {
+            assert(!!!"I have not implemented default material!");
         }
 
         result.primitives.push_back(prim);

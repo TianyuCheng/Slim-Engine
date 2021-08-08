@@ -27,9 +27,10 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
 
     // prepare model transforms
     for (const Drawable& drawable : drawables) {
+        glm::mat4 mv = cameraData.view * drawable.node->GetTransform().LocalToWorld();
         modelData.push_back(ModelData {
             drawable.node->GetTransform().LocalToWorld(),
-            glm::transpose(cameraData.view * drawable.node->GetTransform().LocalToWorld())
+            glm::mat3(glm::transpose(glm::inverse(mv)))
         });
         materials.push_back(drawable.node->GetMaterial());
     }

@@ -29,6 +29,7 @@
 #include "utility/material.h"
 #include "utility/culling.h"
 #include "utility/meshrenderer.h"
+#include "utility/geometry.h"
 
 // third party
 #include <imgui.h>

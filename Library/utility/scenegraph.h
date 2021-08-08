@@ -94,6 +94,8 @@ namespace slim {
             return node;
         }
 
+        void Clear();
+
     private:
         std::vector<Scene*> roots;
         std::vector<SmartPtr<Scene>> nodes;
