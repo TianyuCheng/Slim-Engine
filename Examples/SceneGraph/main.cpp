@@ -66,25 +66,17 @@ int main() {
     auto scene2   = sceneMgr->Create<Scene>("child0.2", scene);
     auto scene21  = sceneMgr->Create<Scene>("child2.1", scene2);
     {
-        scene1->SetMesh(mesh);
-        scene1->SetMaterial(material1);
-        scene1->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
+        scene1->SetDraw(mesh, material1, DrawIndexed { 36, 1, 0, 0, 0 });
         scene1->Translate(1.0f, 0.0f, 0.0f);
 
-        scene11->SetMesh(mesh);
-        scene11->SetMaterial(material1);
-        scene11->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
+        scene11->SetDraw(mesh, material1, DrawIndexed { 36, 1, 0, 0, 0 });
         scene11->Translate(0.0f, 1.0f, 0.0f);
         scene11->Scale(0.5f, 0.5f, 0.5f);
 
-        scene2->SetMesh(mesh);
-        scene2->SetMaterial(material2);
-        scene2->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
+        scene2->SetDraw(mesh, material2, DrawIndexed { 36, 1, 0, 0, 0 });
         scene2->Translate(-1.0f, 0.0f, 0.0f);
 
-        scene21->SetMesh(mesh);
-        scene21->SetMaterial(material2);
-        scene21->SetDraw(DrawIndexed { 36, 1, 0, 0, 0 });
+        scene21->SetDraw(mesh, material2, DrawIndexed { 36, 1, 0, 0, 0 });
         scene21->Translate(0.0f, 1.0f, 0.0f);
         scene21->Scale(0.5f, 0.5f, 0.5f);
     }

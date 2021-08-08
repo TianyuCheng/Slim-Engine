@@ -184,88 +184,90 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
 
 void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& model, CommandBuffer *commandBuffer) {
     for (const auto& mesh : model.meshes) {
-        const tinygltf::Primitive& primitive = mesh.primitives[0];
-        std::vector<GLTFVertex> vertices;
-        std::vector<uint32_t> indices;
+        result.meshes.push_back(GLTFMesh { });
+        GLTFMesh& gltfmesh = result.meshes.back();
+        for (const auto& primitive : mesh.primitives) {
+            std::vector<GLTFVertex> vertices;
+            std::vector<uint32_t> indices;
 
-        constexpr bool verbose = false;
+            constexpr bool verbose = false;
 
-        for (const auto& kv : primitive.attributes) {
-            const auto& attrib = kv.first;
-            const auto& accessor = model.accessors[kv.second];
+            for (const auto& kv : primitive.attributes) {
+                const auto& attrib = kv.first;
+                const auto& accessor = model.accessors[kv.second];
 
-            if (attrib == "POSITION") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: POSITION" << std::endl;
-                ReadVertexPosition(vertices, model, accessor);
+                if (attrib == "POSITION") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: POSITION" << std::endl;
+                    ReadVertexPosition(vertices, model, accessor);
+                }
+
+                else if (attrib == "NORMAL") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: NORMAL" << std::endl;
+                    ReadVertexNormal(vertices, model, accessor);
+                }
+
+                else if (attrib == "TANGENT") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TANGENT" << std::endl;
+                    ReadVertexTangent(vertices, model, accessor);
+                }
+
+                else if (attrib == "TEXCOORD_0") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TEXCOORD_0" << std::endl;
+                    ReadVertexTexCoord0(vertices, model, accessor);
+                }
+
+                else if (attrib == "TEXCOORD_1") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TEXCOORD_1" << std::endl;
+                    ReadVertexTexCoord1(vertices, model, accessor);
+                }
+
+                else if (attrib == "COLOR_0") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: COLOR_0" << std::endl;
+                    ReadVertexColor0(vertices, model, accessor);
+                }
+
+                else if (attrib == "JOINTS_0") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: JOINTS_0" << std::endl;
+                    ReadVertexJoints0(vertices, model, accessor);
+                }
+
+                else if (attrib == "WEIGHTS_0") {
+                    if (verbose) std::cout << "[LoadModel] Loading vertex attrib: WEIGHTS_0" << std::endl;
+                    ReadVertexWeights0(vertices, model, accessor);
+                }
+
+            } // end of attribute loop
+
+            if (primitive.indices >= 0) {
+                if (verbose) std::cout << "[LoadModel] Loading index attrib" << std::endl;
+                ReadIndices(indices, model, model.accessors[primitive.indices]);
             }
 
-            else if (attrib == "NORMAL") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: NORMAL" << std::endl;
-                ReadVertexNormal(vertices, model, accessor);
+            GLTFPrimitive prim;
+
+            prim.mesh = SlimPtr<Mesh>();
+            prim.mesh->SetVertexAttrib(commandBuffer, vertices, 0);
+            prim.vertexCount = vertices.size();
+
+            // index
+            if (!indices.empty()) {
+                prim.mesh->SetIndexAttrib(commandBuffer, indices);
+                prim.indexCount = indices.size();
             }
 
-            else if (attrib == "TANGENT") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TANGENT" << std::endl;
-                ReadVertexTangent(vertices, model, accessor);
+            // topology
+            assert(primitive.mode == TINYGLTF_MODE_TRIANGLES);
+            prim.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+            // material
+            if (primitive.material >= 0) {
+                prim.material = result.materials[primitive.material];
+            } else {
+                assert(!!!"I have not implemented default material!");
             }
 
-            else if (attrib == "TEXCOORD_0") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TEXCOORD_0" << std::endl;
-                ReadVertexTexCoord0(vertices, model, accessor);
-            }
-
-            else if (attrib == "TEXCOORD_1") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TEXCOORD_1" << std::endl;
-                ReadVertexTexCoord1(vertices, model, accessor);
-            }
-
-            else if (attrib == "COLOR_0") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: COLOR_0" << std::endl;
-                ReadVertexColor0(vertices, model, accessor);
-            }
-
-            else if (attrib == "JOINTS_0") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: JOINTS_0" << std::endl;
-                ReadVertexJoints0(vertices, model, accessor);
-            }
-
-            else if (attrib == "WEIGHTS_0") {
-                if (verbose) std::cout << "[LoadModel] Loading vertex attrib: WEIGHTS_0" << std::endl;
-                ReadVertexWeights0(vertices, model, accessor);
-            }
-
-        } // end of attribute loop
-
-        if (primitive.indices >= 0) {
-            if (verbose) std::cout << "[LoadModel] Loading index attrib" << std::endl;
-            ReadIndices(indices, model, model.accessors[primitive.indices]);
-        }
-
-        GLTFPrimitive prim;
-
-        prim.mesh = SlimPtr<Mesh>();
-        prim.mesh->SetVertexAttrib(commandBuffer, vertices, 0);
-        prim.vertexCount = vertices.size();
-
-        // index
-        if (!indices.empty()) {
-            prim.mesh->SetIndexAttrib(commandBuffer, indices);
-            prim.indexCount = indices.size();
-        }
-
-        // topology
-        assert(primitive.mode == TINYGLTF_MODE_TRIANGLES);
-        prim.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-        // material
-        if (primitive.material >= 0) {
-            prim.material = result.materials[primitive.material];
-        } else {
-            assert(!!!"I have not implemented default material!");
-        }
-
-        result.primitives.push_back(prim);
-
+            gltfmesh.primitives.push_back(prim);
+        } // end of primitive loop
     } // end of mesh loop
 }
 
@@ -300,13 +302,13 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
         }
 
         if (node.mesh >= 0) {
-            const auto& primitive = result.primitives[node.mesh];
-            snode->SetMesh(primitive.mesh);
-            snode->SetMaterial(primitive.material);
-            if (primitive.indexCount > 0) {
-                snode->SetDraw(DrawIndexed { primitive.indexCount, 1, 0, 0, 0 });
-            } else {
-                snode->SetDraw(DrawCommand { primitive.vertexCount, 1, 0, 0 });
+            const auto& mesh = result.meshes[node.mesh];
+            for (const auto& primitive : mesh.primitives) {
+                if (primitive.indexCount > 0) {
+                    snode->AddDraw(primitive.mesh, primitive.material, DrawIndexed { primitive.indexCount, 1, 0, 0, 0 });
+                } else {
+                    snode->AddDraw(primitive.mesh, primitive.material, DrawCommand { primitive.vertexCount, 1, 0, 0 });
+                }
             }
         }
 
@@ -342,11 +344,11 @@ void GLTFAssetManager::ReadVertexPosition(std::vector<GLTFVertex>& vertices, con
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC3);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
+    uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(float));
     for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
         const float* p = (float*)(data);
         vertices[i].pos = glm::vec3(p[0], p[1], p[2]);
@@ -362,11 +364,11 @@ void GLTFAssetManager::ReadVertexNormal(std::vector<GLTFVertex>& vertices, const
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC3);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
+    uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(float));
     for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
         const float* p = (float*)(data);
         vertices[i].normal = glm::vec3(p[0], p[1], p[2]);
@@ -382,11 +384,11 @@ void GLTFAssetManager::ReadVertexTangent(std::vector<GLTFVertex>& vertices, cons
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC4);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
+    uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(float));
     for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
         const float* p = (float*)(data);
         vertices[i].tangent = glm::vec4(p[0], p[1], p[2], p[3]);
@@ -402,7 +404,6 @@ void GLTFAssetManager::ReadVertexTexCoord0(std::vector<GLTFVertex>& vertices, co
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC2);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT ||
@@ -410,6 +411,7 @@ void GLTFAssetManager::ReadVertexTexCoord0(std::vector<GLTFVertex>& vertices, co
            accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE);
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(float));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const float* p = (float*)(data);
             vertices[i].uv0 = glm::vec2(p[0], p[1]);
@@ -417,6 +419,7 @@ void GLTFAssetManager::ReadVertexTexCoord0(std::vector<GLTFVertex>& vertices, co
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(unsigned short));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint16_t* p = (uint16_t*)(data);
             vertices[i].uv0 = glm::vec2(p[0] / 65536.0, p[1] / 65536.0);
@@ -424,6 +427,7 @@ void GLTFAssetManager::ReadVertexTexCoord0(std::vector<GLTFVertex>& vertices, co
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(unsigned char));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint8_t* p = (uint8_t*)(data);
             vertices[i].uv0 = glm::vec2(p[0] / 256.0, p[1] / 256.0);
@@ -440,7 +444,6 @@ void GLTFAssetManager::ReadVertexTexCoord1(std::vector<GLTFVertex>& vertices, co
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC2);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT ||
@@ -448,6 +451,7 @@ void GLTFAssetManager::ReadVertexTexCoord1(std::vector<GLTFVertex>& vertices, co
            accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE);
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(float));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const float* p = (float*)(data);
             vertices[i].uv1 = glm::vec2(p[0], p[1]);
@@ -455,6 +459,7 @@ void GLTFAssetManager::ReadVertexTexCoord1(std::vector<GLTFVertex>& vertices, co
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(unsigned short));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint16_t* p = (uint16_t*)(data);
             vertices[i].uv1 = glm::vec2(p[0] / 65536.0, p[1] / 65536.0);
@@ -462,6 +467,7 @@ void GLTFAssetManager::ReadVertexTexCoord1(std::vector<GLTFVertex>& vertices, co
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        uint32_t stride = std::max(bufferView.byteStride, 2 * sizeof(unsigned char));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint8_t* p = (uint8_t*)(data);
             vertices[i].uv1 = glm::vec2(p[0] / 256.0, p[1] / 256.0);
@@ -478,7 +484,6 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC3 ||
            accessor.type == TINYGLTF_TYPE_VEC4);
@@ -487,6 +492,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
            accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE);
 
     if (accessor.type == TINYGLTF_TYPE_VEC3) {
+        uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(float));
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const float* p = (float*)(data);
@@ -495,6 +501,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
         }
 
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(unsigned short));
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const uint16_t* p = (uint16_t*)(data);
                 vertices[i].color0 = glm::vec4(p[0] / 65536.0, p[1] / 65536.0, p[2] / 65536.0, 1.0);
@@ -502,6 +509,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
         }
 
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+            uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(unsigned char));
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const uint8_t* p = (uint8_t*)(data);
                 vertices[i].color0 = glm::vec4(p[0] / 256.0, p[1] / 256.0, p[2] / 256.0, 1.0);
@@ -511,6 +519,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
 
     else {
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+            uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(float));
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const float* p = (float*)(data);
                 vertices[i].color0 = glm::vec4(p[0], p[1], p[2], p[3]);
@@ -518,6 +527,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
         }
 
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+            uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(unsigned short));
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const uint16_t* p = (uint16_t*)(data);
                 vertices[i].color0 = glm::vec4(p[0] / 65536.0, p[1] / 65536.0, p[2] / 65536.0, p[3] / 65536.0);
@@ -525,6 +535,7 @@ void GLTFAssetManager::ReadVertexColor0(std::vector<GLTFVertex>& vertices, const
         }
 
         if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+            uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(unsigned char));
             for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
                 const uint8_t* p = (uint8_t*)(data);
                 vertices[i].color0 = glm::vec4(p[0] / 256.0, p[1] / 256.0, p[2] / 256.0, p[3] / 256.0);
@@ -542,13 +553,13 @@ void GLTFAssetManager::ReadVertexJoints0(std::vector<GLTFVertex>& vertices, cons
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC4);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT ||
            accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(float));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const float* p = (float*)(data);
             vertices[i].joints0 = glm::vec4(p[0], p[1], p[2], p[3]);
@@ -556,6 +567,7 @@ void GLTFAssetManager::ReadVertexJoints0(std::vector<GLTFVertex>& vertices, cons
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(unsigned short));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint16_t* p = (uint16_t*)(data);
             vertices[i].joints0 = glm::vec4(p[0] / 65536.0, p[1] / 65536.0, p[2] / 65536.0, p[3] / 65536.0);
@@ -572,7 +584,6 @@ void GLTFAssetManager::ReadVertexWeights0(std::vector<GLTFVertex>& vertices, con
 
     const auto& bufferView = model.bufferViews[accessor.bufferView];
     char* data = (char*) model.buffers[bufferView.buffer].data.data() + accessor.byteOffset + bufferView.byteOffset;
-    uint32_t stride = bufferView.byteStride;
 
     assert(accessor.type == TINYGLTF_TYPE_VEC4);
     assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT ||
@@ -580,6 +591,7 @@ void GLTFAssetManager::ReadVertexWeights0(std::vector<GLTFVertex>& vertices, con
            accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE);
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT) {
+        uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(float));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const float* p = (float*)(data);
             vertices[i].weights0 = glm::vec4(p[0], p[1], p[2], p[3]);
@@ -587,6 +599,7 @@ void GLTFAssetManager::ReadVertexWeights0(std::vector<GLTFVertex>& vertices, con
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+        uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(unsigned short));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint16_t* p = (uint16_t*)(data);
             vertices[i].weights0 = glm::vec4(p[0] / 65536.0, p[1] / 65536.0, p[2] / 65536.0, p[3] / 65536.0);
@@ -594,6 +607,7 @@ void GLTFAssetManager::ReadVertexWeights0(std::vector<GLTFVertex>& vertices, con
     }
 
     if (accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE) {
+        uint32_t stride = std::max(bufferView.byteStride, 4 * sizeof(unsigned char));
         for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
             const uint8_t* p = (uint8_t*)(data);
             vertices[i].weights0 = glm::vec4(p[0] / 256.0, p[1] / 256.0, p[2] / 256.0, p[3] / 256.0);

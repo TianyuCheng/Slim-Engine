@@ -26,20 +26,27 @@ int main() {
             .SetTitle("GLTFViewer")
     );
 
+    // input & controller
+    auto input = Input(window);
+    Arcball arcball;
+    arcball.SetDamping(0.9);
+    arcball.SetSensitivity(0.5);
+
     GLTFModel model;
     GLTFAssetManager manager(device);
 
     device->Execute([&](CommandBuffer* commandBuffer) {
-        model = manager.Load(commandBuffer, ToAssetPath("Characters/GenshinImpact/amber/scene.gltf"));
-        // model = manager.Load(commandBuffer, ToAssetPath("Scenes/Sponza/glTF/Sponza.gltf"));
+        // model = manager.Load(commandBuffer, ToAssetPath("Characters/GenshinImpact/amber/scene.gltf"));
+        model = manager.Load(commandBuffer, ToAssetPath("Scenes/Sponza/glTF/Sponza.gltf"));
     });
 
     GLTFScene& scene = model.scenes[0];
-    scene.roots[0]->Scale(0.5, 0.5, 0.1);
-    scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI / 2.0f);
-    scene.roots[0]->Rotate(glm::vec3(1.0f, 0.0f, 0.0f), -M_PI / 2.0f);
-    scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI       );
-    scene.roots[0]->Translate(0, 0, -15);
+    // scene.roots[0]->Scale(0.5, 0.5, 0.5);
+    // scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI / 2.0f);
+    // scene.roots[0]->Rotate(glm::vec3(1.0f, 0.0f, 0.0f), -M_PI / 2.0f);
+    // scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI       );
+    // scene.roots[0]->Translate(0, 0, -15);
+    // scene.roots[0]->Scale(0.1, 0.1, 0.1);
 
     // render
     while (!window->ShouldClose()) {
@@ -48,11 +55,17 @@ int main() {
 
         // create a camera
         auto camera = SlimPtr<Camera>("camera");
-        camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
+        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
+        // camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        camera->LookAt(glm::vec3(0.0, 50.0, 3.0), glm::vec3(0.0, 50.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+
+        // handle input
+        arcball.SetExtent(frame->GetExtent());
+        arcball.Update(input);
 
         // transform scene nodes
         for (auto root : scene.roots) {
+            root->SetTransform(arcball.GetTransform());
             root->Update();
         }
 
@@ -94,6 +107,7 @@ int main() {
         renderGraph.Execute();
 
         // window update
+        input.Reset();
         window->PollEvents();
     }
 

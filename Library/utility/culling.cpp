@@ -40,45 +40,26 @@ bool CPUCulling::CullSceneNode(Scene* scene, Camera*) {
         return false;
     }
 
-    #ifndef NDEBUG
-    bool hasMesh = scene->GetMesh() != nullptr;
-    bool hasMaterial = scene->GetMaterial() != nullptr;
-    if (hasMesh && !hasMaterial) {
-        throw std::runtime_error("Node: <" + scene->GetName() + "> has mesh but not material!");
-    }
-    if (!hasMesh && hasMaterial) {
-        throw std::runtime_error("Node: <" + scene->GetName() + "> has material but not mesh!");
-    }
-    #endif
+    for (const Primitive& primitive : *scene) {
+        // find technique
+        Technique* technique = primitive.material->GetTechnique();
 
-    // find mesh
-    if (!scene->GetMesh()) {
-        // node has nothing to draw,
-        // but allow children to be traversed
-        return true;
-    }
-
-    // find material
-    Material* material = scene->GetMaterial();
-    if (!material) {
-        // object has no material cannot be drawn,
-        // but allow children to be traversed
-        return true;
-    }
-
-    // find technique
-    Technique* technique = material->GetTechnique();
-
-    // find queue for each pass
-    for (auto &pass : *technique) {
-        // queue
-        auto queueIt = objects.find(pass.queue);
-        if (queueIt == objects.end()) {
-            objects.insert(std::make_pair(pass.queue, std::vector<Drawable>()));
-            queueIt = objects.find(pass.queue);
+        // find queue for each pass
+        for (auto &pass : *technique) {
+            // queue
+            auto queueIt = objects.find(pass.queue);
+            if (queueIt == objects.end()) {
+                objects.insert(std::make_pair(pass.queue, std::vector<Drawable>()));
+                queueIt = objects.find(pass.queue);
+            }
+            // drawable
+            queueIt->second.push_back(Drawable {
+                scene,
+                primitive.mesh, primitive.material, primitive.drawCommand,
+                pass.queue,
+                distance
+            });
         }
-        // drawable
-        queueIt->second.push_back(Drawable { scene, pass.queue, distance, });
     }
 
     return true;

@@ -27,6 +27,10 @@ namespace slim {
 
         virtual void Perspective(float fovy, float aspect, float near, float far);
 
+        void SetViewMatrix(const glm::mat4& view) { this->view = view; }
+
+        void SetProjectionMatrix(const glm::mat4& proj) { this->proj = proj; }
+
         const glm::mat4& GetView() const { return view; }
 
         const glm::mat4& GetProjection() const { return proj; }

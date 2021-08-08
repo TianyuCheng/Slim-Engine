@@ -48,13 +48,13 @@ Window::Window(Device *device, const WindowDesc &desc) : desc(desc), device(devi
     glfwWindowHint(GLFW_RESIZABLE, desc.resizable ? GL_TRUE : GL_FALSE);
 
     // create a glfw window
-    window = glfwCreateWindow(desc.width, desc.height, desc.title.c_str(), nullptr, nullptr);
+    handle = glfwCreateWindow(desc.width, desc.height, desc.title.c_str(), nullptr, nullptr);
 
     // user pointer
-    glfwSetWindowUserPointer(window, this);
+    glfwSetWindowUserPointer(handle, this);
 
     // create surface
-    ErrorCheck(glfwCreateWindowSurface(device->GetContext()->GetInstance(), window, nullptr, &surface), "create window surface");
+    ErrorCheck(glfwCreateWindowSurface(device->GetContext()->GetInstance(), handle, nullptr, &surface), "create window surface");
 
     InitSwapchain();
     InitRenderFrames();
@@ -80,9 +80,9 @@ Window::~Window() {
     }
 
     // clean up window
-    if (window) {
-        glfwDestroyWindow(window);
-        window = nullptr;
+    if (handle) {
+        glfwDestroyWindow(handle);
+        handle = nullptr;
     }
 }
 
@@ -91,7 +91,7 @@ void Window::PollEvents() {
 }
 
 bool Window::ShouldClose() {
-    return glfwWindowShouldClose(window);
+    return glfwWindowShouldClose(handle);
 }
 
 void Window::InitSwapchain() {
@@ -99,7 +99,7 @@ void Window::InitSwapchain() {
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(swapchainSupport.formats);
     VkPresentModeKHR presentMode = ChooseSwapPresentMode(swapchainSupport.presentModes);
-    VkExtent2D extent = ChooseSwapExtent(window, swapchainSupport.capabilities);
+    VkExtent2D extent = ChooseSwapExtent(handle, swapchainSupport.capabilities);
 
     uint32_t imageCount = swapchainSupport.capabilities.minImageCount + 1;
     if (swapchainSupport.capabilities.maxImageCount > 0 && imageCount > swapchainSupport.capabilities.maxImageCount) {
@@ -200,9 +200,9 @@ RenderFrame* Window::AcquireNext() {
 void Window::OnResize() {
     // get newer window size
     int width = 0, height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
+    glfwGetFramebufferSize(handle, &width, &height);
     while (width == 0 || height == 0) {
-        glfwGetFramebufferSize(window, &width, &height);
+        glfwGetFramebufferSize(handle, &width, &height);
         glfwWaitEvents();
     }
     desc.width = width;

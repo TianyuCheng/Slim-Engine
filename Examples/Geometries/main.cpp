@@ -18,11 +18,15 @@ Scene* CreateGeometry(SceneManager* sceneMgr, CommandBuffer* commandBuffer, Mate
     mesh->SetIndexAttrib(commandBuffer, data.indices);
 
     auto scene = sceneMgr->Create<Scene>("geometry");
-    scene->SetMaterial(material);
-    scene->SetMesh(mesh);
-    scene->SetDraw(DrawIndexed { static_cast<uint32_t>(data.indices.size()), 1, 0, 0, 0 });
+    scene->SetDraw(mesh, material, DrawIndexed { static_cast<uint32_t>(data.indices.size()), 1, 0, 0, 0 });
     return scene;
 }
+
+constexpr uint32_t PLANE    = 0;
+constexpr uint32_t CUBE     = 1;
+constexpr uint32_t SPHERE   = 2;
+constexpr uint32_t CONE     = 3;
+constexpr uint32_t CYLINDER = 4;
 
 int main() {
     // create a slim device
@@ -47,6 +51,9 @@ int main() {
             .SetTitle("Geometries")
     );
 
+    // create window input
+    auto input = Input(window);
+
     // create vertex and fragment shaders
     auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
     auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
@@ -63,7 +70,7 @@ int main() {
              })
             .SetVertexShader(vShader)
             .SetFragmentShader(fShader)
-            .SetCullMode(VK_CULL_MODE_NONE)
+            .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
             .SetPolygonMode(VK_POLYGON_MODE_LINE)
@@ -86,9 +93,14 @@ int main() {
     geometries.cylinder = Cylinder { 1.0f, 1.0f, 1.0f, 8, 2 };
 
     // ui options
-    uint32_t selectedGeometry = 3;
-    std::vector<const char*> geometryNames = { "Plane", "Cube", "Geometry", "Cone", "Cylinder" };
+    uint32_t selectedGeometry = CYLINDER;
+    std::vector<const char*> geometryNames = { "Plane", "Cube", "Sphere", "Cone", "Cylinder" };
     auto ui = SlimPtr<DearImGui>(device, window);
+
+    // controller
+    Arcball arcball;
+    arcball.SetDamping(0.1);
+    arcball.SetSensitivity(1.0);
 
     // render
     while (!window->ShouldClose()) {
@@ -117,21 +129,87 @@ int main() {
                     }
                     ImGui::EndCombo();
                 }
+
+                // Plane Parameters
+                if (selectedGeometry == PLANE) {
+                    changed |= ImGui::DragFloat("Width", &geometries.plane.width, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Height", &geometries.plane.height, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragInt("Width Segments", (int*)&geometries.plane.widthSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Height Segments", (int*)&geometries.plane.heightSegments, 1, 1, 20);
+                    changed |= ImGui::Checkbox("CCW", &geometries.plane.ccw);
+                }
+
+                // Cube Parameters
+                if (selectedGeometry == CUBE) {
+                    changed |= ImGui::DragFloat("Width", &geometries.cube.width, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Height", &geometries.cube.height, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Depth", &geometries.cube.depth, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragInt("Width Segments", (int*)&geometries.cube.widthSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Height Segments", (int*)&geometries.cube.heightSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Depth Segments", (int*)&geometries.cube.depthSegments, 1, 1, 20);
+                    changed |= ImGui::Checkbox("CCW", &geometries.cube.ccw);
+                }
+
+                // Sphere Parameters
+                if (selectedGeometry == SPHERE) {
+                    changed |= ImGui::DragFloat("Radius", &geometries.sphere.radius, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Phi Start", &geometries.sphere.phiStart, 0.1f, 0.1f, M_PI);
+                    changed |= ImGui::DragFloat("Phi Length", &geometries.sphere.phiLength, 0.1f, 0.1f, M_PI);
+                    changed |= ImGui::DragFloat("Theta Start", &geometries.sphere.thetaStart, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragFloat("Theta Length", &geometries.sphere.thetaLength, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragInt("Radial Segments", (int*)&geometries.sphere.radialSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Height Segments", (int*)&geometries.sphere.heightSegments, 1, 1, 20);
+                    changed |= ImGui::Checkbox("CCW", &geometries.sphere.ccw);
+                }
+
+                // Cone Parameters
+                if (selectedGeometry == CONE) {
+                    changed |= ImGui::DragFloat("Radius", &geometries.cone.radius, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Height", &geometries.cone.height, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Theta Start", &geometries.cone.thetaStart, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragFloat("Theta Length", &geometries.cone.thetaLength, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragInt("Radial Segments", (int*)&geometries.cone.radialSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Height Segments", (int*)&geometries.cone.heightSegments, 1, 1, 20);
+                    changed |= ImGui::Checkbox("Open Ended", &geometries.cone.openEnded);
+                    changed |= ImGui::Checkbox("CCW", &geometries.cone.ccw);
+                }
+
+                // Cylinder Parameters
+                if (selectedGeometry == CYLINDER) {
+                    changed |= ImGui::DragFloat("Radius Top", &geometries.cylinder.radiusTop, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Radius Bottom", &geometries.cylinder.radiusBottom, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("Height", &geometries.cylinder.height, 0.1f, 0.5f, 5.0f);
+                    changed |= ImGui::DragFloat("ThetaStart", &geometries.cylinder.thetaStart, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragFloat("ThetaLength", &geometries.cylinder.thetaLength, 0.1f, 0.1f, M_PI * 2.0f);
+                    changed |= ImGui::DragInt("Radial Segments", (int*)&geometries.cylinder.radialSegments, 1, 1, 20);
+                    changed |= ImGui::DragInt("Height Segments", (int*)&geometries.cylinder.heightSegments, 1, 1, 20);
+                    changed |= ImGui::Checkbox("Open Ended", &geometries.cylinder.openEnded);
+                    changed |= ImGui::Checkbox("CCW", &geometries.cylinder.ccw);
+                }
+
             }
             ImGui::End();
         }
         ui->End();
 
+        // update scene
         if (changed || node == nullptr) {
             device->Execute([&](CommandBuffer* commandBuffer) {
                 switch (selectedGeometry) {
-                    case 0: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.plane);    break;
-                    case 1: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cube);     break;
-                    case 2: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.sphere);   break;
-                    case 3: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cone);     break;
-                    case 4: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cylinder); break;
+                    case PLANE:    node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.plane);    break;
+                    case CUBE:     node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cube);     break;
+                    case SPHERE:   node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.sphere);   break;
+                    case CONE:     node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cone);     break;
+                    case CYLINDER: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cylinder); break;
                 }
             });
+            node->SetTransform(arcball.GetTransform());
+        }
+
+        // controller
+        arcball.SetExtent(frame->GetExtent());
+        if (arcball.Update(input)) {
+            node->SetTransform(arcball.GetTransform());
         }
 
         // transform scene nodes
@@ -166,6 +244,7 @@ int main() {
         renderGraph.Execute();
 
         // window update
+        input.Reset();
         window->PollEvents();
     }
 

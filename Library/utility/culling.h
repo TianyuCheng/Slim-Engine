@@ -15,7 +15,10 @@ namespace slim {
 
     // data structure for objects to be drawn
     struct Drawable {
-        Scene* node;
+        SmartPtr<Scene> node;
+        SmartPtr<Mesh> mesh;
+        SmartPtr<Material> material;
+        DrawVariant drawCommand;
         RenderQueue queue;
         float distanceToCamera;
     };

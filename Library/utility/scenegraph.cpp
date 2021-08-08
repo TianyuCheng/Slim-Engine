@@ -6,20 +6,30 @@ Scene::Scene(const std::string &name, Scene* parent) : name(name) {
     MoveTo(parent);
 }
 
-void Scene::SetMesh(Mesh* obj) {
-    mesh = obj;
+void Scene::SetDraw(Mesh* mesh, Material* material, const DrawCommand& command) {
+    primitives.clear();
+    primitives.push_back(Primitive {
+        mesh, material, command
+    });
 }
 
-void Scene::SetMaterial(Material* obj) {
-    material = obj;
+void Scene::SetDraw(Mesh* mesh, Material* material, const DrawIndexed& command) {
+    primitives.clear();
+    primitives.push_back(Primitive {
+        mesh, material, command
+    });
 }
 
-void Scene::SetDraw(const DrawCommand& command) {
-    drawCommand = command;
+void Scene::AddDraw(Mesh* mesh, Material* material, const DrawCommand& command) {
+    primitives.push_back(Primitive {
+        mesh, material, command
+    });
 }
 
-void Scene::SetDraw(const DrawIndexed& command) {
-    drawCommand = command;
+void Scene::AddDraw(Mesh* mesh, Material* material, const DrawIndexed& command) {
+    primitives.push_back(Primitive {
+        mesh, material, command
+    });
 }
 
 void Scene::AddChild(Scene* child) {
@@ -61,6 +71,10 @@ void Scene::Translate(float x, float y, float z) {
 }
 
 void Scene::SetTransform(const glm::mat4& transform) {
+    this->transform = transform;
+}
+
+void Scene::SetTransform(const Transform& transform) {
     this->transform = transform;
 }
 

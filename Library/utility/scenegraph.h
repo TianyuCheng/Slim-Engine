@@ -24,6 +24,12 @@ namespace slim {
     using DrawIndexed = VkDrawIndexedIndirectCommand;
     using DrawVariant = std::variant<DrawCommand, DrawIndexed>;
 
+    struct Primitive {
+        SmartPtr<Mesh>      mesh = nullptr;
+        SmartPtr<Material>  material = nullptr;
+        DrawVariant         drawCommand;
+    };
+
     class Scene : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         friend class SceneIterator;
@@ -34,18 +40,14 @@ namespace slim {
         virtual ~Scene() = default;
 
         // setters
-        void SetMesh(Mesh* mesh);
-        void SetMaterial(Material* material);
-        void SetDraw(const DrawCommand& command);
-        void SetDraw(const DrawIndexed& command);
+        void SetDraw(Mesh* mesh, Material* material, const DrawCommand& command);
+        void SetDraw(Mesh* mesh, Material* material, const DrawIndexed& command);
+        void AddDraw(Mesh* mesh, Material* material, const DrawCommand& command);
+        void AddDraw(Mesh* mesh, Material* material, const DrawIndexed& command);
 
         // getters
         const std::string& GetName() const { return name; }
         const Transform& GetTransform() const { return transform; }
-        Mesh* GetMesh() const { return mesh; }
-        Material* GetMaterial() const { return material; }
-        DrawVariant& GetDraw() { return drawCommand; }
-        const DrawVariant& GetDraw() const { return drawCommand; }
         bool IsVisible() const { return visible; }
 
         // scene node hierarchy
@@ -58,11 +60,18 @@ namespace slim {
         void Rotate(float x, float y, float z, float w);
         void Translate(float x, float y, float z);
         void SetTransform(const glm::mat4& transform);
+        void SetTransform(const Transform& transform);
         void SetBoundingBox(const BoundingBox& boundingBox);
 
         // traversal-based operations
         void ForEach(const std::function<bool(Scene*)> &callback);
         void Update();
+
+        // primitives traversal
+        auto begin() { return primitives.begin(); }
+        auto end()   { return primitives.end();   }
+        auto begin() const { return primitives.begin(); }
+        auto end()   const { return primitives.end();   }
 
     protected:
         std::string name = "";
@@ -73,13 +82,11 @@ namespace slim {
         Scene* parent = nullptr;
         std::list<Scene*> children = {};
 
-        // properties
-        SmartPtr<Mesh> mesh = nullptr;
-        SmartPtr<Material> material = nullptr;
+        // primitives
+        std::vector<Primitive> primitives;
 
         // draw params
         bool visible = true;
-        DrawVariant drawCommand;
     };
 
     // -------------------------------------------------------------

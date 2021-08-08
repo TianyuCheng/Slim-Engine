@@ -25,6 +25,10 @@ struct GLTFPrimitive {
     uint32_t vertexCount = 0;
 };
 
+struct GLTFMesh {
+    std::vector<GLTFPrimitive> primitives;
+};
+
 struct GLTFScene {
     std::string name;
     std::vector<SmartPtr<Scene>> roots;
@@ -33,7 +37,7 @@ struct GLTFScene {
 struct GLTFModel {
     std::vector<GLTFScene>             scenes;
     std::vector<SmartPtr<Scene>>       nodes;
-    std::vector<GLTFPrimitive>         primitives;
+    std::vector<GLTFMesh>              meshes;
     std::vector<SmartPtr<Material>>    materials;
     std::vector<SmartPtr<Sampler>>     samplers;
     std::vector<SmartPtr<GPUImage2D>>  images;

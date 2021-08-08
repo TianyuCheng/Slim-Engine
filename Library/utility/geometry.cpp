@@ -1,4 +1,3 @@
-#include <iostream>
 #include "utility/geometry.h"
 
 using namespace slim;
@@ -74,10 +73,10 @@ GeometryData Cube::Create() const {
 
     // front plane
     {
-        const glm::vec3 x00 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
-        const glm::vec3 x01 = glm::vec3(+width / 2.0, -height / 2.0, +depth / 2.0);
-        const glm::vec3 x10 = glm::vec3(-width / 2.0, +height / 2.0, +depth / 2.0);
-        const glm::vec3 x11 = glm::vec3(+width / 2.0, +height / 2.0, +depth / 2.0);
+        const glm::vec3 x00 = glm::vec3(+width / 2.0, -height / 2.0, +depth / 2.0);
+        const glm::vec3 x01 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
+        const glm::vec3 x10 = glm::vec3(+width / 2.0, +height / 2.0, +depth / 2.0);
+        const glm::vec3 x11 = glm::vec3(-width / 2.0, +height / 2.0, +depth / 2.0);
         const glm::vec3 normal = ccw ? glm::vec3(0.0, 0.0, 1.0) : glm::vec3(0.0, 0.0, -1.0);
         CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, heightSegments, ccw);
     }
@@ -94,12 +93,12 @@ GeometryData Cube::Create() const {
 
     // left plane
     {
-        const glm::vec3 x00 = glm::vec3(-width / 2.0, -height / 2.0, -depth / 2.0);
-        const glm::vec3 x01 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
-        const glm::vec3 x10 = glm::vec3(-width / 2.0, +height / 2.0, -depth / 2.0);
-        const glm::vec3 x11 = glm::vec3(-width / 2.0, +height / 2.0, +depth / 2.0);
+        const glm::vec3 x00 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
+        const glm::vec3 x01 = glm::vec3(-width / 2.0, -height / 2.0, -depth / 2.0);
+        const glm::vec3 x10 = glm::vec3(-width / 2.0, +height / 2.0, +depth / 2.0);
+        const glm::vec3 x11 = glm::vec3(-width / 2.0, +height / 2.0, -depth / 2.0);
         const glm::vec3 normal = ccw ? glm::vec3(-1.0, 0.0, 0.0) : glm::vec3(1.0, 0.0, 0.0);
-        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, heightSegments, ccw);
+        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, depthSegments, heightSegments, ccw);
     }
 
     // right plane
@@ -109,7 +108,7 @@ GeometryData Cube::Create() const {
         const glm::vec3 x10 = glm::vec3(+width / 2.0, +height / 2.0, -depth / 2.0);
         const glm::vec3 x11 = glm::vec3(+width / 2.0, +height / 2.0, +depth / 2.0);
         const glm::vec3 normal = ccw ? glm::vec3(1.0, 0.0, 0.0) : glm::vec3(-1.0, 0.0, 0.0);
-        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, heightSegments, ccw);
+        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, depthSegments, heightSegments, ccw);
     }
 
     // top plane
@@ -119,17 +118,17 @@ GeometryData Cube::Create() const {
         const glm::vec3 x10 = glm::vec3(-width / 2.0, +height / 2.0, +depth / 2.0);
         const glm::vec3 x11 = glm::vec3(+width / 2.0, +height / 2.0, +depth / 2.0);
         const glm::vec3 normal = ccw ? glm::vec3(0.0, 1.0, 0.0) : glm::vec3(0.0, -1.0, 0.0);
-        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, heightSegments, ccw);
+        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, depthSegments, ccw);
     }
 
     // bottom plane
     {
-        const glm::vec3 x00 = glm::vec3(-width / 2.0, -height / 2.0, -depth / 2.0);
-        const glm::vec3 x01 = glm::vec3(+width / 2.0, -height / 2.0, -depth / 2.0);
-        const glm::vec3 x10 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
-        const glm::vec3 x11 = glm::vec3(+width / 2.0, -height / 2.0, +depth / 2.0);
+        const glm::vec3 x00 = glm::vec3(+width / 2.0, -height / 2.0, -depth / 2.0);
+        const glm::vec3 x01 = glm::vec3(-width / 2.0, -height / 2.0, -depth / 2.0);
+        const glm::vec3 x10 = glm::vec3(+width / 2.0, -height / 2.0, +depth / 2.0);
+        const glm::vec3 x11 = glm::vec3(-width / 2.0, -height / 2.0, +depth / 2.0);
         const glm::vec3 normal = ccw ? glm::vec3(0.0, -1.0, 0.0) : glm::vec3(0.0, +1.0, 0.0);
-        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, heightSegments, ccw);
+        CreatePlane(vertices, indices, x00, x01, x10, x11, normal, widthSegments, depthSegments, ccw);
     }
 
     return GeometryData { vertices, indices };
@@ -222,6 +221,14 @@ GeometryData Cone::Create() const {
         }
     }
 
+    if (!openEnded) {
+        vertices.push_back(GeometryData::Vertex {
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            ccw ? glm::vec3(0.0, -1.0, 0.0) : glm::vec3(0.0, 1.0, 0.0),
+            glm::vec2(0.0, 0.0)
+        });
+    }
+
     // indices
     uint32_t col = radialSegments + 1;
     for (uint32_t i = 0; i < heightSegments; i++) {
@@ -229,18 +236,33 @@ GeometryData Cone::Create() const {
             uint32_t index = i * col + j;
             if (ccw) {
                 indices.push_back(index);
-                indices.push_back(index + 1);
                 indices.push_back(index + col);
                 indices.push_back(index + 1);
+                indices.push_back(index + 1);
+                indices.push_back(index + col);
                 indices.push_back(index + 1 + col);
-                indices.push_back(index + col);
             } else {
                 indices.push_back(index);
-                indices.push_back(index + col);
-                indices.push_back(index + 1);
                 indices.push_back(index + 1);
                 indices.push_back(index + col);
+                indices.push_back(index + 1);
                 indices.push_back(index + 1 + col);
+                indices.push_back(index + col);
+            }
+        }
+    }
+
+    if (!openEnded) {
+        uint32_t index = vertices.size() - 1;
+        for (uint32_t i = 0; i < radialSegments; i++) {
+            if (ccw) {
+                indices.push_back(index);
+                indices.push_back(i);
+                indices.push_back(i + 1);
+            } else {
+                indices.push_back(index);
+                indices.push_back(i + 1);
+                indices.push_back(i);
             }
         }
     }
@@ -278,6 +300,22 @@ GeometryData Cylinder::Create() const {
         }
     }
 
+    if (!openEnded) {
+        // bottom
+        vertices.push_back(GeometryData::Vertex {
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            ccw ? glm::vec3(0.0, -1.0, 0.0) : glm::vec3(0.0, 1.0, 0.0),
+            glm::vec2(0.0, 0.0)
+        });
+
+        // top
+        vertices.push_back(GeometryData::Vertex {
+            glm::vec3(0.0f, height, 0.0f),
+            ccw ? glm::vec3(0.0, 1.0, 0.0) : glm::vec3(0.0, -1.0, 0.0),
+            glm::vec2(0.0, 0.0)
+        });
+    }
+
     // indices
     uint32_t col = radialSegments + 1;
     for (uint32_t i = 0; i < heightSegments; i++) {
@@ -285,18 +323,49 @@ GeometryData Cylinder::Create() const {
             uint32_t index = i * col + j;
             if (ccw) {
                 indices.push_back(index);
-                indices.push_back(index + 1);
                 indices.push_back(index + col);
                 indices.push_back(index + 1);
+                indices.push_back(index + 1);
+                indices.push_back(index + col);
                 indices.push_back(index + 1 + col);
-                indices.push_back(index + col);
             } else {
                 indices.push_back(index);
-                indices.push_back(index + col);
-                indices.push_back(index + 1);
                 indices.push_back(index + 1);
                 indices.push_back(index + col);
+                indices.push_back(index + 1);
                 indices.push_back(index + 1 + col);
+                indices.push_back(index + col);
+            }
+        }
+    }
+
+    if (!openEnded) {
+        // bottom
+        uint32_t index1 = vertices.size() - 2;
+        for (uint32_t i = 0; i < radialSegments; i++) {
+            if (ccw) {
+                indices.push_back(index1);
+                indices.push_back(i);
+                indices.push_back(i + 1);
+            } else {
+                indices.push_back(index1);
+                indices.push_back(i + 1);
+                indices.push_back(i);
+            }
+        }
+
+        // top
+        uint32_t index2 = vertices.size() - 1;
+        uint32_t base = vertices.size() - 2 - col;
+        for (uint32_t i = 0; i < radialSegments; i++) {
+            if (ccw) {
+                indices.push_back(index2);
+                indices.push_back(base + i + 1);
+                indices.push_back(base + i);
+            } else {
+                indices.push_back(index2);
+                indices.push_back(base + i);
+                indices.push_back(base + i + 1);
             }
         }
     }

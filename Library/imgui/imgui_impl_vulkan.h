@@ -23,7 +23,7 @@
 
 #pragma once
 #include "imgui.h"      // IMGUI_IMPL_API
-#include "slim/slim.hpp"
+#include "core/descriptor.h"
 
 // [Configuration] in order to use a custom Vulkan function loader:
 // (1) You'll need to disable default Vulkan function prototypes.

@@ -32,7 +32,7 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
             drawable.node->GetTransform().LocalToWorld(),
             glm::mat3(glm::transpose(glm::inverse(mv)))
         });
-        materials.push_back(drawable.node->GetMaterial());
+        materials.push_back(drawable.material);
     }
 
     // nothing to draw
@@ -45,22 +45,20 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
     // draw
     uint32_t index = 0;
     for (const Drawable& drawable : drawables) {
+        drawable.mesh->Bind(commandBuffer);
 
-        Scene* scene = drawable.node;
-        scene->GetMesh()->Bind(commandBuffer);
-
-        uint32_t techniqueIndex = scene->GetMaterial()->QueueIndex(drawable.queue);
-        scene->GetMaterial()->Bind(techniqueIndex, commandBuffer, renderFrame, renderPass);
+        uint32_t techniqueIndex = drawable.material->QueueIndex(drawable.queue);
+        drawable.material->Bind(techniqueIndex, commandBuffer, renderFrame, renderPass);
 
         // bind
-        auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), scene->GetMaterial()->Layout(techniqueIndex));
+        auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), drawable.material->Layout(techniqueIndex));
         descriptor->SetUniform("Camera", cameraUniform);
         descriptor->SetDynamic("Model", modelUniform, sizeof(ModelData));
         descriptor->SetDynamicOffset("Model", index * sizeof(ModelData));
         commandBuffer->BindDescriptor(descriptor);
 
         // draw
-        const auto& draw = scene->GetDraw();
+        const auto& draw = drawable.drawCommand;
         if (std::holds_alternative<DrawCommand>(draw)) {
             const auto& command = std::get<VkDrawIndirectCommand>(draw);
             commandBuffer->Draw(command.vertexCount, command.instanceCount, command.firstVertex, command.firstInstance);

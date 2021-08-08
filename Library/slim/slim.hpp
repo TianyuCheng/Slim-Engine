@@ -12,6 +12,7 @@
 #include "core/renderframe.h"
 #include "core/shader.h"
 #include "core/window.h"
+#include "core/input.h"
 
 // utility
 #include "utility/stb.h"
@@ -30,6 +31,7 @@
 #include "utility/culling.h"
 #include "utility/meshrenderer.h"
 #include "utility/geometry.h"
+#include "utility/arcball.h"
 
 // third party
 #include <imgui.h>

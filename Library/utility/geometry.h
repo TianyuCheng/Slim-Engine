@@ -75,7 +75,7 @@ namespace slim {
         uint32_t radialSegments = 8;
         uint32_t heightSegments = 1;
         float    thetaStart     = 0.0f;
-        float    thetaLength    = M_PI;
+        float    thetaLength    = M_PI * 2.0f;
         bool     openEnded      = false;
         bool     ccw            = true;
 

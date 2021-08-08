@@ -1,105 +1,27 @@
 # header files
-set(SLIM_HEADERS
-    slim/slim.hpp
-)
+file(GLOB SLIM_HEADERS slim *.hpp)
 
 # core class modules
-set(SLIM_CORE_SOURCES
-    core/debug.h
-    core/buffer.h
-    core/buffer.cpp
-    core/commands.h
-    core/commands.cpp
-    core/context.h
-    core/context.cpp
-    core/device.h
-    core/device.cpp
-    core/framebuffer.h
-    core/framebuffer.cpp
-    core/image.h
-    core/image.cpp
-    core/sampler.h
-    core/sampler.cpp
-    core/pipeline.h
-    core/pipeline.cpp
-    core/descriptor.h
-    core/descriptor.cpp
-    core/renderframe.h
-    core/renderframe.cpp
-    core/renderpass.h
-    core/renderpass.cpp
-    core/shader.h
-    core/shader.cpp
-    core/synchronization.h
-    core/synchronization.cpp
-    core/vkutils.h
-    core/vkutils.cpp
-    core/window.h
-    core/window.cpp
-)
-
-# vulkan-specific class modules
-set(SLIM_IMGUI_SOURCES
-    imgui/dearimgui.cpp
-    imgui/dearimgui.h
-    # personal modifications made to support imgui for custom texture
-    imgui/imgui_impl_vulkan.h
-    imgui/imgui_impl_vulkan.cpp
-    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.h
-    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.cpp
-)
+file(GLOB SLIM_CORE_HEADERS core/*.h)
+file(GLOB SLIM_CORE_SOURCES core/*.cpp)
 
 # utility class modules
-set(SLIM_UTILITY_SOURCES
-    utility/smartptr.h
-    utility/transient.h
-    utility/interface.h
-    utility/stb.h
-    utility/stb.cpp
-    utility/tinygltf.h
-    utility/tinygltf.cpp
-    utility/filesystem.h
-    utility/color.h
-    utility/color.cpp
-    utility/texture.h
-    utility/texture.cpp
-    utility/rendergraph.h
-    utility/rendergraph.cpp
-    utility/renderqueue.h
-    utility/renderqueue.cpp
-    utility/scenegraph.h
-    utility/scenegraph.cpp
-    utility/transform.h
-    utility/transform.cpp
-    utility/camera.h
-    utility/camera.cpp
-    utility/mesh.h
-    utility/mesh.cpp
-    utility/skinnedmesh.h
-    utility/skinnedmesh.cpp
-    utility/technique.h
-    utility/technique.cpp
-    utility/material.h
-    utility/material.cpp
-    utility/animator.h
-    utility/animator.cpp
-    utility/assets.h
-    utility/assets.cpp
-    utility/boundingbox.h
-    utility/boundingbox.cpp
-    utility/culling.h
-    utility/culling.cpp
-    utility/meshrenderer.h
-    utility/meshrenderer.cpp
-    utility/geometry.h
-    utility/geometry.cpp
-)
+file(GLOB SLIM_UTIL_HEADERS utility/*.h)
+file(GLOB SLIM_UTIL_SOURCES utility/*.cpp)
+
+# imgui class modules
+file(GLOB SLIM_IMGUI_HEADERS imgui/*.h)
+file(GLOB SLIM_IMGUI_SOURCES imgui/*.cpp)
 
 add_library(slim SHARED
     ${SLIM_HEADERS}
+    ${SLIM_CORE_HEADERS}
     ${SLIM_CORE_SOURCES}
+    ${SLIM_UTIL_HEADERS}
+    ${SLIM_UTIL_SOURCES}
     ${SLIM_IMGUI_SOURCES}
-    ${SLIM_UTILITY_SOURCES}
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.h
+    ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
 target_include_directories(slim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}

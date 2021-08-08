@@ -19,6 +19,6 @@ layout(location = 0) out vec3 outNormal;
 
 void main() {
     gl_Position = camera.P * camera.V * model.M * vec4(inPosition, 1.0);
-    /* outNormal = model.N * inNormal; */
-    outNormal = inNormal;
+    outNormal = model.N * inNormal;
+    /* outNormal = inNormal; */
 }

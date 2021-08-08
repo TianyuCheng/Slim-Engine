@@ -63,7 +63,7 @@ namespace slim {
         RenderFrame*                       AcquireNext();
         VkExtent2D                         GetExtent() const { return swapchainExtent; }
         VkFormat                           GetFormat() const { return swapchainFormat; }
-        GLFWwindow*                        GetWindow() const { return window; }
+        GLFWwindow*                        GetWindow() const { return handle; }
 
     private:
         void                               InitSwapchain();
@@ -73,7 +73,6 @@ namespace slim {
     private:
         WindowDesc                         desc;
         SmartPtr<Device>                   device              = nullptr;
-        GLFWwindow*                        window              = nullptr;
         VkSurfaceKHR                       surface             = VK_NULL_HANDLE;
 
         // swapchain
