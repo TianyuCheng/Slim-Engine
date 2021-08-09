@@ -22,7 +22,7 @@ namespace slim {
         void SetDamping(float damping = 0.0f);
         void SetSensitivity(float sensitivity = 1.0f);
         void SetExtent(const VkExtent2D &screen);
-        bool Update(const Input& input);
+        bool Update(Input* input);
 
         const Transform& GetTransform() const { return xform; }
 

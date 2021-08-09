@@ -44,11 +44,11 @@ void Arcball::SetExtent(const VkExtent2D &extent) {
     screen = extent;
 }
 
-bool Arcball::Update(const Input& input) {
+bool Arcball::Update(Input* input) {
     assert(screen.width != 0 && screen.height != 0);
     bool changed = false;
 
-    const MouseEvent &mouse = input.Mouse();
+    const MouseEvent &mouse = input->Mouse();
 
     float posX = mouse.posX;
     float posY = mouse.posY;
@@ -69,7 +69,7 @@ bool Arcball::Update(const Input& input) {
     }
 
     // update scaling
-    const ScrollEvent &scroll = input.Scroll();
+    const ScrollEvent &scroll = input->Scroll();
     if (scroll.yOffset != 0) {
         if (scroll.yOffset < 0) {
             const float scale = 1.1;

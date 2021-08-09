@@ -52,7 +52,7 @@ int main() {
     );
 
     // create window input
-    auto input = Input(window);
+    auto input = SlimPtr<Input>(window);
 
     // create vertex and fragment shaders
     auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
@@ -98,9 +98,9 @@ int main() {
     auto ui = SlimPtr<DearImGui>(device, window);
 
     // controller
-    Arcball arcball;
-    arcball.SetDamping(0.1);
-    arcball.SetSensitivity(1.0);
+    auto arcball = SlimPtr<Arcball>();
+    arcball->SetDamping(0.1);
+    arcball->SetSensitivity(1.0);
 
     // render
     while (!window->ShouldClose()) {
@@ -203,13 +203,13 @@ int main() {
                     case CYLINDER: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cylinder); break;
                 }
             });
-            node->SetTransform(arcball.GetTransform());
+            node->SetTransform(arcball->GetTransform());
         }
 
         // controller
-        arcball.SetExtent(frame->GetExtent());
-        if (arcball.Update(input)) {
-            node->SetTransform(arcball.GetTransform());
+        arcball->SetExtent(frame->GetExtent());
+        if (arcball->Update(input)) {
+            node->SetTransform(arcball->GetTransform());
         }
 
         // transform scene nodes
@@ -244,7 +244,7 @@ int main() {
         renderGraph.Execute();
 
         // window update
-        input.Reset();
+        input->Reset();
         window->PollEvents();
     }
 

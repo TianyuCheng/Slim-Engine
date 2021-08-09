@@ -27,10 +27,10 @@ int main() {
     );
 
     // input & controller
-    auto input = Input(window);
-    Arcball arcball;
-    arcball.SetDamping(0.9);
-    arcball.SetSensitivity(0.5);
+    auto input = SlimPtr<Input>(window);
+    auto arcball = SlimPtr<Arcball>();
+    arcball->SetDamping(0.9);
+    arcball->SetSensitivity(0.5);
 
     GLTFModel model;
     GLTFAssetManager manager(device);
@@ -48,24 +48,32 @@ int main() {
     // scene.roots[0]->Translate(0, 0, -15);
     // scene.roots[0]->Scale(0.1, 0.1, 0.1);
 
+    auto time = Time();
+
+    // create a camera
+    auto camera = SlimPtr<Flycam>("camera");
+    // camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    camera->LookAt(glm::vec3(0.0, 50.0, 3.0), glm::vec3(0.0, 50.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    camera->SetWalkSpeed(1.0f);
+    camera->SetRotateSpeed(0.02f);
+
     // render
     while (!window->ShouldClose()) {
         // query image from swapchain
         auto frame = window->AcquireNext();
 
-        // create a camera
-        auto camera = SlimPtr<Camera>("camera");
+        // camera
+        camera->SetExtent(frame->GetExtent());
+        camera->Update(input, time);
         camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
-        // camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        camera->LookAt(glm::vec3(0.0, 50.0, 3.0), glm::vec3(0.0, 50.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
         // handle input
-        arcball.SetExtent(frame->GetExtent());
-        arcball.Update(input);
+        arcball->SetExtent(frame->GetExtent());
+        arcball->Update(input);
 
         // transform scene nodes
         for (auto root : scene.roots) {
-            root->SetTransform(arcball.GetTransform());
+            // root->SetTransform(arcball.GetTransform());
             root->Update();
         }
 
@@ -107,7 +115,7 @@ int main() {
         renderGraph.Execute();
 
         // window update
-        input.Reset();
+        input->Reset();
         window->PollEvents();
     }
 

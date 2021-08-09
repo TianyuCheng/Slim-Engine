@@ -32,6 +32,8 @@
 #include "utility/meshrenderer.h"
 #include "utility/geometry.h"
 #include "utility/arcball.h"
+#include "utility/flycam.h"
+#include "utility/time.h"
 
 // third party
 #include <imgui.h>
