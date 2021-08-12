@@ -48,8 +48,8 @@ int main() {
     auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
 
     SmartPtr<Sampler> sampler = SlimPtr<Sampler>(device, SamplerDesc());
-    SmartPtr<GPUImage2D> texture1;
-    SmartPtr<GPUImage2D> texture2;
+    SmartPtr<GPUImage> texture1;
+    SmartPtr<GPUImage> texture2;
 
     // initialize
     device->Execute([&](CommandBuffer *commandBuffer) {
@@ -68,6 +68,7 @@ int main() {
         commandBuffer->CopyDataToBuffer(positions, vBuffer);
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
 
+        TextureLoader::FlipVerticallyOnLoad();
         texture1 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
         texture2 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanTransparent.png"), VK_FILTER_LINEAR);
     });

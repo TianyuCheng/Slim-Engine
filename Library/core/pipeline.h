@@ -181,7 +181,8 @@ namespace slim {
         GraphicsPipelineDesc& SetLineWidth(float lineWidth, bool dynamic = false);
         GraphicsPipelineDesc& SetSampleCount(VkSampleCountFlagBits);
         GraphicsPipelineDesc& SetRasterizationDiscard(bool enable, bool dynamic = false);
-        GraphicsPipelineDesc& SetDepthTest(VkCompareOp compare);
+        GraphicsPipelineDesc& SetDepthTest(VkCompareOp compare, bool writeEnabled = true);
+        GraphicsPipelineDesc& SetDepthWrite(bool value);
         GraphicsPipelineDesc& SetDepthClamp(bool enable);
         GraphicsPipelineDesc& SetDepthBias(float depthBiasConstantFactor,
                                            float depthBiasSlopeFactor,

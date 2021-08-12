@@ -18,8 +18,8 @@ RenderFrame::RenderFrame(Device *device, uint32_t maxSetsPerPool) : device(devic
         transferCommandPools = SlimPtr<CommandPool>(device, queueFamilyIndices.transfer.value());
 
     // initialize pools for resource allocation
-    cpuImagePool = SlimPtr<Image2DPool<CPUImage2D>>(device);
-    gpuImagePool = SlimPtr<Image2DPool<GPUImage2D>>(device);
+    cpuImagePool = SlimPtr<ImagePool<CPUImage>>(device);
+    gpuImagePool = SlimPtr<ImagePool<GPUImage>>(device);
     uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(device);
     descriptorPool = SlimPtr<DescriptorPool>(device, maxSetsPerPool);
 
@@ -28,7 +28,7 @@ RenderFrame::RenderFrame(Device *device, uint32_t maxSetsPerPool) : device(devic
     renderFinishesSemaphore = SlimPtr<Semaphore>(device);
 }
 
-RenderFrame::RenderFrame(Device *device, GPUImage2D *backBuffer, uint32_t maxSetsPerPool) : RenderFrame(device, maxSetsPerPool) {
+RenderFrame::RenderFrame(Device *device, GPUImage *backBuffer, uint32_t maxSetsPerPool) : RenderFrame(device, maxSetsPerPool) {
     this->backBuffer.reset(backBuffer);
 }
 
@@ -65,7 +65,7 @@ void RenderFrame::Invalidate() {
     pipelines.clear();
 }
 
-void RenderFrame::SetBackBuffer(GPUImage2D *backBuffer) {
+void RenderFrame::SetBackBuffer(GPUImage *backBuffer) {
     this->backBuffer.reset(backBuffer);
 }
 
@@ -161,8 +161,8 @@ CommandBuffer* RenderFrame::RequestCommandBuffer(VkQueueFlagBits queue, VkComman
     }
 }
 
-Transient<GPUImage2D> RenderFrame::RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage) {
-    return gpuImagePool->Request(format, extent, mipLevels, samples, imageUsage);
+Transient<GPUImage> RenderFrame::RequestGPUImage(VkFormat format, VkExtent2D extent, uint32_t mipLevels, uint32_t arrayLayers, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage) {
+    return gpuImagePool->Request(format, extent, mipLevels, arrayLayers, samples, imageUsage);
 }
 
 UniformBuffer* RenderFrame::RequestUniformBuffer(size_t size) {

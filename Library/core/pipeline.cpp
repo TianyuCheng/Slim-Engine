@@ -353,9 +353,9 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetRasterizationDiscard(bool enable,
     return *this;
 }
 
-GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthTest(VkCompareOp compare) {
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthTest(VkCompareOp compare, bool writeEnabled) {
     depthStencilStateCreateInfo.depthTestEnable = true;
-    depthStencilStateCreateInfo.depthWriteEnable = true;
+    depthStencilStateCreateInfo.depthWriteEnable = writeEnabled;
     depthStencilStateCreateInfo.depthCompareOp = compare;
     return *this;
 }

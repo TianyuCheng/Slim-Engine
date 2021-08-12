@@ -39,7 +39,7 @@ namespace slim {
         class Resource final : public ReferenceCountable {
             friend class RenderGraph;
         public:
-            explicit Resource(GPUImage2D *image);
+            explicit Resource(GPUImage *image);
             explicit Resource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);
             virtual ~Resource() = default;
             Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
@@ -55,7 +55,7 @@ namespace slim {
             VkSampleCountFlagBits samples;
             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            Transient<GPUImage2D> image;
+            Transient<GPUImage> image;
             std::vector<Pass*> readers = {};
             std::vector<Pass*> writers = {};
 
@@ -129,7 +129,7 @@ namespace slim {
 
         RenderGraph::Pass*     CreateRenderPass(const std::string &name);
         RenderGraph::Pass*     CreateComputePass(const std::string &name);                                         // async compute
-        RenderGraph::Resource* CreateResource(GPUImage2D* image);                                                  // for retained resource
+        RenderGraph::Resource* CreateResource(GPUImage* image);                                                  // for retained resource
         RenderGraph::Resource* CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples);  // for transient resource
         void                   Compile();
         void                   Execute();

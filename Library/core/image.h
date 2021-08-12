@@ -18,23 +18,25 @@ namespace slim {
     class Image;
 
     template <typename Image>
-    class Image2DPool final : public ReferenceCountable {
+    class ImagePool final : public ReferenceCountable {
         friend class Transient<Image>;
         using List = std::list<Image*>;
         using Dictionary = std::unordered_map<size_t, List>;
     public:
-        explicit Image2DPool(Device *device);
-        virtual ~Image2DPool();
+        explicit ImagePool(Device* device);
+        virtual ~ImagePool();
         void Reset();
         Transient<Image> Request(VkFormat format,
                                  VkExtent2D extent,
                                  uint32_t mipLevels,
+                                 uint32_t arrayLayers,
                                  VkSampleCountFlagBits samples,
                                  VkImageUsageFlags imageUsage);
     private:
         Image* AllocateImage(VkFormat format,
                              VkExtent2D extent,
                              uint32_t mipLevels,
+                             uint32_t arrayLayers,
                              VkSampleCountFlagBits samples,
                              VkImageUsageFlags imageUsage,
                              size_t hash);
@@ -46,11 +48,11 @@ namespace slim {
     };
 
     template <typename Image>
-    Image2DPool<Image>::Image2DPool(Device *device) : device(device) {
+    ImagePool<Image>::ImagePool(Device* device) : device(device) {
     }
 
     template <typename Image>
-    Image2DPool<Image>::~Image2DPool() {
+    ImagePool<Image>::~ImagePool() {
         // delete all allocations
         for (auto &kv : allAllocations)
             for (auto &image : kv.second)
@@ -61,7 +63,7 @@ namespace slim {
     }
 
     template <typename Image>
-    void Image2DPool<Image>::Reset() {
+    void ImagePool<Image>::Reset() {
         // NOTE: never release allocations unless the pool is destroyed.
         // Usually the usage of images inside a frame is very regular,
         // it is possible to reuse the existing images as much as possible.
@@ -69,15 +71,16 @@ namespace slim {
     }
 
     template <typename Image>
-    Transient<Image> Image2DPool<Image>::Request(VkFormat format,
+    Transient<Image> ImagePool<Image>::Request(VkFormat format,
                                                  VkExtent2D extent,
                                                  uint32_t mipLevels,
+                                                 uint32_t arrayLayers,
                                                  VkSampleCountFlagBits samples,
                                                  VkImageUsageFlags imageUsage) {
         size_t hash = slim::HashCombine(0, format, extent.width, extent.height,
-                                        mipLevels, samples, imageUsage);
+                                        mipLevels, arrayLayers, samples, imageUsage);
 
-        #define ARGS format, extent, mipLevels, samples, imageUsage
+        #define ARGS format, extent, mipLevels, arrayLayers, samples, imageUsage
         // check if image of requested size exists at all
         auto it = availableLists.find(hash);
         if (it == availableLists.end()) {
@@ -100,13 +103,14 @@ namespace slim {
     }
 
     template <typename Image>
-    Image* Image2DPool<Image>::AllocateImage(VkFormat format,
+    Image* ImagePool<Image>::AllocateImage(VkFormat format,
                                              VkExtent2D extent,
                                              uint32_t mipLevels,
+                                             uint32_t arrayLayers,
                                              VkSampleCountFlagBits samples,
                                              VkImageUsageFlags imageUsage,
                                              size_t hash) {
-        Image *image = new Image(device, format, extent, mipLevels, samples, imageUsage);
+        Image *image = new Image(device, format, extent, mipLevels, arrayLayers, samples, imageUsage);
         auto it = allAllocations.find(hash);
         if (it == allAllocations.end()) {
             allAllocations.insert(std::make_pair(hash, List()));
@@ -117,7 +121,7 @@ namespace slim {
     }
 
     template <typename Image>
-    void Image2DPool<Image>::Recycle(Image *image, size_t size) {
+    void ImagePool<Image>::Recycle(Image *image, size_t size) {
         auto it = availableLists.find(size);
         if (it == availableLists.end()) {
             availableLists.insert(std::make_pair(size, List()));
@@ -131,7 +135,18 @@ namespace slim {
     class Image : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkImage> {
         friend class CommandBuffer;
     public:
-        explicit Image(Device *device,
+        explicit Image(Device* device,
+                       VkFormat format,
+                       VkExtent2D extent,
+                       uint32_t mipLevels,
+                       uint32_t arrayLayers,
+                       VkSampleCountFlagBits samples,
+                       VkImageUsageFlags imageUsage,
+                       VmaMemoryUsage memoryUsage,
+                       VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL,
+                       VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE);
+
+        explicit Image(Device* device,
                        VkFormat format,
                        VkExtent3D extent,
                        uint32_t mipLevels,
@@ -142,7 +157,15 @@ namespace slim {
                        VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL,
                        VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE);
 
-        explicit Image(Device *device,
+        explicit Image(Device* device,
+                       VkFormat format,
+                       VkExtent2D extent,
+                       uint32_t mipLevels,
+                       uint32_t arrayLayers,
+                       VkSampleCountFlagBits samples,
+                       VkImage image);
+
+        explicit Image(Device* device,
                        VkFormat format,
                        VkExtent3D extent,
                        uint32_t mipLevels,
@@ -204,37 +227,57 @@ namespace slim {
         void ForDepthStencilAttachment() { flags |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
     };
 
-    #define IMAGE_2D_TYPE(NAME, TILING, MEMORY_USAGE)                    \
-    class NAME final : public Image {                                    \
-    public:                                                              \
-        friend class Image2DPool<NAME>;                                  \
-        using PoolType = Image2DPool<NAME>;                              \
-        NAME(Device *device, VkFormat format, VkExtent2D extent,         \
-             uint32_t mipLevels, VkSampleCountFlagBits samples,          \
-             VkImageUsageFlags imageUsage,                               \
-             VkImageTiling tiling = TILING,                              \
-             VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE)      \
-            : Image(device, format,                                      \
-                    VkExtent3D { extent.width, extent.height, 1 },       \
-                    mipLevels, 1, samples, imageUsage,                   \
-                    MEMORY_USAGE, tiling, sharingMode) {                 \
-        }                                                                \
-        NAME(Device *device,                                             \
-             VkFormat format,                                            \
-             VkExtent3D extent,                                          \
-             uint32_t mipLevels,                                         \
-             uint32_t arrayLayers,                                       \
-             VkSampleCountFlagBits samples,                              \
-             VkImage image)                                              \
-            : Image(device, format, extent, mipLevels,                   \
-                    arrayLayers, samples, image) {                       \
-        }                                                                \
-        virtual ~NAME() = default;                                       \
+    template <VmaMemoryUsage memoryUsage,
+              VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL,
+              VkSharingMode sharingMode = VK_SHARING_MODE_EXCLUSIVE>
+    class ImageBase : public Image {
+    public:
+        friend class ImagePool<ImageBase>;
+        using PoolType = ImagePool<ImageBase>;
+
+        ImageBase(Device* device,
+                  VkFormat format, VkExtent2D extent,
+                  uint32_t mipLevels, uint32_t arrayLayers,
+                  VkSampleCountFlagBits samples,
+                  VkImageUsageFlags imageUsage)
+            : Image(device, format, extent, mipLevels, arrayLayers, samples, imageUsage, memoryUsage) {
+            // do nothing
+        }
+
+        ImageBase(Device* device,
+                  VkFormat format, VkExtent3D extent,
+                  uint32_t mipLevels, uint32_t arrayLayers,
+                  VkSampleCountFlagBits samples,
+                  VkImageUsageFlags imageUsage)
+            : Image(device, format, extent, mipLevels, arrayLayers, samples, imageUsage, memoryUsage) {
+            // do nothing
+        }
+
+        ImageBase(Device* device,
+             VkFormat format,
+             VkExtent2D extent,
+             uint32_t mipLevels,
+             uint32_t arrayLayers,
+             VkSampleCountFlagBits samples,
+             VkImage image)
+            : Image(device, format, extent, mipLevels, arrayLayers, samples, image) {
+            // do nothing
+        }
+
+        ImageBase(Device* device,
+             VkFormat format,
+             VkExtent3D extent,
+             uint32_t mipLevels,
+             uint32_t arrayLayers,
+             VkSampleCountFlagBits samples,
+             VkImage image)
+            : Image(device, format, extent, mipLevels, arrayLayers, samples, image) {
+            // do nothing
+        }
     };
 
-    IMAGE_2D_TYPE(GPUImage2D, VK_IMAGE_TILING_OPTIMAL, VMA_MEMORY_USAGE_GPU_ONLY);
-    IMAGE_2D_TYPE(CPUImage2D, VK_IMAGE_TILING_OPTIMAL, VMA_MEMORY_USAGE_CPU_ONLY);
-    #undef IMAGE_2D_TYPE
+    using GPUImage = ImageBase<VMA_MEMORY_USAGE_GPU_ONLY>;
+    using CPUImage = ImageBase<VMA_MEMORY_USAGE_CPU_ONLY>;
 
 } // end of namespace slim
 

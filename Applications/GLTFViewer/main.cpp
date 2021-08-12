@@ -2,6 +2,7 @@
 
 #include "config.h"
 #include "model.h"
+#include "gizmo.h"
 
 using namespace slim;
 
@@ -35,27 +36,21 @@ int main() {
     GLTFModel model;
     GLTFAssetManager manager(device);
 
+    Gizmo gizmo;
+
     device->Execute([&](CommandBuffer* commandBuffer) {
-        // model = manager.Load(commandBuffer, ToAssetPath("Characters/GenshinImpact/amber/scene.gltf"));
-        model = manager.Load(commandBuffer, ToAssetPath("Scenes/Sponza/glTF/Sponza.gltf"));
+        gizmo.Init(commandBuffer);
+        gizmo.scene->Update();
+
+        model = manager.Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
     });
 
     GLTFScene& scene = model.scenes[0];
-    // scene.roots[0]->Scale(0.5, 0.5, 0.5);
-    // scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI / 2.0f);
-    // scene.roots[0]->Rotate(glm::vec3(1.0f, 0.0f, 0.0f), -M_PI / 2.0f);
-    // scene.roots[0]->Rotate(glm::vec3(0.0f, 0.0f, 1.0f),  M_PI       );
-    // scene.roots[0]->Translate(0, 0, -15);
-    // scene.roots[0]->Scale(0.1, 0.1, 0.1);
 
     auto time = Time();
 
-    // create a camera
-    auto camera = SlimPtr<Flycam>("camera");
-    // camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-    camera->LookAt(glm::vec3(0.0, 50.0, 3.0), glm::vec3(0.0, 50.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-    camera->SetWalkSpeed(1.0f);
-    camera->SetRotateSpeed(0.02f);
+    auto camera = SlimPtr<Camera>("camera");
+    camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // render
     while (!window->ShouldClose()) {
@@ -63,8 +58,6 @@ int main() {
         auto frame = window->AcquireNext();
 
         // camera
-        camera->SetExtent(frame->GetExtent());
-        camera->Update(input, time);
         camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
 
         // handle input
@@ -73,9 +66,12 @@ int main() {
 
         // transform scene nodes
         for (auto root : scene.roots) {
-            // root->SetTransform(arcball.GetTransform());
+            root->SetTransform(arcball->GetTransform());
             root->Update();
         }
+
+        gizmo.scene->SetTransform(arcball->GetTransform());
+        gizmo.scene->Update();
 
         // perform culling
         CPUCulling culling;
@@ -83,6 +79,10 @@ int main() {
             root->Update();
             culling.Cull(root, camera);
         }
+
+        // gizmo
+        CPUCulling gizmoCulling;
+        gizmoCulling.Cull(gizmo.scene, camera);
 
         // perform sorting
         culling.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
@@ -110,6 +110,7 @@ int main() {
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
                 renderer.Draw(camera, culling.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(camera, gizmoCulling.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
         }
         renderGraph.Execute();

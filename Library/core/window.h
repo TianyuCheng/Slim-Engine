@@ -79,7 +79,7 @@ namespace slim {
         VkFormat                           swapchainFormat;
         VkExtent2D                         swapchainExtent;
         VkSwapchainKHR                     swapchain           = VK_NULL_HANDLE;
-        std::vector<SmartPtr<GPUImage2D>>  swapchainImages     = {};
+        std::vector<SmartPtr<GPUImage>>    swapchainImages     = {};
 
         // render/compute frames
         uint32_t                           currentFrame        = 0;

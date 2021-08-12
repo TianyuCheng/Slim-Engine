@@ -6,7 +6,7 @@
 
 using namespace slim;
 
-RenderGraph::Resource::Resource(GPUImage2D* image)
+RenderGraph::Resource::Resource(GPUImage* image)
     : image(image), retained(true) {
     VkExtent3D ext = image->GetExtent();
     format = image->GetFormat();
@@ -29,7 +29,7 @@ void RenderGraph::Resource::Allocate(RenderFrame* renderFrame) {
     }
 
     if (!image.get()) {
-        image = renderFrame->RequestGPUImage2D(format, extent, mipLevels, samples, usage);
+        image = renderFrame->RequestGPUImage(format, extent, mipLevels, 1, samples, usage);
     }
 }
 
@@ -314,7 +314,7 @@ RenderGraph::Pass* RenderGraph::CreateComputePass(const std::string &name) {
     return passes.back().get();
 }
 
-RenderGraph::Resource* RenderGraph::CreateResource(GPUImage2D* image) {
+RenderGraph::Resource* RenderGraph::CreateResource(GPUImage* image) {
     resources.push_back(SlimPtr<Resource>(image));
     return resources.back().get();
 }
@@ -481,7 +481,7 @@ void RenderGraph::Execute() {
     // adding a layout transition
     if (lastGraphicsCommandBuffer) {
         // present src layout transition
-        GPUImage2D* backbuffer = renderFrame->GetBackBuffer();
+        GPUImage* backbuffer = renderFrame->GetBackBuffer();
         lastGraphicsCommandBuffer->PrepareForPresentSrc(backbuffer);
     }
 

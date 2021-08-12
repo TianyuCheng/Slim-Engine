@@ -73,7 +73,7 @@ int main() {
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
-            .SetPolygonMode(VK_POLYGON_MODE_LINE)
+            // .SetPolygonMode(VK_POLYGON_MODE_LINE)
             .SetPipelineLayout(PipelineLayoutDesc()
                 .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
                 .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));

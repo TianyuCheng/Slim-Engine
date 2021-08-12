@@ -25,7 +25,7 @@ namespace slim {
         // for object transform setup
         struct alignas(256) ModelData {
             alignas(16) glm::mat4 model;
-            alignas(16) glm::mat3 normal;
+            alignas(16) glm::mat4 normal;   // normal matrix is mat3, but using a mat4 is better for alignment issue
         };
 
         explicit MeshRenderer(const RenderInfo &info);

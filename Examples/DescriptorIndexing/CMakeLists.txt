@@ -1,0 +1,4 @@
+compile_glsl(descriptorindex_glsl_shaders shaders/)
+add_executable(descriptorindex main.cpp)
+target_link_libraries(descriptorindex PRIVATE slim)
+add_dependencies(descriptorindex descriptorindex_glsl_shaders)

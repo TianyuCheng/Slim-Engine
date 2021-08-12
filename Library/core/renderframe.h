@@ -29,11 +29,11 @@ namespace slim {
         friend class Descriptor;
     public:
         explicit RenderFrame(Device *device, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
-        explicit RenderFrame(Device *device, GPUImage2D *backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
+        explicit RenderFrame(Device *device, GPUImage *backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
         virtual ~RenderFrame();
 
         Device*                  GetDevice() const { return device; }
-        GPUImage2D*              GetBackBuffer() const { return backBuffer; };
+        GPUImage*                GetBackBuffer() const { return backBuffer; };
         VkExtent2D               GetExtent() const { VkExtent3D extent = backBuffer->GetExtent(); return { extent.width, extent.height }; };
         float                    GetAspectRatio() const;
         DescriptorPool*          GetDescriptorPool() const;
@@ -44,7 +44,7 @@ namespace slim {
         RenderPass*              RequestRenderPass(const RenderPassDesc &renderPassDesc);
         Framebuffer*             RequestFramebuffer(const FramebufferDesc &framebufferDesc);
         CommandBuffer*           RequestCommandBuffer(VkQueueFlagBits queue, VkCommandBufferLevel = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        Transient<GPUImage2D>    RequestGPUImage2D(VkFormat format, VkExtent2D extent, uint32_t mipLevels, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
+        Transient<GPUImage>      RequestGPUImage(VkFormat format, VkExtent2D extent, uint32_t mipLevels, uint32_t arrayLayers, VkSampleCountFlagBits samples, VkImageUsageFlags imageUsage);
         Semaphore*               RequestSemaphore();
 
         UniformBuffer*           RequestUniformBuffer(size_t size);
@@ -58,14 +58,14 @@ namespace slim {
         void                     Reset();
         void                     Invalidate();
         void                     Present(CommandBuffer *commandBuffer);
-        void                     SetBackBuffer(GPUImage2D *backBuffer);
+        void                     SetBackBuffer(GPUImage *backBuffer);
 
         Fence*                   GetGraphicsFinishFence();
         Fence*                   GetComputeFinishFence();
 
     private:
         SmartPtr<Device>         device;
-        SmartPtr<GPUImage2D>     backBuffer;
+        SmartPtr<GPUImage>       backBuffer;
         QueueFamilyIndices       queueFamilyIndices;
 
         // queues
@@ -74,8 +74,8 @@ namespace slim {
         SmartPtr<CommandPool>    transferCommandPools;
 
         // pools
-        SmartPtr<Image2DPool<CPUImage2D>>   cpuImagePool;
-        SmartPtr<Image2DPool<GPUImage2D>>   gpuImagePool;
+        SmartPtr<ImagePool<CPUImage>>       cpuImagePool;
+        SmartPtr<ImagePool<GPUImage>>       gpuImagePool;
         SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool;
         SmartPtr<DescriptorPool>            descriptorPool;
         std::vector<SmartPtr<Semaphore>>    semaphorePool;

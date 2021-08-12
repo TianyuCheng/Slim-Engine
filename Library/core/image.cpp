@@ -29,7 +29,24 @@ VkImageViewType InferImageViewType(const VkImageCreateInfo &createInfo) {
     return VK_IMAGE_VIEW_TYPE_2D;
 }
 
-Image::Image(Device *device,
+Image::Image(Device* device,
+             VkFormat format,
+             VkExtent2D extent,
+             uint32_t mipLevels,
+             uint32_t arrayLayers,
+             VkSampleCountFlagBits samples,
+             VkImageUsageFlags imageUsage,
+             VmaMemoryUsage memoryUsage,
+             VkImageTiling tiling,
+             VkSharingMode sharingMode)
+    : Image(device, format,
+            VkExtent3D { extent.width, extent.height, 1 },
+            mipLevels, arrayLayers, samples,
+            imageUsage, memoryUsage, tiling, sharingMode) {
+
+}
+
+Image::Image(Device* device,
              VkFormat format,
              VkExtent3D extent,
              uint32_t mipLevels,
@@ -59,6 +76,11 @@ Image::Image(Device *device,
     createInfo.queueFamilyIndexCount = 0;
     createInfo.pQueueFamilyIndices = nullptr;
     createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    createInfo.flags = 0;
+
+    if (imageType == VK_IMAGE_TYPE_2D && arrayLayers == 6) {
+        createInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    }
 
     VmaAllocationCreateInfo allocCreateInfo = {};
     allocCreateInfo.usage = memoryUsage;
@@ -67,12 +89,26 @@ Image::Image(Device *device,
 
     // initialize image layout for each slice
     layouts.resize(arrayLayers);
-    for (auto &layout : layouts)
-        for (uint32_t i = 0; i < mipLevels; i++)
+    for (auto &layout : layouts) {
+        for (uint32_t i = 0; i < mipLevels; i++) {
             layout.push_back(VK_IMAGE_LAYOUT_UNDEFINED);
+        }
+    }
 }
 
-Image::Image(Device *device,
+Image::Image(Device* device,
+             VkFormat format,
+             VkExtent2D extent,
+             uint32_t mipLevels,
+             uint32_t arrayLayers,
+             VkSampleCountFlagBits samples,
+             VkImage image)
+    : Image(device, format,
+            VkExtent3D { extent.width, extent.height, 1 },
+            mipLevels, arrayLayers, samples, image) {
+}
+
+Image::Image(Device* device,
              VkFormat format,
              VkExtent3D extent,
              uint32_t mipLevels,

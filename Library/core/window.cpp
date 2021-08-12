@@ -145,10 +145,10 @@ void Window::InitSwapchain() {
     vkGetSwapchainImagesKHR(*device, swapchain, &imageCount, images.data());
     swapchainImages.resize(imageCount);
     for (uint32_t i = 0; i < images.size(); i++) {
-        swapchainImages[i] = SlimPtr<GPUImage2D>(device, swapchainFormat,
-                                                 VkExtent3D { swapchainExtent.width, swapchainExtent.height, 1 },
-                                                 1, 1, VK_SAMPLE_COUNT_1_BIT,
-                                                 images[i]);
+        swapchainImages[i] = SlimPtr<GPUImage>(device, swapchainFormat,
+                                               VkExtent3D { swapchainExtent.width, swapchainExtent.height, 1 },
+                                               1, 1, VK_SAMPLE_COUNT_1_BIT,
+                                               images[i]);
     }
 }
 

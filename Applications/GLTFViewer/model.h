@@ -40,7 +40,7 @@ struct GLTFModel {
     std::vector<GLTFMesh>              meshes;
     std::vector<SmartPtr<Material>>    materials;
     std::vector<SmartPtr<Sampler>>     samplers;
-    std::vector<SmartPtr<GPUImage2D>>  images;
+    std::vector<SmartPtr<GPUImage>>    images;
 };
 
 class GLTFAssetManager {

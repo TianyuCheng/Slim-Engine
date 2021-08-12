@@ -1,4 +1,6 @@
 #include "meshrenderer.h"
+#include <iostream>
+#include <glm/gtx/string_cast.hpp>
 
 using namespace slim;
 
@@ -27,11 +29,9 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
 
     // prepare model transforms
     for (const Drawable& drawable : drawables) {
-        glm::mat4 mv = cameraData.view * drawable.node->GetTransform().LocalToWorld();
-        modelData.push_back(ModelData {
-            drawable.node->GetTransform().LocalToWorld(),
-            glm::mat3(glm::transpose(glm::inverse(mv)))
-        });
+        glm::mat4 M = drawable.node->GetTransform().LocalToWorld();
+        glm::mat4 N = glm::transpose(glm::inverse(cameraData.view * M));
+        modelData.push_back(ModelData { M, N });
         materials.push_back(drawable.material);
     }
 
