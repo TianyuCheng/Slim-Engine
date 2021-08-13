@@ -62,7 +62,9 @@ int main() {
     });
 
     // window
-    while (!window->ShouldClose()) {
+    while (window->IsRunning()) {
+        Window::PollEvents();
+
         // query image from swapchain
         auto frame = window->AcquireNext();
         float aspect = float(frame->GetExtent().width) / float(frame->GetExtent().height);
@@ -124,9 +126,6 @@ int main() {
         }
 
         graph.Execute();
-
-        // window update
-        window->PollEvents();
     }
 
     device->WaitIdle();

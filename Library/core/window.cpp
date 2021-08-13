@@ -86,12 +86,12 @@ Window::~Window() {
     }
 }
 
-void Window::PollEvents() {
-    glfwPollEvents();
+bool Window::IsRunning() {
+    return !glfwWindowShouldClose(handle);
 }
 
-bool Window::ShouldClose() {
-    return glfwWindowShouldClose(handle);
+void Window::PollEvents() {
+    glfwPollEvents();
 }
 
 void Window::InitSwapchain() {

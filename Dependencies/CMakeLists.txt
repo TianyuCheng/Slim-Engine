@@ -123,3 +123,13 @@ endif()
 # code formatter
 # ---------------------------------------------------------------
 add_subdirectory(Format.cmake)
+
+# pybind11
+# ---------------------------------------------------------------
+set(PYBIND11_INSTALL
+    OFF
+    CACHE BOOL "pybind11 no install" FORCE)
+set(PYBIND11_TEST
+    OFF
+    CACHE BOOL "pybind11 no test" FORCE)
+add_subdirectory(pybind11)

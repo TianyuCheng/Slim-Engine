@@ -25,3 +25,6 @@
 [submodule "Dependencies/Format.cmake"]
 	path = Dependencies/Format.cmake
 	url = git@github.com:TheLartians/Format.cmake.git
+[submodule "Dependencies/pybind11"]
+	path = Dependencies/pybind11
+	url = git@github.com:pybind/pybind11.git

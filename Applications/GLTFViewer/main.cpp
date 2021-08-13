@@ -53,7 +53,9 @@ int main() {
     camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // render
-    while (!window->ShouldClose()) {
+    while (window->IsRunning()) {
+        input->Reset();
+
         // query image from swapchain
         auto frame = window->AcquireNext();
 
@@ -114,10 +116,6 @@ int main() {
             });
         }
         renderGraph.Execute();
-
-        // window update
-        input->Reset();
-        window->PollEvents();
     }
 
     device->WaitIdle();

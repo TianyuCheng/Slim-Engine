@@ -57,13 +57,14 @@ namespace slim {
         explicit Window(Device *device, const WindowDesc & desc);
         virtual ~Window();
 
-        void                               PollEvents();
-        bool                               ShouldClose();
+        bool                               IsRunning();
+        static void                        PollEvents();
 
         RenderFrame*                       AcquireNext();
         VkExtent2D                         GetExtent() const { return swapchainExtent; }
         VkFormat                           GetFormat() const { return swapchainFormat; }
         GLFWwindow*                        GetWindow() const { return handle; }
+
 
     private:
         void                               InitSwapchain();

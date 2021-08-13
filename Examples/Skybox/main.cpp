@@ -165,7 +165,9 @@ int main() {
     std::vector<const char*> materials = { "reflect", "refract" };
 
     // render
-    while (!window->ShouldClose()) {
+    while (window->IsRunning()) {
+        Window::PollEvents();
+
         // query image from swapchain
         auto frame = window->AcquireNext();
 
@@ -242,9 +244,6 @@ int main() {
         renderGraph.Execute();
 
         input->Reset();
-
-        // window update
-        window->PollEvents();
     }
 
     device->WaitIdle();
