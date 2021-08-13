@@ -30,6 +30,7 @@ Arcball::Arcball(const VkExtent2D &screen) : screen(screen) {
 void Arcball::Reset() {
     angle = 0.0;
     xform = glm::mat4(1.0);
+    xformNoScale = glm::mat4(1.0);
 }
 
 void Arcball::SetDamping(float value) {
@@ -92,6 +93,7 @@ bool Arcball::Update(Input* input) {
         glm::vec3 axisInCameraCoord = glm::cross(va, vb);
         // compute axis in object coordinate
         xform.ApplyTransform();
+        xformNoScale.ApplyTransform();
         axisInObjectCoord = glm::mat3(xform.WorldToLocal()) * axisInCameraCoord;
         changed = true;
     }
@@ -100,6 +102,7 @@ bool Arcball::Update(Input* input) {
     if (angle != 0) {
         // update model matrix by axis angle
         xform.Rotate(axisInObjectCoord, angle);
+        xformNoScale.Rotate(axisInObjectCoord, angle);
         angle *= damping;
         changed = true;
     }

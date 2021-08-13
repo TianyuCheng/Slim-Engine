@@ -156,10 +156,12 @@ RenderPass::RenderPass(Device *device, const RenderPassDesc &desc)
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = desc.colorAttachments.size();
     subpass.pColorAttachments = desc.colorAttachments.data();
-    if (desc.depthStencilAttachments.size())
+    if (desc.depthStencilAttachments.size()) {
         subpass.pDepthStencilAttachment = desc.depthStencilAttachments.data();
-    if (desc.resolveAttachments.size())
+    }
+    if (desc.resolveAttachments.size()) {
         subpass.pResolveAttachments = desc.resolveAttachments.data();
+    }
 
     VkSubpassDependency dependency = {};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;

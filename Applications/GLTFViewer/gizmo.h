@@ -2,11 +2,10 @@
 #define GLTFVIEWER_GIZMO_H
 
 #include <slim/slim.hpp>
-#include "config.h"
 
 using namespace slim;
 
-struct Gizmo {
+struct Gizmo : ReferenceCountable {
     // scene
     SmartPtr<Scene> scene;
     SmartPtr<Mesh> mesh;
@@ -19,11 +18,7 @@ struct Gizmo {
     SmartPtr<Material> green;
     SmartPtr<Material> blue;
 
-    Gizmo() {
-
-    }
-
-    void Init(CommandBuffer* commandBuffer) {
+    Gizmo(CommandBuffer* commandBuffer) {
         InitMesh(commandBuffer);
         InitMaterial(commandBuffer);
         InitScene();
@@ -75,7 +70,6 @@ struct Gizmo {
                 .SetCullMode(VK_CULL_MODE_BACK_BIT)
                 .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                 .SetDepthTest(VK_COMPARE_OP_LESS_OR_EQUAL)
-                .SetSampleCount(msaa)
                 .SetPipelineLayout(PipelineLayoutDesc()
                     .AddBinding("Camera",           0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
                     .AddBinding("Color",            1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -96,7 +90,6 @@ struct Gizmo {
     void InitScene() {
         manager = SlimPtr<SceneManager>();
         scene = manager->Create<Scene>("gizmo");
-        scene->Scale(0.1, 0.1, 0.1);
 
         auto redCylinder = manager->Create<Scene>("red-cylinder", scene);
         auto redCone = manager->Create<Scene>("red-cylinder", redCylinder);

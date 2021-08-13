@@ -25,6 +25,7 @@ namespace slim {
         bool Update(Input* input);
 
         const Transform& GetTransform() const { return xform; }
+        const Transform& GetTransformNoScale() const { return xformNoScale; }
 
     private:
         VkExtent2D screen;
@@ -35,6 +36,7 @@ namespace slim {
         float sensitivity = 1.0f;
         glm::vec3 axisInObjectCoord;
         Transform xform;
+        Transform xformNoScale;
     };
 
 } // end of SLIM_UTILITY_ARCBALL_H

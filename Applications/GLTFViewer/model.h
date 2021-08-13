@@ -43,7 +43,7 @@ struct GLTFModel {
     std::vector<SmartPtr<GPUImage>>    images;
 };
 
-class GLTFAssetManager {
+class GLTFAssetManager : public ReferenceCountable {
 public:
     explicit GLTFAssetManager(Device* device);
     GLTFModel Load(CommandBuffer* commandBuffer, const std::string& path);

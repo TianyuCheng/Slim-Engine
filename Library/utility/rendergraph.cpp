@@ -177,7 +177,11 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                                           attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+        if (attachment.clearValue.has_value()) {
+            clearValues.push_back(attachment.clearValue.value());
+        } else {
+            clearValues.push_back(ClearValue(1.0, 1.0, 1.0, 1.0));
+        }
     }
 
     // depth attachment
@@ -189,7 +193,11 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                                           attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsDepthBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+        if (attachment.clearValue.has_value()) {
+            clearValues.push_back(attachment.clearValue.value());
+        } else {
+            clearValues.push_back(ClearValue(1.0, 0));
+        }
     }
 
     // stencil attachment
@@ -201,7 +209,11 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsStencilBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+        if (attachment.clearValue.has_value()) {
+            clearValues.push_back(attachment.clearValue.value());
+        } else {
+            clearValues.push_back(ClearValue(1.0, 0));
+        }
     }
 
     // depth stencil attachment
@@ -213,7 +225,11 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+        if (attachment.clearValue.has_value()) {
+            clearValues.push_back(attachment.clearValue.value());
+        } else {
+            clearValues.push_back(ClearValue(1.0, 0));
+        }
     }
 
     // color resolve attachments
@@ -225,7 +241,11 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                                             attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
         framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
         attachment.resource->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) clearValues.push_back(attachment.clearValue.value());
+        if (attachment.clearValue.has_value()) {
+            clearValues.push_back(attachment.clearValue.value());
+        } else {
+            clearValues.push_back(ClearValue(1.0, 1.0, 1.0, 1.0));
+        }
     }
 
     // texture layout transition
@@ -241,11 +261,17 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     }
 
     VkExtent2D extent;
-    if (usedAsColorAttachment.size()) extent = usedAsColorAttachment[0].resource->extent;
-    else if (usedAsDepthAttachment.size()) extent = usedAsDepthAttachment[0].resource->extent;
-    else if (usedAsStencilAttachment.size()) extent = usedAsStencilAttachment[0].resource->extent;
-    else if (usedAsDepthStencilAttachment.size()) extent = usedAsDepthStencilAttachment[0].resource->extent;
-    else throw std::runtime_error("no attachment to detect extent!");
+    if (usedAsColorAttachment.size()) {
+        extent = usedAsColorAttachment[0].resource->extent;
+    } else if (usedAsDepthAttachment.size()) {
+        extent = usedAsDepthAttachment[0].resource->extent;
+    } else if (usedAsStencilAttachment.size()) {
+        extent = usedAsStencilAttachment[0].resource->extent;
+    } else if (usedAsDepthStencilAttachment.size()) {
+        extent = usedAsDepthStencilAttachment[0].resource->extent;
+    } else {
+        throw std::runtime_error("no attachment to detect extent!");
+    }
     framebufferDesc.SetExtent(extent.width, extent.height);
 
     // use a named render pass desc
