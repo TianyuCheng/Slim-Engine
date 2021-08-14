@@ -31,6 +31,8 @@ namespace slim {
         void Signal(Semaphore *semaphore);
         void Signal(Fence *fence);
 
+        void NextSubpass(VkSubpassContents contents = VK_SUBPASS_CONTENTS_INLINE);
+
         void Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 
         void Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);

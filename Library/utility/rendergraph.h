@@ -66,10 +66,26 @@ namespace slim {
 
         // -------------------------------------------------------------------------------
 
-        class Pass : public ReferenceCountable {
-            friend class RenderGraph;
+        enum class ResourceType {
+            ColorAttachment,
+            ColorResolveAttachment,
+            DepthAttachment,
+            StencilAttachment,
+            DepthStencilAttachment,
+        };
+
+        struct ResourceMetadata {
+            Resource *resource;
+            ResourceType type;
+            std::optional<VkClearValue> clearValue = std::nullopt;
+        };
+
+        // -------------------------------------------------------------------------------
+
+        class Subpass : public ReferenceCountable {
+            friend class Pass;
         public:
-            explicit Pass(const std::string &name, RenderGraph *graph, bool compute = false);
+            explicit Subpass(Pass* parent);
 
             void SetColorResolve(RenderGraph::Resource *resource);
 
@@ -90,16 +106,56 @@ namespace slim {
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
         private:
+            Pass* parent;
+            std::function<void(const RenderInfo &renderTools)> callback;
+
+            // attachments
+            std::vector<uint32_t> usedAsColorAttachment = {};
+            std::vector<uint32_t> usedAsColorResolveAttachment = {};
+            std::vector<uint32_t> usedAsDepthAttachment = {};
+            std::vector<uint32_t> usedAsStencilAttachment = {};
+            std::vector<uint32_t> usedAsDepthStencilAttachment = {};
+            std::vector<uint32_t> usedAsPreserveAttachment = {};
+            std::vector<uint32_t> usedAsTexture = {};
+        };
+
+        // -------------------------------------------------------------------------------
+
+        class Pass : public ReferenceCountable {
+            friend class Subpass;
+            friend class RenderGraph;
+        public:
+            explicit Pass(const std::string &name, RenderGraph *graph, bool compute = false);
+
+            Subpass* CreateSubpass();
+
+            void SetColorResolve(RenderGraph::Resource* resource);
+
+            void SetColor(RenderGraph::Resource* resource);
+            void SetColor(RenderGraph::Resource* resource, const ClearValue& clear);
+
+            void SetDepth(RenderGraph::Resource* resource);
+            void SetDepth(RenderGraph::Resource* resource, const ClearValue& clear);
+
+            void SetStencil(RenderGraph::Resource* resource);
+            void SetStencil(RenderGraph::Resource* resource, const ClearValue& clear);
+
+            void SetDepthStencil(RenderGraph::Resource* resource);
+            void SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear);
+
+            void SetTexture(RenderGraph::Resource* resource);
+
+            void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
+
+        private:
             void Execute(CommandBuffer* commandBuffer);
             void ExecuteGraphics(CommandBuffer* commandBuffer);
             void ExecuteCompute(CommandBuffer* commandBuffer);
 
-        private:
-            struct ResourceMetadata {
-                Resource *resource;
-                std::optional<VkClearValue> clearValue = std::nullopt;
-            };
+            uint32_t AddAttachment(const RenderGraph::ResourceMetadata& metadata);
+            uint32_t AddTexture(Resource* resource);
 
+        private:
             std::string name;
             RenderGraph *graph;
 
@@ -110,16 +166,18 @@ namespace slim {
             // runtime decision
             bool visited = false;
             bool retained = false;
+            bool useDefaultSubpass = true;
 
-            std::vector<Resource*> attachments = {};
-            std::vector<ResourceMetadata> usedAsTexture = {};
-            std::vector<ResourceMetadata> usedAsColorAttachment = {};
-            std::vector<ResourceMetadata> usedAsDepthAttachment = {};
-            std::vector<ResourceMetadata> usedAsStencilAttachment = {};
-            std::vector<ResourceMetadata> usedAsDepthStencilAttachment = {};
-            std::vector<ResourceMetadata> usedAsColorResolveAttachment = {};
+            std::vector<SmartPtr<Subpass>> subpasses = {};
+            SmartPtr<Subpass> defaultSubpass = nullptr;
 
-            std::function<void(const RenderInfo &renderTools)> callback;
+            // attachments
+            std::vector<ResourceMetadata> attachments = {};
+            std::unordered_map<Resource*, uint32_t> attachmentMap = {};
+
+            // texture does not participate in render pass creation (not attachment)
+            std::vector<Resource*> textures = {};
+            std::unordered_map<Resource*, uint32_t> textureMap = {};
         };
 
         // -------------------------------------------------------------------------------

@@ -37,82 +37,175 @@ void RenderGraph::Resource::Deallocate() {
     image.Reset();
 }
 
+RenderGraph::Subpass::Subpass(RenderGraph::Pass* parent) : parent(parent) {
+}
+
+void RenderGraph::Subpass::SetColorResolve(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorResolveAttachment });
+    resource->writers.push_back(parent);
+    usedAsColorResolveAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment });
+    resource->writers.push_back(parent);
+    usedAsColorAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource, const ClearValue &clear) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment, clear });
+    resource->writers.push_back(parent);
+    usedAsColorAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment });
+    resource->writers.push_back(parent);
+    usedAsDepthAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource, const ClearValue &clear) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment, clear });
+    resource->writers.push_back(parent);
+    usedAsDepthAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment });
+    resource->writers.push_back(parent);
+    usedAsStencilAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment, clear });
+    resource->writers.push_back(parent);
+    usedAsStencilAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment });
+    resource->writers.push_back(parent);
+    usedAsDepthStencilAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment, clear });
+    resource->writers.push_back(parent);
+    usedAsDepthStencilAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetTexture(RenderGraph::Resource *resource) {
+    uint32_t textureId = parent->AddTexture(resource);
+    resource->readers.push_back(parent);
+    usedAsTexture.push_back(textureId);
+}
+
+void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo &renderInfo)> callback) {
+    this->callback = callback;
+}
+
 RenderGraph::Pass::Pass(const std::string &name, RenderGraph *graph, bool compute) : name(name), graph(graph), compute(compute) {
+    defaultSubpass = SlimPtr<Subpass>(this);
+}
+
+RenderGraph::Subpass* RenderGraph::Pass::CreateSubpass() {
+    assert(!compute && "ComputePass does not support subpass");
+    subpasses.push_back(SlimPtr<RenderGraph::Subpass>(this));
+    useDefaultSubpass = false;
+    return subpasses.back();
 }
 
 void RenderGraph::Pass::SetColorResolve(RenderGraph::Resource *resource) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsColorResolveAttachment.push_back({ resource });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetColorResolve(resource);
 }
 
 void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsColorAttachment.push_back({ resource });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetColor(resource);
 }
 
 void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource, const ClearValue &clear) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsColorAttachment.push_back({ resource, clear });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetColor(resource, clear);
 }
 
 void RenderGraph::Pass::SetDepth(RenderGraph::Resource *resource) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsDepthAttachment.push_back({ resource });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetDepth(resource);
 }
 
 void RenderGraph::Pass::SetDepth(RenderGraph::Resource *resource, const ClearValue &clear) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsDepthAttachment.push_back({ resource, clear });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetDepth(resource, clear);
 }
 
 void RenderGraph::Pass::SetStencil(RenderGraph::Resource *resource) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsStencilAttachment.push_back({ resource });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetStencil(resource);
 }
 
 void RenderGraph::Pass::SetStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsStencilAttachment.push_back({ resource, clear });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetStencil(resource, clear);
 }
 
 void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource *resource) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsDepthStencilAttachment.push_back({ resource });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetDepthStencil(resource);
 }
 
 void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
-    attachments.push_back(resource);
-    resource->writers.push_back(this);
-    usedAsDepthStencilAttachment.push_back({ resource, clear });
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetDepthStencil(resource, clear);
 }
 
 void RenderGraph::Pass::SetTexture(RenderGraph::Resource *resource) {
-    resource->readers.push_back(this);
-    usedAsTexture.push_back({ resource });
+    defaultSubpass->SetTexture(resource);
 }
 
-void RenderGraph::Pass::Execute(std::function<void(const RenderInfo &renderInfo)> cb) {
-    callback = cb;
+uint32_t RenderGraph::Pass::AddAttachment(const RenderGraph::ResourceMetadata& metadata) {
+    // find the resource
+    auto it = attachmentMap.find(metadata.resource);
+    if (it == attachmentMap.end()) {
+        uint32_t attachmentId = attachments.size();
+        // adding to attachments
+        attachments.push_back(metadata);
+        // update attachment mapping
+        attachmentMap.insert(std::make_pair(metadata.resource, attachmentId));
+        return attachmentId;
+    }
+    // update clear value
+    attachments[it->second].clearValue = metadata.clearValue;
+    return it->second;
+}
+
+uint32_t RenderGraph::Pass::AddTexture(Resource* resource) {
+    // find the resource
+    auto it = textureMap.find(resource);
+    if (it == textureMap.end()) {
+        uint32_t textureId = textures.size();
+        // adding to textures
+        textures.push_back(resource);
+        // update texture mapping
+        textureMap.insert(std::make_pair(resource, textureId));
+        return textureId;
+    }
+    return it->second;
+}
+
+void RenderGraph::Pass::Execute(std::function<void(const RenderInfo &renderInfo)> callback) {
+    assert(useDefaultSubpass && "call subpass's Execute function when not using the default subpass");
+    defaultSubpass->Execute(callback);
 }
 
 void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     RenderFrame* renderFrame = graph->GetRenderFrame();
 
-    // allocate resource if necessary
-    // no need to allocate texture, because it should already have been allocated
-    for (auto &attachment : usedAsColorAttachment)        attachment.resource->Allocate(renderFrame);
-    for (auto &attachment : usedAsDepthAttachment)        attachment.resource->Allocate(renderFrame);
-    for (auto &attachment : usedAsStencilAttachment)      attachment.resource->Allocate(renderFrame);
-    for (auto &attachment : usedAsDepthStencilAttachment) attachment.resource->Allocate(renderFrame);
-    for (auto &attachment : usedAsColorResolveAttachment) attachment.resource->Allocate(renderFrame);
+    // allocate attachment resource if necessary
+    for (auto& attachment : attachments) {
+        attachment.resource->Allocate(renderFrame);
+    }
 
     if (compute) {
         ExecuteCompute(commandBuffer);
@@ -120,27 +213,33 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
         ExecuteGraphics(commandBuffer);
     }
 
-    // update reference counts
-    for (auto &attachment : usedAsTexture)                attachment.resource->rdCount--;
-    for (auto &attachment : usedAsColorAttachment)        attachment.resource->wrCount--;
-    for (auto &attachment : usedAsDepthAttachment)        attachment.resource->wrCount--;
-    for (auto &attachment : usedAsStencilAttachment)      attachment.resource->wrCount--;
-    for (auto &attachment : usedAsDepthStencilAttachment) attachment.resource->wrCount--;
-    for (auto &attachment : usedAsColorResolveAttachment) attachment.resource->wrCount--;
+    // update reference counts for attachments
+    for (auto& attachment : attachments) {
+        attachment.resource->wrCount--;
+        uint32_t refCount = attachment.resource->rdCount
+                          + attachment.resource->wrCount;
+        if (refCount == 0) {
+            attachment.resource->Deallocate();
+        }
+    }
 
-    // clean up resources not used anymore
-    for (auto &attachment : usedAsTexture)                if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
-    for (auto &attachment : usedAsColorAttachment)        if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
-    for (auto &attachment : usedAsDepthAttachment)        if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
-    for (auto &attachment : usedAsStencilAttachment)      if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
-    for (auto &attachment : usedAsDepthStencilAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
-    for (auto &attachment : usedAsColorResolveAttachment) if (attachment.resource->rdCount + attachment.resource->wrCount == 0) attachment.resource->Deallocate();
+    // update reference counts for textures
+    for (auto* texture : textures) {
+        texture->rdCount--;
+        uint32_t refCount = texture->rdCount
+                          + texture->wrCount;
+        if (refCount == 0) {
+            texture->Deallocate();
+        }
+    }
 }
 
 void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
+    assert(useDefaultSubpass && "ComputePass only support the default subpass");
+
     // texture layout transition
-    for (auto &texture : usedAsTexture) {
-        commandBuffer->PrepareForShaderRead(texture.resource->image);
+    for (auto &textureId : defaultSubpass->usedAsTexture) {
+        commandBuffer->PrepareForShaderRead(textures[textureId]->image);
     }
 
     // TODO: add other types of resources which needs layout transition
@@ -151,7 +250,7 @@ void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     info.renderFrame = graph->GetRenderFrame();
     info.renderPass = nullptr;
     info.commandBuffer = commandBuffer;
-    callback(info);
+    defaultSubpass->callback(info);
 }
 
 void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
@@ -161,117 +260,115 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     std::vector<VkClearValue> clearValues;
 
     auto inferLoadOp = [](const ResourceMetadata &attachment) -> VkAttachmentLoadOp {
-        if (attachment.clearValue.has_value())
+        if (attachment.clearValue.has_value()) {
             return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        if (attachment.resource->layout == VK_IMAGE_LAYOUT_UNDEFINED)
+        } if (attachment.resource->layout == VK_IMAGE_LAYOUT_UNDEFINED) {
             return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        }
         return VK_ATTACHMENT_LOAD_OP_LOAD;
     };
 
-    // color attachments
-    for (auto &attachment : usedAsColorAttachment) {
-        renderPassDesc.AddColorAttachment(attachment.resource->format,
-                                          attachment.resource->samples,
-                                          inferLoadOp(attachment),
-                                          VK_ATTACHMENT_STORE_OP_STORE,
-                                          attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
-        attachment.resource->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    std::vector<uint32_t> attachmentIds = {};
+    for (const auto& attachment : attachments) {
+        Resource* resource = attachment.resource;
+        VkAttachmentLoadOp load = inferLoadOp(attachment);
+        VkAttachmentStoreOp store = VK_ATTACHMENT_STORE_OP_STORE;
+        uint32_t attachmentId = 0;
+        switch (attachment.type) {
+            case ResourceType::ColorAttachment:
+                attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
+                break;
+            case ResourceType::ColorResolveAttachment:
+                attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
+                break;
+            case ResourceType::DepthAttachment:
+                attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE);
+                framebufferDesc.AddAttachment(attachment.resource->image->AsDepthBuffer());
+                break;
+            case ResourceType::StencilAttachment:
+                attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, load, store);
+                framebufferDesc.AddAttachment(attachment.resource->image->AsStencilBuffer());
+                break;
+            case ResourceType::DepthStencilAttachment:
+                attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
+                framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
+                break;
+        }
         if (attachment.clearValue.has_value()) {
             clearValues.push_back(attachment.clearValue.value());
         } else {
             clearValues.push_back(ClearValue(1.0, 1.0, 1.0, 1.0));
         }
-    }
-
-    // depth attachment
-    for (auto &attachment : usedAsDepthAttachment) {
-        renderPassDesc.AddDepthAttachment(attachment.resource->format,
-                                          attachment.resource->samples,
-                                          inferLoadOp(attachment),
-                                          VK_ATTACHMENT_STORE_OP_STORE,
-                                          attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-        framebufferDesc.AddAttachment(attachment.resource->image->AsDepthBuffer());
-        attachment.resource->layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) {
-            clearValues.push_back(attachment.clearValue.value());
-        } else {
-            clearValues.push_back(ClearValue(1.0, 0));
-        }
-    }
-
-    // stencil attachment
-    for (auto &attachment : usedAsStencilAttachment) {
-        renderPassDesc.AddStencilAttachment(attachment.resource->format,
-                                            attachment.resource->samples,
-                                            inferLoadOp(attachment),
-                                            VK_ATTACHMENT_STORE_OP_STORE,
-                                            attachment.resource->layout, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL);
-        framebufferDesc.AddAttachment(attachment.resource->image->AsStencilBuffer());
-        attachment.resource->layout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) {
-            clearValues.push_back(attachment.clearValue.value());
-        } else {
-            clearValues.push_back(ClearValue(1.0, 0));
-        }
-    }
-
-    // depth stencil attachment
-    for (auto &attachment : usedAsDepthStencilAttachment) {
-        renderPassDesc.AddDepthStencilAttachment(attachment.resource->format,
-                                            attachment.resource->samples,
-                                            inferLoadOp(attachment),
-                                            VK_ATTACHMENT_STORE_OP_STORE,
-                                            attachment.resource->layout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
-        framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
-        attachment.resource->layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) {
-            clearValues.push_back(attachment.clearValue.value());
-        } else {
-            clearValues.push_back(ClearValue(1.0, 0));
-        }
-    }
-
-    // color resolve attachments
-    for (auto &attachment : usedAsColorResolveAttachment) {
-        renderPassDesc.AddResolveAttachment(attachment.resource->format,
-                                            attachment.resource->samples,
-                                            inferLoadOp(attachment),
-                                            VK_ATTACHMENT_STORE_OP_STORE,
-                                            attachment.resource->layout, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        framebufferDesc.AddAttachment(attachment.resource->image->AsColorBuffer());
-        attachment.resource->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        if (attachment.clearValue.has_value()) {
-            clearValues.push_back(attachment.clearValue.value());
-        } else {
-            clearValues.push_back(ClearValue(1.0, 1.0, 1.0, 1.0));
-        }
+        attachmentIds.push_back(attachmentId);
     }
 
     // texture layout transition
-    for (auto &texture : usedAsTexture) {
+    for (auto &texture : textures) {
         // transit dst image layout
-        PrepareLayoutTransition(*commandBuffer, texture.resource->image,
-            texture.resource->layout,
+        PrepareLayoutTransition(*commandBuffer, texture->image,
+            texture->layout,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-            0, texture.resource->image->Layers(),
-            0, texture.resource->image->MipLevels());
+            0, texture->image->Layers(),
+            0, texture->image->MipLevels());
     }
 
-    VkExtent2D extent;
-    if (usedAsColorAttachment.size()) {
-        extent = usedAsColorAttachment[0].resource->extent;
-    } else if (usedAsDepthAttachment.size()) {
-        extent = usedAsDepthAttachment[0].resource->extent;
-    } else if (usedAsStencilAttachment.size()) {
-        extent = usedAsStencilAttachment[0].resource->extent;
-    } else if (usedAsDepthStencilAttachment.size()) {
-        extent = usedAsDepthStencilAttachment[0].resource->extent;
+    // update render pass subpasses
+    std::vector<SmartPtr<Subpass>> renderSubpasses;
+    if (useDefaultSubpass) {
+        renderSubpasses.push_back(defaultSubpass);
     } else {
-        throw std::runtime_error("no attachment to detect extent!");
+        renderSubpasses = subpasses;
     }
+    for (const auto& subpass : renderSubpasses) {
+        SubpassDesc& subpassDesc = renderPassDesc.AddSubpass();
+        for (uint32_t attachment : subpass->usedAsColorAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            subpassDesc.AddColorAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsColorResolveAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            subpassDesc.AddResolveAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsDepthAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            subpassDesc.AddDepthAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsStencilAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+            subpassDesc.AddStencilAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsDepthStencilAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+            subpassDesc.AddDepthStencilAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsPreserveAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            subpassDesc.AddPreserveAttachment(attachmentId);
+        }
+    }
+
+    // framebuffer extent
+    assert(attachments.size() > 0);
+    VkExtent2D extent = attachments[0].resource->extent;
     framebufferDesc.SetExtent(extent.width, extent.height);
 
     // use a named render pass desc
@@ -303,7 +400,12 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     info.commandBuffer = commandBuffer;
 
     // execute draw callback
-    callback(info);
+    for (uint32_t i = 0; i < renderSubpasses.size(); i++) {
+        renderSubpasses[i]->callback(info);
+        if (i != renderSubpasses.size() - 1) {
+            commandBuffer->NextSubpass();
+        }
+    }
 
     // end render pass
     vkCmdEndRenderPass(*commandBuffer);
@@ -363,7 +465,7 @@ void RenderGraph::Compile() {
     }
 
     // for each retained resource, find a path back
-    // there must be at least 1 resource that is retained (for backbuffer)
+    // there must be at least 1 resource that is retained (for back buffer)
     for (auto &resource : resources) {
         if (resource->retained) {
             CompileResource(resource.get());
@@ -389,7 +491,7 @@ void RenderGraph::CompilePass(Pass *pass) {
     pass->retained = true;
 
     // any texture used by this pass should be retained
-    for (auto &meta : pass->usedAsTexture) CompileResource(meta.resource);
+    for (auto &texture : pass->textures) CompileResource(texture);
 
     // adding this pass in a post-order
     timeline.push_back(pass);
@@ -398,38 +500,24 @@ void RenderGraph::CompilePass(Pass *pass) {
 void RenderGraph::UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, Resource* resource) const {
     for (const auto& writerPass : resource->writers) {
         if (!writerPass->commandBuffer) continue;
-        // for color attachments
-        for (const auto& res : writerPass->usedAsColorAttachment) {
-            if (res.resource == resource) {
-                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+        for (const auto& meta : writerPass->attachments) {
+            if (meta.resource == resource) {
+                switch (meta.type) {
+                    case ResourceType::ColorAttachment:
+                    case ResourceType::ColorResolveAttachment:
+                        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                        break;
+                    case ResourceType::DepthAttachment:
+                    case ResourceType::StencilAttachment:
+                    case ResourceType::DepthStencilAttachment:
+                        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+                        break;
+                }
                 return;
             }
         }
-        for (const auto& res : writerPass->usedAsColorResolveAttachment) {
-            if (res.resource == resource) {
-                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                return;
-            }
-        }
-        // for depth stencil attachments
-        for (const auto& res : writerPass->usedAsDepthAttachment) {
-            if (res.resource == resource) {
-                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                return;
-            }
-        }
-        for (const auto& res : writerPass->usedAsStencilAttachment) {
-            if (res.resource == resource) {
-                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                return;
-            }
-        }
-        for (const auto& res : writerPass->usedAsDepthStencilAttachment) {
-            if (res.resource == resource) {
-                commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                return;
-            }
-        }
+
         // for all other types
         commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
         return;
@@ -438,10 +526,13 @@ void RenderGraph::UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, 
 
 bool RenderGraph::HasComputePassDependency(Pass* pass) const {
     // input
-    for (const auto& meta : pass->usedAsTexture)
-        for (const auto& writerPass : meta.resource->writers)
-            if (writerPass->compute)
+    for (const auto& texture : pass->textures) {
+        for (const auto& writerPass : texture->writers) {
+            if (writerPass->compute) {
                 return true;
+            }
+        }
+    }
     return false;
 }
 
@@ -499,16 +590,16 @@ void RenderGraph::Execute() {
         pass->visited = true;
 
         // resolving command buffer dependencies
-        for (const auto& meta : pass->usedAsTexture) {
-            UpdateCommandBufferDependencies(pass->commandBuffer, meta.resource);
+        for (const auto& resource : pass->textures) {
+            UpdateCommandBufferDependencies(pass->commandBuffer, resource);
         }
     }
 
     // adding a layout transition
     if (lastGraphicsCommandBuffer) {
         // present src layout transition
-        GPUImage* backbuffer = renderFrame->GetBackBuffer();
-        lastGraphicsCommandBuffer->PrepareForPresentSrc(backbuffer);
+        GPUImage* backBuffer = renderFrame->GetBackBuffer();
+        lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
     }
 
     // stop command buffer recording for all

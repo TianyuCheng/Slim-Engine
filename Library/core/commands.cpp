@@ -52,6 +52,10 @@ void CommandBuffer::End() {
     ErrorCheck(vkEndCommandBuffer(handle), "end command buffer")
 }
 
+void CommandBuffer::NextSubpass(VkSubpassContents contents) {
+    vkCmdNextSubpass(handle, contents);
+}
+
 void CommandBuffer::Submit() {
     // prepare submit info
     VkSubmitInfo submitInfo = {};
