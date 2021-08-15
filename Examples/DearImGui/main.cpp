@@ -30,6 +30,31 @@ int main() {
         DearImGui::EnableMultiview();
     });
 
+    // dock builder
+    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+    ui->Begin();
+    {
+        ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
+        {
+            ImGuiID dockspaceId = ImGui::GetID("Main");
+            ImGui::DockSpace(dockspaceId, ImVec2(0.0, 0.0), dockspaceFlags);
+            ImGui::DockBuilderRemoveNode(dockspaceId);
+            ImGui::DockBuilderAddNode(dockspaceId, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId, ImVec2(640, 480));
+
+            // split into 2 nodes
+            auto leftDockId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.2f, nullptr, &dockspaceId);
+            auto downDockId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Down, 0.25f, nullptr, &dockspaceId);
+
+            ImGui::DockBuilderDockWindow("Left", leftDockId);
+            ImGui::DockBuilderDockWindow("Down", downDockId);
+            ImGui::DockBuilderDockWindow("Dear ImGui Demo", dockspaceId);
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+        ImGui::End();
+    }
+    ui->End();
+
     // window
     while (window->IsRunning()) {
         Window::PollEvents();
@@ -51,13 +76,30 @@ int main() {
 
         ui->Begin();
         {
-            ImGui::ShowDemoWindow();
-
-            ImGui::Begin("Window");
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowViewport(viewport->ID);
+            ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
+            ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar);
             {
-                ImGui::Text("Hello");
+                ImGuiID dockspaceId = ImGui::GetID("Main");
+                ImGui::DockSpace(dockspaceId, ImVec2(0.0, 0.0), dockspaceFlags);
             }
             ImGui::End();
+
+            ImGui::Begin("Left");
+            {
+                ImGui::Text("Left Content");
+            }
+            ImGui::End();
+
+            ImGui::Begin("Down");
+            {
+                ImGui::Text("Down Content");
+            }
+            ImGui::End();
+
+            ImGui::ShowDemoWindow();
         }
         ui->End();
 

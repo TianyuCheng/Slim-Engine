@@ -37,6 +37,7 @@
 
 // third party
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imnodes.h>
 #include <tiny_gltf.h>
 #include "imgui/dearimgui.h"
