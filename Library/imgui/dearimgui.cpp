@@ -2,15 +2,16 @@
 #include "core/window.h"
 #include "core/vkutils.h"
 #include "core/renderframe.h"
-#include "imnodes.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_vulkan.h"
+#include "imnodes.h"
 #include "imgui/dearimgui.h"
 
 using namespace slim;
 
-DearImGui::DearImGui(Device* device, Window* window) : device(device), window(window) {
+DearImGui::DearImGui(Device* device, Window* window, ImGuiInitFunction init) : device(device), window(window) {
     InitImGui();
+    init();
     InitRenderPass();
     InitDescriptorPool();
     InitGlfw();
@@ -20,6 +21,9 @@ DearImGui::DearImGui(Device* device, Window* window) : device(device), window(wi
 
 DearImGui::~DearImGui() {
     ImGui_ImplVulkan_Shutdown();
+
+    ImNodes::DestroyContext();
+    ImGui::DestroyContext();
 
     if (renderPass) {
         vkDestroyRenderPass(*device, renderPass, nullptr);
@@ -35,9 +39,13 @@ DearImGui::~DearImGui() {
 void DearImGui::InitImGui() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+    ImNodes::CreateContext();
+
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+    io.ConfigWindowsResizeFromEdges = true;
 
     // Setup Dear ImGui style
     ImGui::StyleColorsClassic();
@@ -117,6 +125,7 @@ void DearImGui::InitVulkan() {
     info.PhysicalDevice = device->GetContext()->GetPhysicalDevice();
     info.Device = *device;
     info.QueueFamily = device->GetQueueFamilyIndices().graphics.value();
+    info.Queue = device->GetGraphicsQueue();
     info.PipelineCache = VK_NULL_HANDLE;
     info.DescriptorPool = descriptorPool;
     info.Subpass = 0;
@@ -146,15 +155,27 @@ void DearImGui::Begin() const {
     ImGui_ImplGlfw_NewFrame();
     ImGui_ImplVulkan_NewFrame();
     ImGui::NewFrame();
-    ImNodes::CreateContext();
 }
 
 void DearImGui::End() const {
-    ImNodes::DestroyContext();
     ImGui::EndFrame();
+    ImGui::UpdatePlatformWindows();
 }
 
 void DearImGui::Draw(CommandBuffer *commandBuffer) const {
     ImGui::Render();
+    ImGui::RenderPlatformWindowsDefault();
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *commandBuffer);
+}
+
+void DearImGui::EnableDocking() {
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigDockingAlwaysTabBar = true;
+}
+
+void DearImGui::EnableMultiview() {
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    io.ConfigViewportsNoTaskBarIcon = true;
 }

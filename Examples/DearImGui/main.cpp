@@ -21,11 +21,14 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Depth Buffering")
+            .SetTitle("Dear ImGui")
     );
 
     // create ui handle
-    auto ui = SlimPtr<DearImGui>(device, window);
+    auto ui = SlimPtr<DearImGui>(device, window, []() {
+        DearImGui::EnableDocking();
+        DearImGui::EnableMultiview();
+    });
 
     // window
     while (window->IsRunning()) {
@@ -49,6 +52,12 @@ int main() {
         ui->Begin();
         {
             ImGui::ShowDemoWindow();
+
+            ImGui::Begin("Window");
+            {
+                ImGui::Text("Hello");
+            }
+            ImGui::End();
         }
         ui->End();
 

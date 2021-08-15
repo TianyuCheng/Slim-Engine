@@ -2,6 +2,7 @@
 #include "model.h"
 
 GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vShader, Shader* fShader) {
+    // https://github.com/KhronosGroup/glTF/blob/master/specification/2.0/README.md
     return
         GraphicsPipelineDesc()
             .SetName(name)
@@ -22,10 +23,19 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
             .SetDepthTest(VK_COMPARE_OP_LESS_OR_EQUAL)
             .SetSampleCount(msaa)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera",           0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Model",            2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("BaseColorTexture", 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                .AddBinding("Camera",                   0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",                    2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("MaterialFactors",          1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("BaseColorTexture",         1, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("MetallicRoughnessTexture", 1, 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("NormalTexture",            1, 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("EmissiveTexture",          1, 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("OcclusionTexture",         1, 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
             );
+
+    // Base Color:
+    //  When material is metal, the base color is the specific measured reflectance value at normal incidence (F0).
+    //  When material is non-metal, the base color represents the reflected diffuse color of the material. A linear 4% is used.
 }
 
 GLTFAssetManager::GLTFAssetManager(Device* device) : device(device) {
@@ -169,14 +179,74 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
             mat = SlimPtr<Material>(device, techniqueBlend);
         }
 
-        // set texture descriptors
-        const tinygltf::TextureInfo& baseColorTexture = material.pbrMetallicRoughness.baseColorTexture;
+        MaterialFactors factors = {};
+
+        // pbr metallic roughness
+        const auto pbrMetallicRoughness = material.pbrMetallicRoughness;
+        factors.baseColorFactor.x = pbrMetallicRoughness.baseColorFactor[0];
+        factors.baseColorFactor.y = pbrMetallicRoughness.baseColorFactor[1];
+        factors.baseColorFactor.z = pbrMetallicRoughness.baseColorFactor[2];
+        factors.baseColorFactor.w = pbrMetallicRoughness.baseColorFactor[3];
+
+        // base color texture
+        const auto& baseColorTexture = pbrMetallicRoughness.baseColorTexture;
         if (baseColorTexture.index >= 0) {
             uint32_t texture = baseColorTexture.index;
             uint32_t image = model.textures[texture].source;
             uint32_t sampler = model.textures[texture].sampler;
+            factors.baseColorTexCoord = baseColorTexture.texCoord;
             mat->SetTexture("BaseColorTexture", result.images[image], result.samplers[sampler]);
         }
+
+        // metallic roughness
+        factors.metallicFactor = pbrMetallicRoughness.metallicFactor;
+        factors.roughnessFactor = pbrMetallicRoughness.roughnessFactor;
+        const auto& roughnessTexture = pbrMetallicRoughness.metallicRoughnessTexture;
+        if (roughnessTexture.index >= 0) {
+            uint32_t texture = baseColorTexture.index;
+            uint32_t image = model.textures[texture].source;
+            uint32_t sampler = model.textures[texture].sampler;
+            factors.metallicRoughnessTexCoord = roughnessTexture.texCoord;
+            mat->SetTexture("MetallicRoughnessTexture", result.images[image], result.samplers[sampler]);
+        }
+
+        // normal texture
+        const auto& normalTexture = material.normalTexture;
+        factors.normalTexScale = normalTexture.scale;
+        if (normalTexture.index >= 0) {
+            uint32_t texture = normalTexture.index;
+            uint32_t image = model.textures[texture].source;
+            uint32_t sampler = model.textures[texture].sampler;
+            factors.normalTexCoord = normalTexture.texCoord;
+            mat->SetTexture("NormalTexture", result.images[image], result.samplers[sampler]);
+        }
+
+        // occlusion texture
+        const auto& occlusionTexture = material.occlusionTexture;
+        factors.occlusionFactor = occlusionTexture.strength;
+        if (occlusionTexture.index >= 0) {
+            uint32_t texture = occlusionTexture.index;
+            uint32_t image = model.textures[texture].source;
+            uint32_t sampler = model.textures[texture].sampler;
+            factors.occlusionTexCoord = occlusionTexture.texCoord;
+            mat->SetTexture("OcclusionTexture", result.images[image], result.samplers[sampler]);
+        }
+
+        // emissive texture
+        const auto& emissiveTexture = material.emissiveTexture;
+        factors.emissiveFactor.x = material.emissiveFactor[0];
+        factors.emissiveFactor.y = material.emissiveFactor[1];
+        factors.emissiveFactor.z = material.emissiveFactor[2];
+        if (emissiveTexture.index >= 0) {
+            uint32_t texture = occlusionTexture.index;
+            uint32_t image = model.textures[texture].source;
+            uint32_t sampler = model.textures[texture].sampler;
+            factors.emissiveTexCoord = emissiveTexture.texCoord;
+            mat->SetTexture("OcclusionTexture", result.images[image], result.samplers[sampler]);
+        }
+
+        // material factors
+        mat->SetUniform("MaterialFactors", factors);
 
         result.materials.push_back(mat);
     }
@@ -289,15 +359,15 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
             snode->SetTransform(matrix);
         }
 
-        if (node.rotation.size()) {
-            snode->Rotate(node.rotation[0], node.rotation[1], node.rotation[2], node.rotation[3]);
+        if (!node.rotation.empty()) {
+            snode->Rotate(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
         }
 
-        if (node.scale.size()) {
+        if (!node.scale.empty()) {
             snode->Translate(node.scale[0], node.scale[1], node.scale[2]);
         }
 
-        if (node.translation.size()) {
+        if (!node.translation.empty()) {
             snode->Translate(node.translation[0], node.translation[1], node.translation[2]);
         }
 

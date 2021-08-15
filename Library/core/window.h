@@ -63,8 +63,8 @@ namespace slim {
         RenderFrame*                       AcquireNext();
         VkExtent2D                         GetExtent() const { return swapchainExtent; }
         VkFormat                           GetFormat() const { return swapchainFormat; }
+        VkColorSpaceKHR                    GetColorSpace() const { return swapchainColorSpace; }
         GLFWwindow*                        GetWindow() const { return handle; }
-
 
     private:
         void                               InitSwapchain();
@@ -78,6 +78,7 @@ namespace slim {
 
         // swapchain
         VkFormat                           swapchainFormat;
+        VkColorSpaceKHR                    swapchainColorSpace;
         VkExtent2D                         swapchainExtent;
         VkSwapchainKHR                     swapchain           = VK_NULL_HANDLE;
         std::vector<SmartPtr<GPUImage>>    swapchainImages     = {};

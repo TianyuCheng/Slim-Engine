@@ -25,8 +25,8 @@ struct Gizmo : ReferenceCountable {
     }
 
     void InitMesh(CommandBuffer* commandBuffer) {
-        GeometryData cylinder = Cylinder { 0.5f, 0.5f, 3.0f, 8, 1 }.Create();
-        GeometryData cone = Cone { 1.0f, 1.0f, 8, 1 }.Create();
+        GeometryData cylinder = Cylinder { 0.1f, 0.1f, 3.0f, 8, 1 }.Create();
+        GeometryData cone = Cone { 0.5f, 1.0f, 16, 1 }.Create();
 
         cylinderIndexCount = cylinder.indices.size();
         cylinderVertexCount = cylinder.vertices.size();

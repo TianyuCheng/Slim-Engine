@@ -135,6 +135,7 @@ void Window::InitSwapchain() {
     createInfo.oldSwapchain = swapchain;
 
     swapchainFormat = surfaceFormat.format;
+    swapchainColorSpace = surfaceFormat.colorSpace;
     swapchainExtent = extent;
 
     ErrorCheck(vkCreateSwapchainKHR(*device, &createInfo, nullptr, &swapchain), "create swapchain");

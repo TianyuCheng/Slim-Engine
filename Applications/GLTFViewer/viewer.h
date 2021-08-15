@@ -5,6 +5,7 @@
 #include "config.h"
 #include "model.h"
 #include "gizmo.h"
+#include "skybox.h"
 
 using namespace slim;
 
@@ -17,11 +18,11 @@ public:
 
 private:
     void InitContext();
-    void InitDevice();
     void InitWindow();
     void InitInput();
     void InitCamera();
     void InitGizmo();
+    void InitSkybox();
     void LoadModel();
 
 private:
@@ -30,8 +31,12 @@ private:
     SmartPtr<Window>           window;
     SmartPtr<Input>            input;
     SmartPtr<Gizmo>            gizmo;
+    SmartPtr<Skybox>           skybox;
     SmartPtr<Camera>           camera;
     SmartPtr<GLTFAssetManager> manager;
+
+    SmartPtr<SceneManager>     scene;
+    SmartPtr<Scene>            root;
 
     GLTFModel model;
     Arcball arcball;

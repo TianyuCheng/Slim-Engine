@@ -38,15 +38,18 @@ void Device::InitLogicalDevice() {
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
-    for (const auto &extension : availableExtensions)
-        if (std::string(extension.extensionName) == "VK_KHR_portability_subset")
+    for (const auto &extension : availableExtensions) {
+        if (std::string(extension.extensionName) == "VK_KHR_portability_subset") {
             deviceExtensions.push_back(extension.extensionName);
+        }
+    }
 
     // list all device extensions
     if (deviceExtensions.size()) {
         std::cout << "[CreateDevice] with extensions: " << std::endl;
-        for (auto &extension : deviceExtensions)
+        for (auto &extension : deviceExtensions) {
             std::cout << "- " << extension << std::endl;
+        }
     }
 
     // update queue family indices
@@ -70,6 +73,8 @@ void Device::InitLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
+    const VkPhysicalDeviceFeatures2 &features = desc.features;
+
     // prepare device info
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -78,7 +83,7 @@ void Device::InitLogicalDevice() {
     createInfo.pEnabledFeatures = nullptr;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    createInfo.pNext = &context->GetDescription().features;
+    createInfo.pNext = &features;
 
     // enable validation if needed
     if (desc.validation) {

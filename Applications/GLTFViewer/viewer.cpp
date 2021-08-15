@@ -2,11 +2,11 @@
 
 GLTFViewer::GLTFViewer() {
     InitContext();
-    InitDevice();
     InitWindow();
     InitInput();
     InitCamera();
     InitGizmo();
+    InitSkybox();
     LoadModel();
 }
 
@@ -28,20 +28,18 @@ void GLTFViewer::Run() {
         arcball.SetExtent(frame->GetExtent());
         arcball.Update(input);
 
-        CPUCulling gizmoFilter;
         CPUCulling sceneFilter;
+        CPUCulling gizmoFilter;
 
         // update scene nodes
-        if (!model.scenes.empty()) {
-            GLTFScene& scene = model.scenes[0];
-            for (auto node : scene.roots) {
-                node->SetTransform(arcball.GetTransform());
-                node->Update();
-                sceneFilter.Cull(node, camera);
-            }
-            sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
-            sceneFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
+        sceneFilter.Cull(skybox->scene, camera);
+        if (root) {
+            root->SetTransform(arcball.GetTransform());
+            root->Update();
+            sceneFilter.Cull(root, camera);
         }
+        sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
+        sceneFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // add gizmo
         gizmo->scene->SetTransform(arcball.GetTransformNoScale());
@@ -56,7 +54,6 @@ void GLTFViewer::Run() {
         {
             auto backBuffer = renderGraph.CreateResource(frame->GetBackBuffer());
             auto depthBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, msaa);
-            auto gizmoDepthBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
             auto colorBuffer = msaa > 1
                              ? renderGraph.CreateResource(frame->GetExtent(), backBuffer->GetImage()->GetFormat(), msaa)
                              : backBuffer;
@@ -72,6 +69,8 @@ void GLTFViewer::Run() {
                 renderer.Draw(camera, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
+            #if 1
+            auto gizmoDepthBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
             auto gizmoPass = renderGraph.CreateRenderPass("gizmo");
             gizmoPass->SetColor(backBuffer);
             gizmoPass->SetDepthStencil(gizmoDepthBuffer, ClearValue(1.0f, 0));
@@ -79,6 +78,7 @@ void GLTFViewer::Run() {
                 MeshRenderer renderer(info);
                 renderer.Draw(camera, gizmoFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
+            #endif
         }
         renderGraph.Execute();
 
@@ -88,16 +88,16 @@ void GLTFViewer::Run() {
 }
 
 void GLTFViewer::InitContext() {
-    context = SlimPtr<Context>(
-        ContextDesc()
+    // ContextDesc object needs to be alive when creating context ande device.
+    // This is something needs to be fixed.
+    auto contextDesc = ContextDesc()
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
             .EnableGLFW(true)
-    );
-}
+            .EnableDescriptorIndexing();
 
-void GLTFViewer::InitDevice() {
+    context = SlimPtr<Context>(contextDesc);
     device = SlimPtr<Device>(context);
 }
 
@@ -134,9 +134,26 @@ void GLTFViewer::InitGizmo() {
     });
 }
 
+void GLTFViewer::InitSkybox() {
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        skybox = SlimPtr<Skybox>(commandBuffer);
+        gizmo->scene->Update();
+    });
+}
+
 void GLTFViewer::LoadModel() {
     manager = SlimPtr<GLTFAssetManager>(device);
     device->Execute([&](CommandBuffer* commandBuffer) {
         model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
+
+        // adding a wrapper node for transform control
+        scene = SlimPtr<SceneManager>();
+        root = scene->Create<Scene>("root");
+
+        GLTFScene& scene = model.scenes[0];
+        for (auto node : scene.roots) {
+            root->AddChild(node);
+        }
+        root->Update();
     });
 }

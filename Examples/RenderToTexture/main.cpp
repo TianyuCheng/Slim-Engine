@@ -26,7 +26,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Depth Buffering")
+            .SetTitle("Render To Texture")
     );
 
     // create vertex and index buffers

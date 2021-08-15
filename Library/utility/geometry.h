@@ -69,9 +69,9 @@ namespace slim {
     };
 
     struct Cylinder {
-        float radiusTop = 1.0f;
-        float radiusBottom = 1.0f;
-        float height = 1.0f;
+        float    radiusTop      = 1.0f;
+        float    radiusBottom   = 1.0f;
+        float    height         = 1.0f;
         uint32_t radialSegments = 8;
         uint32_t heightSegments = 1;
         float    thetaStart     = 0.0f;

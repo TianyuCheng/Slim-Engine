@@ -43,6 +43,25 @@ struct GLTFModel {
     std::vector<SmartPtr<GPUImage>>    images;
 };
 
+struct alignas(128) MaterialFactors {
+    glm::vec4 baseColorFactor = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+    int       baseColorTexCoord = -1;
+
+    float     metallicFactor = 1.0f;
+    float     roughnessFactor = 1.0f;
+    int       metallicRoughnessTexCoord = -1;
+
+    glm::vec3 emissiveFactor = glm::vec3(0.0f, 0.0f, 0.0f);
+    int       emissiveTexCoord = -1;
+
+    float     occlusionFactor = 1.0f;
+    int       occlusionTexture = 1.0f;
+    int       occlusionTexCoord = -1;
+
+    float     normalTexScale = 1.0f;
+    int       normalTexCoord = -1;
+};
+
 class GLTFAssetManager : public ReferenceCountable {
 public:
     explicit GLTFAssetManager(Device* device);

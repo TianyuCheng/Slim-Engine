@@ -3,8 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 #include <vulkan/vulkan.h>
 
+#include "imgui.h"
 #include "core/device.h"
 #include "core/window.h"
 #include "core/commands.h"
@@ -15,12 +17,18 @@ namespace slim {
     // GUI is responsible for storing frame-scoped data for rendering purpose.
     class DearImGui final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        explicit DearImGui(Device *device, Window *window);
+        using ImGuiInitFunction = std::function<void()>;
+
+        explicit DearImGui(Device *device, Window *window, ImGuiInitFunction init = [](){ });
         virtual ~DearImGui();
 
         void Begin() const;
         void End() const;
         void Draw(CommandBuffer *commandBuffer) const;
+
+        // imgui control / ui / etc
+        static void EnableDocking();
+        static void EnableMultiview();
 
     private:
         void InitImGui();
