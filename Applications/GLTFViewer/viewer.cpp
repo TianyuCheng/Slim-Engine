@@ -6,6 +6,8 @@ GLTFViewer::GLTFViewer() {
     InitInput();
     InitCamera();
     InitGizmo();
+    InitLUT();
+    InitSampler();
     InitSkybox();
     LoadModel();
 }
@@ -141,10 +143,27 @@ void GLTFViewer::InitSkybox() {
     });
 }
 
+void GLTFViewer::InitLUT() {
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        dfglut = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/ibl_brdf_lut.png"));
+    });
+}
+
+void GLTFViewer::InitSampler() {
+    sampler = SlimPtr<Sampler>(device, SamplerDesc { });
+}
+
 void GLTFViewer::LoadModel() {
     manager = SlimPtr<GLTFAssetManager>(device);
     device->Execute([&](CommandBuffer* commandBuffer) {
         model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
+        // model = manager->Load(commandBuffer, ToAssetPath("Characters/GenshinImpact/amber/scene.gltf"));
+
+        // attaching lut + env to materials
+        for (auto material: model.materials) {
+            material->SetTexture("DFGLUT", dfglut, sampler);
+            material->SetTexture("EnvironmentTexture", skybox->cubemap, sampler);
+        }
 
         // adding a wrapper node for transform control
         scene = SlimPtr<SceneManager>();

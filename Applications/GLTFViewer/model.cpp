@@ -31,6 +31,8 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
                 .AddBinding("NormalTexture",            1, 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
                 .AddBinding("EmissiveTexture",          1, 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
                 .AddBinding("OcclusionTexture",         1, 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
+                .AddBinding("DFGLUT",                   3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                .AddBinding("EnvironmentTexture",       3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             );
 
     // Base Color:
@@ -238,11 +240,11 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         factors.emissiveFactor.y = material.emissiveFactor[1];
         factors.emissiveFactor.z = material.emissiveFactor[2];
         if (emissiveTexture.index >= 0) {
-            uint32_t texture = occlusionTexture.index;
+            uint32_t texture = emissiveTexture.index;
             uint32_t image = model.textures[texture].source;
             uint32_t sampler = model.textures[texture].sampler;
             factors.emissiveTexCoord = emissiveTexture.texCoord;
-            mat->SetTexture("OcclusionTexture", result.images[image], result.samplers[sampler]);
+            mat->SetTexture("EmissiveTexture", result.images[image], result.samplers[sampler]);
         }
 
         // material factors

@@ -55,7 +55,6 @@ struct alignas(128) MaterialFactors {
     int       emissiveTexCoord = -1;
 
     float     occlusionFactor = 1.0f;
-    int       occlusionTexture = 1.0f;
     int       occlusionTexCoord = -1;
 
     float     normalTexScale = 1.0f;

@@ -23,6 +23,8 @@ private:
     void InitCamera();
     void InitGizmo();
     void InitSkybox();
+    void InitLUT();
+    void InitSampler();
     void LoadModel();
 
 private:
@@ -37,6 +39,8 @@ private:
 
     SmartPtr<SceneManager>     scene;
     SmartPtr<Scene>            root;
+    SmartPtr<GPUImage>         dfglut;
+    SmartPtr<Sampler>          sampler;
 
     GLTFModel model;
     Arcball arcball;

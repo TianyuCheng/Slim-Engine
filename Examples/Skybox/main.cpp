@@ -109,12 +109,12 @@ int main() {
     uint32_t geometryIndexCount = 0;
     device->Execute([&](CommandBuffer* commandBuffer) {
         cubemap = TextureLoader::LoadCubemap(commandBuffer,
-                ToAssetPath("Skyboxes/Storforsen3/posx.jpg"),
-                ToAssetPath("Skyboxes/Storforsen3/negx.jpg"),
-                ToAssetPath("Skyboxes/Storforsen3/posy.jpg"),
-                ToAssetPath("Skyboxes/Storforsen3/negy.jpg"),
-                ToAssetPath("Skyboxes/Storforsen3/posz.jpg"),
-                ToAssetPath("Skyboxes/Storforsen3/negz.jpg"));
+                ToAssetPath("Skyboxes/NiagaraFalls/posx.jpg"),
+                ToAssetPath("Skyboxes/NiagaraFalls/negx.jpg"),
+                ToAssetPath("Skyboxes/NiagaraFalls/posy.jpg"),
+                ToAssetPath("Skyboxes/NiagaraFalls/negy.jpg"),
+                ToAssetPath("Skyboxes/NiagaraFalls/posz.jpg"),
+                ToAssetPath("Skyboxes/NiagaraFalls/negz.jpg"));
 
         sampler = SlimPtr<Sampler>(device, SamplerDesc());
 
