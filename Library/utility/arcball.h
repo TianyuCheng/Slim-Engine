@@ -5,15 +5,16 @@
 #include <vulkan/vulkan.h>
 
 #include "core/input.h"
+#include "utility/camera.h"
 #include "utility/transform.h"
 #include "utility/interface.h"
 
 namespace slim {
 
     // arcball control
-    class Arcball : public ReferenceCountable {
+    class Arcball : public Camera {
     public:
-        explicit Arcball() = default;
+        explicit Arcball();
         explicit Arcball(const VkExtent2D &screen);
         virtual ~Arcball() = default;
 
@@ -24,19 +25,29 @@ namespace slim {
         void SetExtent(const VkExtent2D &screen);
         bool Update(Input* input);
 
-        const Transform& GetTransform() const { return xform; }
-        const Transform& GetTransformNoScale() const { return xformNoScale; }
+        const glm::mat4 GetModelMatrix(bool applyScaling = true) const {
+            return applyScaling ? (translation * scaling * rotation)
+                                : (translation * rotation);
+        }
+
+    private:
+        bool ProcessRotation(const MouseEvent& mouse);
+        bool ProcessScaling(const ScrollEvent& scroll);
+        bool ProcessTranslation(const MouseEvent& mouse);
 
     private:
         VkExtent2D screen;
         int prevX = 0, prevY = 0;
         int currX = 0, currY = 0;
-        float angle = 0.0;
+        float modelAngle = 0.0;
         float damping = 0.0;
         float sensitivity = 1.0f;
         glm::vec3 axisInObjectCoord;
-        Transform xform;
-        Transform xformNoScale;
+
+        // model matrices
+        glm::mat4 rotation = glm::mat4(1.0);
+        glm::mat4 scaling = glm::mat4(1.0);
+        glm::mat4 translation = glm::mat4(1.0);
     };
 
 } // end of SLIM_UTILITY_ARCBALL_H

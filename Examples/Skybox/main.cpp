@@ -156,8 +156,8 @@ int main() {
         });
     });
 
-    Arcball arcball;
     auto input = SlimPtr<Input>(window);
+    auto arcball = SlimPtr<Arcball>();
 
     auto ui = SlimPtr<DearImGui>(device, window);
 
@@ -203,21 +203,20 @@ int main() {
         ui->End();
 
         // create a camera
-        auto camera = SlimPtr<Camera>("camera");
-        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
-        camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
+        arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
         // update
-        arcball.SetExtent(frame->GetExtent());
-        arcball.Update(input);
+        arcball->SetExtent(frame->GetExtent());
+        arcball->Update(input);
 
         // transform scene nodes
-        geometry->SetTransform(arcball.GetTransform());
+        geometry->SetTransform(arcball->GetModelMatrix());
         root->Update();
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();
-        culling->Cull(root, camera);
+        culling->Cull(root, arcball);
         culling->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         culling->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
@@ -232,7 +231,7 @@ int main() {
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, culling->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(arcball, culling->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
             auto uiPass = renderGraph.CreateRenderPass("ui");

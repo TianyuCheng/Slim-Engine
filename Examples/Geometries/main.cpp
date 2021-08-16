@@ -101,6 +101,7 @@ int main() {
     auto arcball = SlimPtr<Arcball>();
     arcball->SetDamping(0.1);
     arcball->SetSensitivity(1.0);
+    arcball->LookAt(glm::vec3(0.0, 0.0, 5.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // render
     while (window->IsRunning()) {
@@ -110,9 +111,7 @@ int main() {
         auto frame = window->AcquireNext();
 
         // create a camera
-        auto camera = SlimPtr<Camera>("camera");
-        camera->LookAt(glm::vec3(0.0, 0.0, 5.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
+        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
 
         // show gui
         bool changed = false;
@@ -205,13 +204,13 @@ int main() {
                     case CYLINDER: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cylinder); break;
                 }
             });
-            node->SetTransform(arcball->GetTransform());
+            node->SetTransform(arcball->GetModelMatrix());
         }
 
         // controller
         arcball->SetExtent(frame->GetExtent());
         if (arcball->Update(input)) {
-            node->SetTransform(arcball->GetTransform());
+            node->SetTransform(arcball->GetModelMatrix());
         }
 
         // transform scene nodes
@@ -219,7 +218,7 @@ int main() {
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();
-        culling->Cull(node, camera);
+        culling->Cull(node, arcball);
         culling->Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         culling->Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
@@ -234,7 +233,7 @@ int main() {
             colorPass->SetDepthStencil(depthBuffer, ClearValue(1.0f, 0));
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, culling->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(arcball, culling->GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
             auto uiPass = renderGraph.CreateRenderPass("ui");

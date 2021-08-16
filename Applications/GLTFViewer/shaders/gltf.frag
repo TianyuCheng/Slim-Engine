@@ -1,22 +1,7 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-// https://google.github.io/filament/Filament.md.html#materialsystem/diffusebrdf
-
-const float sphericalHarmonics[9] = float[](
-    // band l == 0
-     0.28209479177387814,
-    // band l == 1
-    -0.4886025119029199,
-     0.4886025119029199,
-    -0.4886025119029199,
-    // band l == 2
-     1.0925484305920792,
-    -1.0925484305920792,
-     0.31539156525252005,
-     1.0925484305920792,
-    -1.0925484305920792
-);
+// https://google.github.io/filament/Filament.md.html
 
 // material set
 layout(set = 1, binding = 0) uniform MaterialFactors {
@@ -44,6 +29,7 @@ layout(set = 1, binding = 5) uniform sampler2D occlusionTexture;
 
 layout(set = 3, binding = 0) uniform sampler2D dfglutTexture;
 layout(set = 3, binding = 1) uniform samplerCube environmentTexture;
+layout(set = 3, binding = 2) uniform samplerCube irradianceTexture;
 
 // varyings
 layout(location = 0) in vec3 inView;
@@ -64,19 +50,6 @@ float Fd_Lambert() {
     return 1.0 / PI;
 }
 
-float IrradianceSH(vec3 n) {
-    // We can use only the first 2 bands for better performance
-    return sphericalHarmonics[0]
-         + sphericalHarmonics[1] * (n.y)
-         + sphericalHarmonics[2] * (n.z)
-         + sphericalHarmonics[3] * (n.x)
-         + sphericalHarmonics[4] * (n.y * n.x)
-         + sphericalHarmonics[5] * (n.y * n.z)
-         + sphericalHarmonics[6] * (3.0 * n.z * n.z - 1.0)
-         + sphericalHarmonics[7] * (n.z * n.x)
-         + sphericalHarmonics[8] * (n.x * n.x - n.y * n.y);
-}
-
 vec2 PrefilteredDFGLUT(float coord, float NoV) {
     // coord = sqrt(roughness) == perceptual roughness
     // IBL prefiltering code when computing the mipmaps
@@ -89,6 +62,16 @@ vec3 EvaluateSpecularIBL(vec3 r, float perceptualRoughness) {
     return textureLod(environmentTexture, r, lod).rgb;
 }
 
+vec3 EvaluateDiffuseIBL(vec3 n) {
+    // It is possible to replace this texture look up with a 3-band (9 coefficients)
+    // spherical harmonics (very little perceptual difference), but I am lazy now.
+
+    // We multiply by the Lambertian BRDF to compute radiance from irradiance with
+    // the Disney BRDF we would have to remove the Fresnel term that depends on NoL.
+    // The Lambertian BRDF can be baked directly in the SH to save a multiplication here.
+    return texture(irradianceTexture, n).rgb * Fd_Lambert();
+}
+
 vec3 EvaluateIBL(vec3 n, vec3 v, vec3 diffuseColor, vec3 f0, vec3 f90, float perceptualRoughness) {
     float NoV = max(dot(n, v), 0.0) + 1e-5;
     vec3 r = reflect(-v, n);
@@ -99,10 +82,7 @@ vec3 EvaluateIBL(vec3 n, vec3 v, vec3 diffuseColor, vec3 f0, vec3 f90, float per
     vec3 specularColor = f0 * env.x + f90 * env.y;
 
     // Diffuse indirect
-    // We multiply by the Lambertian BRDF to compute radiance from irradiance with
-    // the Disney BRDF we would have to remove the Fresnel term that depends on NoL.
-    // The Lambertian BRDF can be baked directly in the SH to save a multiplication here.
-    float indirectDiffuse = max(IrradianceSH(n), 0.0) * Fd_Lambert();
+    vec3 indirectDiffuse = EvaluateDiffuseIBL(n);
 
     // Indirect contribution
     return diffuseColor * indirectDiffuse + indirectSpecular * specularColor;

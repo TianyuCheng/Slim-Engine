@@ -40,11 +40,24 @@ namespace {
 
         // pass the event to cusor button callback
         Input *input = reinterpret_cast<Input*>(glfwGetWindowUserPointer(window));
-        MouseButton mouse = static_cast<MouseButton>(button);
-        // key state
-        MouseState state = MouseState::None;
-        if (action == GLFW_PRESS) state = MouseState::Pressed;
-        if (action == GLFW_RELEASE) state = MouseState::Released;
+
+        // state
+        MouseState state;
+        switch (action) {
+            case GLFW_PRESS:   state = MouseState::Pressed;  break;
+            case GLFW_RELEASE: state = MouseState::Released; break;
+            default:           state = MouseState::None;     break;
+        }
+
+        // button
+        MouseButton mouse;
+        switch (button) {
+            case GLFW_MOUSE_BUTTON_LEFT:   mouse = MouseButton::LeftButton;   break;
+            case GLFW_MOUSE_BUTTON_RIGHT:  mouse = MouseButton::RightButton;  break;
+            case GLFW_MOUSE_BUTTON_MIDDLE: mouse = MouseButton::MiddleButton; break;
+            default:                       mouse = MouseButton::None;         break;
+        }
+
         input->MouseButtonCallback(mouse, state);
     }
 
@@ -88,7 +101,6 @@ Input::Input(Window* window) : window(*window) {
 void Input::Reset() {
     // update previous mouse event, and reset current mouse event
     prevMouseEvent = currMouseEvent;
-    // currMouseEvent.button = MouseButton::None;   // mouse button will get trigger on press/release for its own states
     currMouseEvent.state = MouseState::None;
     currMouseEvent.moveX = 0.0f;
     currMouseEvent.moveY = 0.0f;
@@ -119,10 +131,14 @@ void Input::CursorPositionCallback(double xpos, double ypos) {
 }
 
 void Input::MouseButtonCallback(MouseButton button, MouseState state) {
-    currMouseEvent.button = button;
     currMouseEvent.state = state;
-    if (state == MouseState::Pressed)  mouseClicked = true;
-    if (state == MouseState::Released) mouseClicked = false;
+    currMouseEvent.button = button;
+    if (state == MouseState::Pressed)  {
+        mouseClicked = true;
+    }
+    if (state == MouseState::Released) {
+        mouseClicked = false;
+    }
 }
 
 void Input::KeyCallback(KeyCode key, KeyState state, KeyModifier mods) {

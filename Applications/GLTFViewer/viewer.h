@@ -34,7 +34,7 @@ private:
     SmartPtr<Input>            input;
     SmartPtr<Gizmo>            gizmo;
     SmartPtr<Skybox>           skybox;
-    SmartPtr<Camera>           camera;
+    SmartPtr<Arcball>          arcball;
     SmartPtr<GLTFAssetManager> manager;
 
     SmartPtr<SceneManager>     scene;
@@ -43,7 +43,6 @@ private:
     SmartPtr<Sampler>          sampler;
 
     GLTFModel model;
-    Arcball arcball;
 };
 
 #endif // GLTFVIEWER_VIEWER_H

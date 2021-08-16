@@ -8,12 +8,6 @@ namespace slim {
 
     class SceneNode;
 
-    struct TransformGizmo {
-        glm::vec3 right;   // red axis in world space
-        glm::vec3 up;      // blue axis in world space
-        glm::vec3 forward; // green axis in the world space
-    };
-
     class Transform {
         friend class SceneNode;
     public:

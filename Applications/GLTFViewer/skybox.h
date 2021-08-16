@@ -18,7 +18,8 @@ struct Skybox : ReferenceCountable {
     SmartPtr<Material> material;
 
     // resources
-    SmartPtr<GPUImage> cubemap;
+    SmartPtr<GPUImage> skybox;
+    SmartPtr<GPUImage> irradiance;
     SmartPtr<Sampler> sampler;
 
     Skybox(CommandBuffer* commandBuffer) {
@@ -29,13 +30,21 @@ struct Skybox : ReferenceCountable {
     }
 
     void InitCubemap(CommandBuffer* commandBuffer) {
-        cubemap = TextureLoader::LoadCubemap(commandBuffer,
-                ToAssetPath("Skyboxes/NiagaraFalls/posx.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negx.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/posy.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negy.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/posz.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negz.jpg"));
+        skybox = TextureLoader::LoadCubemap(commandBuffer,
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/px.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/nx.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/py.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/ny.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/pz.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/nz.png"));
+
+        irradiance = TextureLoader::LoadCubemap(commandBuffer,
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/px.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/nx.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/py.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/ny.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/pz.png"),
+                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/nz.png"));
 
         sampler = SlimPtr<Sampler>(commandBuffer->GetDevice(), SamplerDesc());
     }
@@ -74,7 +83,7 @@ struct Skybox : ReferenceCountable {
 
 
         material = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
-        material->SetTexture("Skybox", cubemap, sampler);
+        material->SetTexture("Skybox", skybox, sampler);
     }
 
     void InitScene() {

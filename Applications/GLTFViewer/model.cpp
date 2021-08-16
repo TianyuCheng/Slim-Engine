@@ -33,6 +33,7 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
                 .AddBinding("OcclusionTexture",         1, 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT)
                 .AddBinding("DFGLUT",                   3, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                 .AddBinding("EnvironmentTexture",       3, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                .AddBinding("IrradianceTexture",        3, 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             );
 
     // Base Color:

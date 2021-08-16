@@ -24,30 +24,30 @@ void GLTFViewer::Run() {
         auto frame = window->AcquireNext();
 
         // update camera projection
-        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
+        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
 
         // update input for arcball
-        arcball.SetExtent(frame->GetExtent());
-        arcball.Update(input);
+        arcball->SetExtent(frame->GetExtent());
+        arcball->Update(input);
 
         CPUCulling sceneFilter;
         CPUCulling gizmoFilter;
 
         // update scene nodes
-        sceneFilter.Cull(skybox->scene, camera);
+        sceneFilter.Cull(skybox->scene, arcball);
         if (root) {
-            root->SetTransform(arcball.GetTransform());
+            root->SetTransform(arcball->GetModelMatrix());
             root->Update();
-            sceneFilter.Cull(root, camera);
+            sceneFilter.Cull(root, arcball);
         }
         sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         sceneFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // add gizmo
-        gizmo->scene->SetTransform(arcball.GetTransformNoScale());
+        gizmo->scene->SetTransform(arcball->GetModelMatrix(false));
         gizmo->scene->Scale(0.1, 0.1, 0.1);
         gizmo->scene->Update();
-        gizmoFilter.Cull(gizmo->scene, camera);
+        gizmoFilter.Cull(gizmo->scene, arcball);
         gizmoFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         gizmoFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
@@ -68,7 +68,7 @@ void GLTFViewer::Run() {
             }
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(arcball, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
             #if 1
@@ -78,7 +78,7 @@ void GLTFViewer::Run() {
             gizmoPass->SetDepthStencil(gizmoDepthBuffer, ClearValue(1.0f, 0));
             gizmoPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(camera, gizmoFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(arcball, gizmoFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
             #endif
         }
@@ -115,18 +115,14 @@ void GLTFViewer::InitWindow() {
 
 void GLTFViewer::InitInput() {
     input = SlimPtr<Input>(window);
-    arcball.SetDamping(0.9);
-    arcball.SetSensitivity(0.5);
-    arcball.SetExtent(window->GetExtent());
 }
 
 void GLTFViewer::InitCamera() {
-    VkExtent2D extent = window->GetExtent();
-    float aspectRatio = static_cast<float>(extent.width) / static_cast<float>(extent.height);
-
-    camera = SlimPtr<Camera>("Camera");
-    camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-    camera->Perspective(1.05, aspectRatio, 0.1, 2000.0f);
+    arcball = SlimPtr<Arcball>();
+    arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    arcball->SetDamping(0.95);
+    arcball->SetSensitivity(0.5);
+    arcball->SetExtent(window->GetExtent());
 }
 
 void GLTFViewer::InitGizmo() {
@@ -150,7 +146,11 @@ void GLTFViewer::InitLUT() {
 }
 
 void GLTFViewer::InitSampler() {
-    sampler = SlimPtr<Sampler>(device, SamplerDesc { });
+    sampler = SlimPtr<Sampler>(
+        device,
+        SamplerDesc()
+            .LOD(0.0, 9.0)
+    );
 }
 
 void GLTFViewer::LoadModel() {
@@ -162,7 +162,8 @@ void GLTFViewer::LoadModel() {
         // attaching lut + env to materials
         for (auto material: model.materials) {
             material->SetTexture("DFGLUT", dfglut, sampler);
-            material->SetTexture("EnvironmentTexture", skybox->cubemap, sampler);
+            material->SetTexture("EnvironmentTexture", skybox->skybox, sampler);
+            material->SetTexture("IrradianceTexture", skybox->irradiance, sampler);
         }
 
         // adding a wrapper node for transform control

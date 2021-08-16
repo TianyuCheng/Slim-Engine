@@ -24,13 +24,17 @@ glm::vec3 GetArcballVector(const VkExtent2D &screen, int x, int y) {
     return P;
 }
 
-Arcball::Arcball(const VkExtent2D &screen) : screen(screen) {
+Arcball::Arcball() : Camera("arcabll") {
+}
+
+Arcball::Arcball(const VkExtent2D &screen) : Camera("arcball"), screen(screen) {
 }
 
 void Arcball::Reset() {
-    angle = 0.0;
-    xform = glm::mat4(1.0);
-    xformNoScale = glm::mat4(1.0);
+    modelAngle = 0.0;
+    rotation = glm::mat4(1.0);
+    scaling = glm::mat4(1.0);
+    translation = glm::mat4(1.0);
 }
 
 void Arcball::SetDamping(float value) {
@@ -50,61 +54,127 @@ bool Arcball::Update(Input* input) {
     bool changed = false;
 
     const MouseEvent &mouse = input->Mouse();
-
-    float posX = mouse.posX;
-    float posY = mouse.posY;
-
-    // on mouse drag start and drag stop
-    // (force the prev and curr to be the same to prevent glitches)
-    if (mouse.state == MouseState::Pressed || mouse.state == MouseState::Released) {
-        // update mouse positions
-        prevX = posX; currX = posX;
-        prevY = posY; currY = posY;
-        changed = true;
-    }
-    else if (mouse.state == MouseState::Dragging) {
-        // update mouse positions
-        prevX = currX; currX = posX;
-        prevY = currY; currY = posY;
-        changed = true;
-    }
-
-    // update scaling
     const ScrollEvent &scroll = input->Scroll();
-    if (scroll.yOffset != 0) {
-        if (scroll.yOffset < 0) {
-            const float scale = 1.1;
-            xform.Scale(scale, scale, scale);
-            changed = true;
-        } else {
-            const float scale = 0.9;
-            xform.Scale(scale, scale, scale);
-            changed = true;
+
+    changed |= ProcessRotation(mouse);
+    changed |= ProcessScaling(scroll);
+    changed |= ProcessTranslation(mouse);
+
+    return changed;
+}
+
+bool Arcball::ProcessRotation(const MouseEvent& mouse) {
+    int posX = static_cast<int>(mouse.posX);
+    int posY = static_cast<int>(mouse.posY);
+
+    if (mouse.button == MouseButton::LeftButton) {
+        // on mouse drag start and drag stop
+        // (force the prev and curr to be the same to prevent glitches)
+        if (mouse.state == MouseState::Pressed) {
+            // update mouse positions
+            prevX = posX; currX = posX;
+            prevY = posY; currY = posY;
+        }
+
+        if (mouse.state == MouseState::Released) {
+            // update mouse positions
+            prevX = posX; currX = posX;
+            prevY = posY; currY = posY;
+        }
+
+        if (mouse.state == MouseState::Dragging) {
+            // update mouse positions
+            prevX = currX; currX = posX;
+            prevY = currY; currY = posY;
         }
     }
 
-    // rotate inertia
+    // update rotation axis
     if (prevX != currX || prevY != currY) {
         glm::vec3 va = GetArcballVector(screen, prevX, prevY);
         glm::vec3 vb = GetArcballVector(screen, currX, currY);
         // compute angle between 2 vectors on the arcball
-        angle = std::acos(std::min(1.0f, glm::dot(va, vb))) * sensitivity;
+        float angle = std::acos(std::min(1.0f, glm::dot(va, vb))) * sensitivity;
         // compute axis for rotation
         glm::vec3 axisInCameraCoord = glm::cross(va, vb);
         // compute axis in object coordinate
-        xform.ApplyTransform();
-        xformNoScale.ApplyTransform();
-        axisInObjectCoord = glm::mat3(xform.WorldToLocal()) * axisInCameraCoord;
+        modelAngle = angle;
+        glm::mat3 worldToLocal = glm::inverse(rotation);
+        axisInObjectCoord = glm::mat3(worldToLocal) * axisInCameraCoord;
+    }
+
+    bool changed = false;
+
+    // apply rotation inertia for model
+    if (std::abs(modelAngle) >= 1e-5) {
+        // update model matrix by axis angle
+        rotation = glm::rotate(rotation, modelAngle, axisInObjectCoord);
+        // apply rotation angle damping
+        modelAngle *= damping;
         changed = true;
     }
 
-    // rotate inertia
-    if (angle != 0) {
-        // update model matrix by axis angle
-        xform.Rotate(axisInObjectCoord, angle);
-        xformNoScale.Rotate(axisInObjectCoord, angle);
-        angle *= damping;
-        changed = true;
+    return changed;
+}
+
+bool Arcball::ProcessScaling(const ScrollEvent& scroll) {
+    if (scroll.yOffset == 0) {
+        return false;
     }
+
+    // upscaling
+    if (scroll.yOffset < 0) {
+        const float scale = 1.1;
+        scaling = glm::scale(scaling, glm::vec3(scale, scale, scale));
+        return true;
+    }
+
+    // downscaling
+    else {
+        const float scale = 0.9;
+        scaling = glm::scale(scaling, glm::vec3(scale, scale, scale));
+        return true;
+    }
+}
+
+bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
+    int posX = static_cast<int>(mouse.posX);
+    int posY = static_cast<int>(mouse.posY);
+
+    bool changed = false;
+
+    // only respond to middle button click
+    if (mouse.button == MouseButton::MiddleButton) {
+        // on mouse drag start and drag stop
+        // (force the prev and curr to be the same to prevent glitches)
+        if (mouse.state == MouseState::Pressed) {
+            // update mouse positions
+            prevX = posX; currX = posX;
+            prevY = posY; currY = posY;
+            changed = true;
+        }
+
+        if (mouse.state == MouseState::Released) {
+            // update mouse positions
+            prevX = posX; currX = posX;
+            prevY = posY; currY = posY;
+            changed = true;
+        }
+
+        if (mouse.state == MouseState::Dragging) {
+            // compute mouse position difference
+            int diffX = posX - currX;
+            int diffY = posY - currY;
+            float diffXScaled = static_cast<float>(+diffX) / (screen.width / 2.0f);
+            float diffYScaled = static_cast<float>(-diffY) / (screen.height / 2.0f);
+            translation = glm::translate(translation, glm::vec3(diffXScaled, diffYScaled, 0.0));
+
+            // update mouse positions
+            prevX = posX; currX = posX;
+            prevY = posY; currY = posY;
+            changed = true;
+        }
+    }
+
     return changed;
 }
