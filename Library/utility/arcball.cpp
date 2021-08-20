@@ -1,5 +1,7 @@
-#include "utility/arcball.h"
 #include <iostream>
+#include <glm/gtx/string_cast.hpp>
+
+#include "utility/arcball.h"
 
 using namespace slim;
 
@@ -163,11 +165,21 @@ bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
 
         if (mouse.state == MouseState::Dragging) {
             // compute mouse position difference
-            int diffX = posX - currX;
-            int diffY = posY - currY;
-            float diffXScaled = static_cast<float>(+diffX) / (screen.width / 2.0f);
-            float diffYScaled = static_cast<float>(-diffY) / (screen.height / 2.0f);
-            translation = glm::translate(translation, glm::vec3(diffXScaled, diffYScaled, 0.0));
+            float diffX = posX - currX;
+            float diffY = posY - currY;
+            float vl = 0.0, vr = static_cast<float>(screen.width);
+            float vb = 0.0, vt = static_cast<float>(screen.height);
+            glm::mat4 viewportTrans = glm::translate(glm::mat4(1.0), glm::vec3(diffX, -diffY, 0.0));    // mimic the target translation in window space
+            glm::mat4 H = glm::scale(glm::mat4(1.0), glm::vec3((vr + vl) / 2.0, (vb + vt) / 2.0, 0.5)); // viewport matrix
+            glm::mat4 PV = GetProjection() * GetView();                                                 // projection * view
+            glm::mat4 HPV = H * PV;                                                                     // viewport * project * view
+            glm::mat4 VPH = glm::inverse(HPV);
+
+            // transform to window space, perform window space translation, then transform back to model space,
+            // then we get the difference in the model transform, since the rotation/scaling are the same,
+            // the only difference should be in the translation.
+            glm::mat4 diff = VPH * viewportTrans * HPV;
+            translation = glm::translate(translation, glm::vec3(diff[3][0], diff[3][1], 0.0));
 
             // update mouse positions
             prevX = posX; currX = posX;

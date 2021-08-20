@@ -54,43 +54,24 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
     - This is an example showcasing how to use hierarchical scene graph for scene management.
 	- ![Screenshot](./Examples/SceneGraph/screenshot.png =100x)
 
+* Geometries
+    - This is an example showcasing how to use slim's geometry data generation API.
+	- ![Screenshot](./Examples/Geometries/screenshot.png =100x)
+
+* Descriptor Indexing
+    - This is an example showcasing how to use descriptor indexing feature provided by vulkan.
+    - This is a feature used heavily for GPU-driven pipeline.
+	- ![Screenshot](./Examples/DescriptorIndexing/screenshot.png =100x)
+
+* Skybox
+    - This is an example showcasing how to setup a skybox, and implement reflect/refract materials.
+	- ![Screenshot](./Examples/Geometries/screenshot.png =100x)
+
 Applications
 ------------
 
-* Post-Processing
-    * [TODO] Bloom Effect
-    * [TODO] Screen Space Ambient Occlusion (SSAO)
-    * [TODO] Screen Space Subsurface Scattering (SSSS)
-
-* HiZ Occlusion Culling
-    - [TODO]
-
-* Deferred Rendering
-    - [TODO]
-
-* Shadow Mapping
-    - [TODO]
-
-* Skeletal Animation
-    - [TODO]
-
-* Temporal Anti-Aliasing (TAA)
-    - [TODO]
-
-* Particle System / Order Indepdenent Transparency (OIT)
-    - [TODO]
-
-* Cube Marching
-    - [TODO]
-
-* Ray Marching
-    - [TODO]
-
-* Volumetric Light and Shadows
-    - [TODO]
-
-* Path Tracing
-    - [TODO]
+* GLTFViewer
+    - Implement a basic gltfviewer, with physically-based rendering (PBR) shaders.
 
 Dependencies
 ------------

@@ -146,10 +146,21 @@ void GLTFViewer::InitLUT() {
 }
 
 void GLTFViewer::InitSampler() {
-    sampler = SlimPtr<Sampler>(
+    dfglutSampler = SlimPtr<Sampler>(
         device,
         SamplerDesc()
-            .LOD(0.0, 9.0)
+            .AddressMode(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
+    );
+
+    diffuseSampler = SlimPtr<Sampler>(
+        device,
+        SamplerDesc()
+    );
+
+    specularSampler = SlimPtr<Sampler>(
+        device,
+        SamplerDesc()
+            .LOD(0.0, 12.0)
     );
 }
 
@@ -157,13 +168,14 @@ void GLTFViewer::LoadModel() {
     manager = SlimPtr<GLTFAssetManager>(device);
     device->Execute([&](CommandBuffer* commandBuffer) {
         model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
-        // model = manager->Load(commandBuffer, ToAssetPath("Characters/GenshinImpact/amber/scene.gltf"));
+        // model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
+        // model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/WaterBottle/glTF/WaterBottle.gltf");
 
         // attaching lut + env to materials
         for (auto material: model.materials) {
-            material->SetTexture("DFGLUT", dfglut, sampler);
-            material->SetTexture("EnvironmentTexture", skybox->skybox, sampler);
-            material->SetTexture("IrradianceTexture", skybox->irradiance, sampler);
+            material->SetTexture("DFGLUT", dfglut, dfglutSampler);
+            material->SetTexture("EnvironmentTexture", skybox->skybox, specularSampler);
+            material->SetTexture("IrradianceTexture", skybox->irradiance, diffuseSampler);
         }
 
         // adding a wrapper node for transform control

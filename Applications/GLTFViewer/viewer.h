@@ -40,7 +40,9 @@ private:
     SmartPtr<SceneManager>     scene;
     SmartPtr<Scene>            root;
     SmartPtr<GPUImage>         dfglut;
-    SmartPtr<Sampler>          sampler;
+    SmartPtr<Sampler>          diffuseSampler;
+    SmartPtr<Sampler>          specularSampler;
+    SmartPtr<Sampler>          dfglutSampler;
 
     GLTFModel model;
 };

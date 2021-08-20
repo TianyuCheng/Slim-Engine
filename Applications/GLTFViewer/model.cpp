@@ -154,6 +154,7 @@ void GLTFAssetManager::LoadSamplers(GLTFModel &result, const tinygltf::Model &mo
         result.samplers.push_back(new Sampler(device, desc));
     }
 
+    // default sampler
     if (result.samplers.size() == 0) {
         SamplerDesc desc;
         result.samplers.push_back(new Sampler(device, desc));
@@ -194,9 +195,10 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         // base color texture
         const auto& baseColorTexture = pbrMetallicRoughness.baseColorTexture;
         if (baseColorTexture.index >= 0) {
-            uint32_t texture = baseColorTexture.index;
-            uint32_t image = model.textures[texture].source;
-            uint32_t sampler = model.textures[texture].sampler;
+            int32_t texture = baseColorTexture.index;
+            int32_t image = model.textures[texture].source;
+            int32_t sampler = model.textures[texture].sampler;
+            if (sampler < 0) sampler = result.samplers.size() - 1;  // default sampler
             factors.baseColorTexCoord = baseColorTexture.texCoord;
             mat->SetTexture("BaseColorTexture", result.images[image], result.samplers[sampler]);
         }
@@ -206,9 +208,10 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         factors.roughnessFactor = pbrMetallicRoughness.roughnessFactor;
         const auto& roughnessTexture = pbrMetallicRoughness.metallicRoughnessTexture;
         if (roughnessTexture.index >= 0) {
-            uint32_t texture = baseColorTexture.index;
-            uint32_t image = model.textures[texture].source;
-            uint32_t sampler = model.textures[texture].sampler;
+            int32_t texture = roughnessTexture.index;
+            int32_t image = model.textures[texture].source;
+            int32_t sampler = model.textures[texture].sampler;
+            if (sampler < 0) sampler = result.samplers.size() - 1;  // default sampler
             factors.metallicRoughnessTexCoord = roughnessTexture.texCoord;
             mat->SetTexture("MetallicRoughnessTexture", result.images[image], result.samplers[sampler]);
         }
@@ -217,9 +220,10 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         const auto& normalTexture = material.normalTexture;
         factors.normalTexScale = normalTexture.scale;
         if (normalTexture.index >= 0) {
-            uint32_t texture = normalTexture.index;
-            uint32_t image = model.textures[texture].source;
-            uint32_t sampler = model.textures[texture].sampler;
+            int32_t texture = normalTexture.index;
+            int32_t image = model.textures[texture].source;
+            int32_t sampler = model.textures[texture].sampler;
+            if (sampler < 0) sampler = result.samplers.size() - 1;  // default sampler
             factors.normalTexCoord = normalTexture.texCoord;
             mat->SetTexture("NormalTexture", result.images[image], result.samplers[sampler]);
         }
@@ -228,9 +232,10 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         const auto& occlusionTexture = material.occlusionTexture;
         factors.occlusionFactor = occlusionTexture.strength;
         if (occlusionTexture.index >= 0) {
-            uint32_t texture = occlusionTexture.index;
-            uint32_t image = model.textures[texture].source;
-            uint32_t sampler = model.textures[texture].sampler;
+            int32_t texture = occlusionTexture.index;
+            int32_t image = model.textures[texture].source;
+            int32_t sampler = model.textures[texture].sampler;
+            if (sampler < 0) sampler = result.samplers.size() - 1;  // default sampler
             factors.occlusionTexCoord = occlusionTexture.texCoord;
             mat->SetTexture("OcclusionTexture", result.images[image], result.samplers[sampler]);
         }
@@ -241,9 +246,10 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         factors.emissiveFactor.y = material.emissiveFactor[1];
         factors.emissiveFactor.z = material.emissiveFactor[2];
         if (emissiveTexture.index >= 0) {
-            uint32_t texture = emissiveTexture.index;
-            uint32_t image = model.textures[texture].source;
-            uint32_t sampler = model.textures[texture].sampler;
+            int32_t texture = emissiveTexture.index;
+            int32_t image = model.textures[texture].source;
+            int32_t sampler = model.textures[texture].sampler;
+            if (sampler < 0) sampler = result.samplers.size() - 1;  // default sampler
             factors.emissiveTexCoord = emissiveTexture.texCoord;
             mat->SetTexture("EmissiveTexture", result.images[image], result.samplers[sampler]);
         }
