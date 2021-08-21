@@ -27,7 +27,7 @@ void GLTFViewer::Run() {
         arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
 
         // update input for arcball
-        arcball->SetExtent(frame->GetExtent());
+        arcball->SetExtent(window->GetExtent());
         arcball->Update(input);
 
         CPUCulling sceneFilter;

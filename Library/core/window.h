@@ -61,7 +61,7 @@ namespace slim {
         static void                        PollEvents();
 
         RenderFrame*                       AcquireNext();
-        VkExtent2D                         GetExtent() const { return swapchainExtent; }
+        VkExtent2D                         GetExtent() const { return windowExtent; }
         VkFormat                           GetFormat() const { return swapchainFormat; }
         VkColorSpaceKHR                    GetColorSpace() const { return swapchainColorSpace; }
         GLFWwindow*                        GetWindow() const { return handle; }
@@ -75,6 +75,7 @@ namespace slim {
         WindowDesc                         desc;
         SmartPtr<Device>                   device              = nullptr;
         VkSurfaceKHR                       surface             = VK_NULL_HANDLE;
+        VkExtent2D                         windowExtent;
 
         // swapchain
         VkFormat                           swapchainFormat;

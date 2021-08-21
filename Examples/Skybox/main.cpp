@@ -207,7 +207,7 @@ int main() {
         arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
         // update
-        arcball->SetExtent(frame->GetExtent());
+        arcball->SetExtent(window->GetExtent());
         arcball->Update(input);
 
         // transform scene nodes

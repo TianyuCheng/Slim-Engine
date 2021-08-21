@@ -208,7 +208,7 @@ int main() {
         }
 
         // controller
-        arcball->SetExtent(frame->GetExtent());
+        arcball->SetExtent(window->GetExtent());
         if (arcball->Update(input)) {
             node->SetTransform(arcball->GetModelMatrix());
         }

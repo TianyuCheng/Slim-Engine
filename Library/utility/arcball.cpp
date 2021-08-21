@@ -69,6 +69,8 @@ bool Arcball::ProcessRotation(const MouseEvent& mouse) {
     int posX = static_cast<int>(mouse.posX);
     int posY = static_cast<int>(mouse.posY);
 
+    bool changed = false;
+
     if (mouse.button == MouseButton::LeftButton) {
         // on mouse drag start and drag stop
         // (force the prev and curr to be the same to prevent glitches)
@@ -76,18 +78,21 @@ bool Arcball::ProcessRotation(const MouseEvent& mouse) {
             // update mouse positions
             prevX = posX; currX = posX;
             prevY = posY; currY = posY;
+            changed = true;
         }
 
         if (mouse.state == MouseState::Released) {
             // update mouse positions
             prevX = posX; currX = posX;
             prevY = posY; currY = posY;
+            changed = true;
         }
 
         if (mouse.state == MouseState::Dragging) {
             // update mouse positions
             prevX = currX; currX = posX;
             prevY = currY; currY = posY;
+            changed = true;
         }
     }
 
@@ -104,8 +109,6 @@ bool Arcball::ProcessRotation(const MouseEvent& mouse) {
         glm::mat3 worldToLocal = glm::inverse(rotation);
         axisInObjectCoord = glm::mat3(worldToLocal) * axisInCameraCoord;
     }
-
-    bool changed = false;
 
     // apply rotation inertia for model
     if (std::abs(modelAngle) >= 1e-5) {
@@ -178,8 +181,7 @@ bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
             // transform to window space, perform window space translation, then transform back to model space,
             // then we get the difference in the model transform, since the rotation/scaling are the same,
             // the only difference should be in the translation.
-            glm::mat4 diff = VPH * viewportTrans * HPV;
-            translation = glm::translate(translation, glm::vec3(diff[3][0], diff[3][1], 0.0));
+            translation = VPH * viewportTrans * HPV * translation;
 
             // update mouse positions
             prevX = posX; currX = posX;

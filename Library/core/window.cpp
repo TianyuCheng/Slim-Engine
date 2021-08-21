@@ -58,6 +58,8 @@ Window::Window(Device *device, const WindowDesc &desc) : desc(desc), device(devi
 
     InitSwapchain();
     InitRenderFrames();
+
+    windowExtent = VkExtent2D { desc.width, desc.height };
 }
 
 Window::~Window() {
@@ -228,5 +230,15 @@ void Window::OnResize() {
         frame->imageAvailableSemaphore = SlimPtr<Semaphore>(device);
         frame->renderFinishesSemaphore = SlimPtr<Semaphore>(device);
         frame->SetBackBuffer(swapchainImages[i].get());
+    }
+
+    // window extent
+    {
+        int width, height;
+        glfwGetWindowSize(handle, &width, &height);
+        windowExtent = VkExtent2D {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height),
+        };
     }
 }

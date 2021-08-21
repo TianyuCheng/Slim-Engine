@@ -26,7 +26,7 @@ namespace slim {
         bool Update(Input* input);
 
         const glm::mat4 GetModelMatrix(bool applyScaling = true) const {
-            return applyScaling ? (translation * scaling * rotation)
+            return applyScaling ? (translation * rotation * scaling)
                                 : (translation * rotation);
         }
 
