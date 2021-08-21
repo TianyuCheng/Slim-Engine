@@ -279,7 +279,6 @@ namespace slim {
                 return availablePresentMode;
             }
         }
-
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 

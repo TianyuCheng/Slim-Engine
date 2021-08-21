@@ -239,6 +239,7 @@ void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
 
     // texture layout transition
     for (auto &textureId : defaultSubpass->usedAsTexture) {
+        textures[textureId]->image->layouts[0][0] = textures[textureId]->layout;
         commandBuffer->PrepareForShaderRead(textures[textureId]->image);
     }
 
@@ -599,7 +600,16 @@ void RenderGraph::Execute() {
     if (lastGraphicsCommandBuffer) {
         // present src layout transition
         GPUImage* backBuffer = renderFrame->GetBackBuffer();
+        VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        for (const auto& resource : resources) {
+            if (resource->image.get() == backBuffer) {
+                layout = resource->layout;
+                break;
+            }
+        }
+        backBuffer->layouts[0][0] = layout;
         lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
+        lastGraphicsCommandBuffer->End();
     }
 
     // stop command buffer recording for all
@@ -608,7 +618,6 @@ void RenderGraph::Execute() {
             pass->commandBuffer->End();
         }
     }
-    lastGraphicsCommandBuffer->End();
 
     // submit all command buffers
     std::vector<VkSubmitInfo> computeSubmits = {};

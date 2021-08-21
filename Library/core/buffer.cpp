@@ -39,7 +39,7 @@ bool Buffer::HostVisible() const {
 }
 
 size_t Buffer::Size() const {
-    return allocInfo.size;
+    return size;
 }
 
 void Buffer::SetData(void *data, size_t size, size_t offset) const {

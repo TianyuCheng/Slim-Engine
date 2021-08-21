@@ -6,16 +6,16 @@ using namespace slim;
 Camera::Camera(const std::string &name) : name(name) {
 }
 
-void Camera::Ortho(float left, float right, float bottom, float top, float near, float far) {
-    proj = glm::ortho(left, right, bottom, top, near, far);
+void Camera::Ortho(float left, float right, float bottom, float top, float zNear, float zFar) {
+    proj = glm::ortho(left, right, bottom, top, zNear, zFar);
 }
 
-void Camera::Frustum(float left, float right, float bottom, float top, float near, float far) {
-    proj = glm::frustum(left, right, bottom, top, near, far);
+void Camera::Frustum(float left, float right, float bottom, float top, float zNear, float zFar) {
+    proj = glm::frustum(left, right, bottom, top, zNear, zFar);
 }
 
-void Camera::Perspective(float fovy, float aspect, float near, float far) {
-    proj = glm::perspective(fovy, aspect, near, far);
+void Camera::Perspective(float fovy, float aspect, float zNear, float zFar) {
+    proj = glm::perspective(fovy, aspect, zNear, zFar);
 }
 
 void Camera::LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up) {

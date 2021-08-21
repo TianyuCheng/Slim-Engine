@@ -13,7 +13,7 @@ file(GLOB SLIM_UTIL_SOURCES utility/*.cpp)
 file(GLOB SLIM_IMGUI_HEADERS imgui/*.h)
 file(GLOB SLIM_IMGUI_SOURCES imgui/*.cpp)
 
-add_library(slim SHARED
+add_library(slim STATIC
     ${SLIM_HEADERS}
     ${SLIM_CORE_HEADERS}
     ${SLIM_CORE_SOURCES}

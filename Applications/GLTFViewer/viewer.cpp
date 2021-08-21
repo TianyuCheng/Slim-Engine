@@ -24,7 +24,7 @@ void GLTFViewer::Run() {
         auto frame = window->AcquireNext();
 
         // update camera projection
-        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0f);
+        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0);
 
         // update input for arcball
         arcball->SetExtent(window->GetExtent());

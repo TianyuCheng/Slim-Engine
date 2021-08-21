@@ -183,12 +183,13 @@ RenderFrame* Window::AcquireNext() {
         VkSemaphore imageAvailableSemaphore = *frame->imageAvailableSemaphore.get();
         VkResult result = vkAcquireNextImageKHR(*device, swapchain, UINT64_MAX, imageAvailableSemaphore, nullptr, &imageIndex);
         if (result == VK_SUCCESS) {
+            frame->window = this;
             frame->swapchain = swapchain;
             frame->swapchainIndex = imageIndex;
             frame->backBuffer = swapchainImages[imageIndex];
             frame->inflightFence = inflightFences[currentFrame].get();
             frame->backBuffer->layouts[0][0] = VK_IMAGE_LAYOUT_UNDEFINED; // reset backbuffer layout
-        } else if (result == VK_SUBOPTIMAL_KHR) {
+        } else if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
             OnResize();
             return AcquireNext();
         } else {

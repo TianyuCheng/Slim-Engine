@@ -28,8 +28,8 @@ namespace slim {
         friend class Window;
         friend class Descriptor;
     public:
-        explicit RenderFrame(Device *device, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
-        explicit RenderFrame(Device *device, GPUImage *backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
+        explicit RenderFrame(Device* device, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
+        explicit RenderFrame(Device* device, GPUImage* backBuffer, uint32_t maxSetsPerPool = MAX_SETS_PER_POOL);
         virtual ~RenderFrame();
 
         Device*                  GetDevice() const { return device; }
@@ -65,6 +65,7 @@ namespace slim {
 
     private:
         SmartPtr<Device>         device;
+        Window*                  window;
         SmartPtr<GPUImage>       backBuffer;
         QueueFamilyIndices       queueFamilyIndices;
 

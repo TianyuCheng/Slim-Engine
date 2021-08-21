@@ -22,7 +22,7 @@ set(IMGUI_INCLUDE_DIRS
     ${IMGUI_INCLUDE_DIRS}
     PARENT_SCOPE)
 file(GLOB IMGUI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp)
-add_library(imgui SHARED ${IMGUI_SOURCES})
+add_library(imgui STATIC ${IMGUI_SOURCES})
 
 # imnodes
 # ---------------------------------------------------------------
@@ -30,7 +30,7 @@ set(IMNODES_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/imnodes
     PARENT_SCOPE)
 file(GLOB IMNODES_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/imnodes/*.cpp)
-add_library(imnodes SHARED ${IMNODES_SOURCES})
+add_library(imnodes STATIC ${IMNODES_SOURCES})
 target_link_libraries(imnodes imgui)
 target_include_directories(imnodes PUBLIC ${IMGUI_INCLUDE_DIRS}
                                           ${IMNODES_INCLUDE_DIRS})
@@ -91,7 +91,7 @@ if(${Vulkan_FOUND})
   # vulkan memory allocator
   set(VMA_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/)
   add_library(
-    vma SHARED
+    vma STATIC
     ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/VmaUsage.cpp)
   set_target_properties(vma PROPERTIES CXX_STANDARD 14)
   target_include_directories(vma PRIVATE ${Vulkan_INCLUDE_DIRS})

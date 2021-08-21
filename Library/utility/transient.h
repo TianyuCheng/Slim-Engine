@@ -34,7 +34,7 @@ namespace slim {
             that.object = nullptr;
         }
 
-        Transient& operator=(Transient &&that) {
+        Transient& operator=(Transient &&that) noexcept {
             pool = that.pool;
             object = that.object;
             hash = that.hash;

@@ -1,3 +1,4 @@
+#include <cassert>
 #include "utility/flycam.h"
 
 using namespace slim;
@@ -28,7 +29,7 @@ void Flycam::LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::ve
 }
 
 void Flycam::Update(Input *input, const Time &time) {
-    assert(screen.width != 0 and screen.height != 0);
+    assert(screen.width != 0 && screen.height != 0);
 
     const MouseEvent &mouse = input->Mouse();
     bool updated = false;

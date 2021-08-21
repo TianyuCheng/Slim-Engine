@@ -1,6 +1,8 @@
 #ifndef SLIM_CORE_DEBUG_H
 #define SLIM_CORE_DEBUG_H
 
+#include <cassert>
+
 #ifdef SLIM_VULKAN_SUPPORT
 #include <vulkan/vulkan.h>
 #include "core/vkutils.h"

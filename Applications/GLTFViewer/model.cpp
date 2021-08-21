@@ -64,8 +64,8 @@ GLTFAssetManager::GLTFAssetManager(Device* device) : device(device) {
 }
 
 GLTFModel GLTFAssetManager::Load(CommandBuffer* commandBuffer, const std::string& path) {
-    std::string name = slim::filesystem::path(path).filename();
-    std::string base = slim::filesystem::path(path).parent_path();
+    std::string name = slim::filesystem::path(path).filename().u8string();
+    std::string base = slim::filesystem::path(path).parent_path().u8string();
 
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;

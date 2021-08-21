@@ -1,10 +1,11 @@
 #include "core/debug.h"
+#include "core/window.h"
 #include "core/renderframe.h"
 #include "core/vkutils.h"
 
 using namespace slim;
 
-RenderFrame::RenderFrame(Device *device, uint32_t maxSetsPerPool) : device(device) {
+RenderFrame::RenderFrame(Device* device, uint32_t maxSetsPerPool) : device(device) {
     queueFamilyIndices = device->GetQueueFamilyIndices();
 
     // initialize command pools
@@ -28,7 +29,7 @@ RenderFrame::RenderFrame(Device *device, uint32_t maxSetsPerPool) : device(devic
     renderFinishesSemaphore = SlimPtr<Semaphore>(device);
 }
 
-RenderFrame::RenderFrame(Device *device, GPUImage *backBuffer, uint32_t maxSetsPerPool) : RenderFrame(device, maxSetsPerPool) {
+RenderFrame::RenderFrame(Device* device, GPUImage* backBuffer, uint32_t maxSetsPerPool) : RenderFrame(device, maxSetsPerPool) {
     this->backBuffer.reset(backBuffer);
 }
 
@@ -95,7 +96,15 @@ void RenderFrame::Present(CommandBuffer *commandBuffer) {
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = &signalSemaphoreVk;
     presentInfo.pResults = VK_NULL_HANDLE;
-    ErrorCheck(vkQueuePresentKHR(device->GetPresentQueue(), &presentInfo), "present a frame");
+    VkResult result = vkQueuePresentKHR(device->GetPresentQueue(), &presentInfo);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR) {
+        // recreation swapchain
+        window->OnResize();
+    }
+    else if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to present swapchain image!");
+    }
 }
 
 Pipeline* RenderFrame::RequestPipeline(const ComputePipelineDesc &desc) {

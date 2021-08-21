@@ -21,11 +21,11 @@ namespace slim {
 
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up);
 
-        virtual void Ortho(float left, float right, float bottom, float top, float near, float far);
+        virtual void Ortho(float left, float right, float bottom, float top, float zNear, float zFar);
 
-        virtual void Frustum(float left, float right, float bottom, float top, float near, float far);
+        virtual void Frustum(float left, float right, float bottom, float top, float zNear, float zFar);
 
-        virtual void Perspective(float fovy, float aspect, float near, float far);
+        virtual void Perspective(float fovy, float aspect, float zNear, float zFar);
 
         void SetViewMatrix(const glm::mat4& view) { this->view = view; }
 

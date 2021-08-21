@@ -187,7 +187,7 @@ namespace slim {
 
         RenderGraph::Pass*     CreateRenderPass(const std::string &name);
         RenderGraph::Pass*     CreateComputePass(const std::string &name);                                         // async compute
-        RenderGraph::Resource* CreateResource(GPUImage* image);                                                  // for retained resource
+        RenderGraph::Resource* CreateResource(GPUImage* image);                                                    // for retained resource
         RenderGraph::Resource* CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples);  // for transient resource
         void                   Compile();
         void                   Execute();

@@ -46,7 +46,7 @@ namespace slim {
             Increment(ptr);
         }
 
-        inline SmartPtr(SmartPtr<T> &&other) : ptr(other.ptr) {
+        inline SmartPtr(SmartPtr<T> &&other) noexcept : ptr(other.ptr) {
             other.ptr = nullptr;
         }
 

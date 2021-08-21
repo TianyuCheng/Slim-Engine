@@ -53,6 +53,7 @@ namespace slim {
      **/
     class Window final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<GLFWwindow*> {
         friend class DearImGui;
+        friend class RenderFrame;
     public:
         explicit Window(Device *device, const WindowDesc & desc);
         virtual ~Window();

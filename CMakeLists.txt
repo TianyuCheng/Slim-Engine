@@ -8,7 +8,6 @@ cmake_minimum_required(VERSION 3.3.0)
 #               |__/
 # ---------------------------------------------------------------
 project(slim LANGUAGES CXX)
-# set(CMAKE_CXX_CLANG_TIDY clang-tidy -checks=-*,readability-*)
 
 #  ____                            _                 _
 # |  _ \  ___ _ __   ___ _ __   __| | ___ _ __   ___(_) ___  ___
@@ -46,8 +45,10 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 
 if(MSVC)
-    add_compile_options(/W4 /WX-)
+    add_compile_options(/W1 /WX-)
     add_compile_options("/std:c++latest")
+    add_definitions(-D_USE_MATH_DEFINES)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS YES CACHE BOOL "Export all symbols")
 else()
     set(CMAKE_CXX_FLAGS "-Wall -Wextra")
     set(CMAKE_CXX_FLAGS_DEBUG "-ggdb3")
@@ -58,6 +59,7 @@ if (MSVC_VERSION GREATER_EQUAL "1900")
     include(CheckCXXCompilerFlag)
     CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
     if (_cpp_latest_flag_supported)
+        # do something
     endif()
 endif()
 
