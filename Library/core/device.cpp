@@ -31,7 +31,15 @@ void Device::InitLogicalDevice() {
     VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
     VkSurfaceKHR surface = context->GetSurface();
 
-    std::vector<const char*> deviceExtensions(desc.deviceExtensions.begin(), desc.deviceExtensions.end());
+    std::vector<const char*> deviceExtensions;
+    for (const std::string& name : desc.deviceExtensions) {
+        deviceExtensions.push_back(name.c_str());
+    }
+
+    std::vector<const char*> validationLayers;
+    for (const std::string& name : desc.validationLayers) {
+        validationLayers.push_back(name.c_str());
+    }
 
     // query device extensions (portability subset)
     uint32_t extensionCount;
@@ -88,7 +96,7 @@ void Device::InitLogicalDevice() {
     // enable validation if needed
     if (desc.validation) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(desc.validationLayers.size());
-        createInfo.ppEnabledLayerNames = desc.validationLayers.data();
+        createInfo.ppEnabledLayerNames = validationLayers.data();
     } else {
         createInfo.enabledLayerCount = 0;
     }
@@ -122,6 +130,12 @@ void Device::InitMemoryAllocator() {
     allocatorInfo.physicalDevice = context->GetPhysicalDevice();
     allocatorInfo.device = handle;
     allocatorInfo.instance = context->GetInstance();
+    allocatorInfo.flags = 0;
+
+    // enable buffer device address capability for vma allocator
+    if (context->GetDescription().deviceFeatures.bufferDeviceAddress->bufferDeviceAddress) {
+        allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    }
 
     ErrorCheck(vmaCreateAllocator(&allocatorInfo, &allocator), "create vma allocator");
 }

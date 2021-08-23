@@ -21,7 +21,7 @@ namespace slim {
 
     template <typename Buffer>
     class BufferPool final : public ReferenceCountable {
-        using List = std::list<SmartPtr<Buffer>>;
+        using List = std::vector<SmartPtr<Buffer>>;
     public:
         explicit BufferPool(Device *device);
         virtual ~BufferPool();

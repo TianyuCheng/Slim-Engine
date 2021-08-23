@@ -241,9 +241,6 @@ void Descriptor::SetBuffer(const std::string &name, VkDescriptorType descriptorT
         info.offset = alloc.offset;
         info.range = alloc.size == 0 ? alloc.buffer->Size() : alloc.size;
         infos.push_back(info);
-        // std::cout << "alloc size: " << alloc.size << std::endl;
-        // std::cout << "buffer size: " << alloc.buffer->Size() << std::endl;
-        // std::cout << "offset: " << info.offset << ", range: " << info.range << std::endl;
     }
 
     VkWriteDescriptorSet update = {};

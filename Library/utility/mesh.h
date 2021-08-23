@@ -30,6 +30,10 @@ namespace slim {
 
         std::vector<Buffer*> vertexBuffers;
         std::vector<VkDeviceSize> vertexOffsets;
+
+        // automatic free
+        SmartPtr<Buffer> _indexBuffer;
+        std::vector<SmartPtr<Buffer>> _vertexBuffers;
     };
 
     template <typename T>

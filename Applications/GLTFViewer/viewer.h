@@ -18,6 +18,7 @@ public:
 
 private:
     void InitContext();
+    void InitDevice();
     void InitWindow();
     void InitInput();
     void InitCamera();

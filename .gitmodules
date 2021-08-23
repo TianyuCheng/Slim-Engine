@@ -1,30 +1,30 @@
 [submodule "deps/VulkanMemoryAllocator"]
-	path = Dependencies/VulkanMemoryAllocator
-	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+    path = Dependencies/VulkanMemoryAllocator
+    url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 [submodule "deps/glfw"]
-	path = Dependencies/glfw
-	url = git@github.com:glfw/glfw.git
+    path = Dependencies/glfw
+    url = https://github.com/glfw/glfw.git
 [submodule "deps/imgui"]
-	path = Dependencies/imgui
-	url = git@github.com:ocornut/imgui.git
+    path = Dependencies/imgui
+    url = https://github.com/ocornut/imgui.git
 [submodule "deps/glm"]
-	path = Dependencies/glm
-	url = git@github.com:g-truc/glm.git
+    path = Dependencies/glm
+    url = https://github.com/g-truc/glm.git
 [submodule "deps/tinygltf"]
-	path = Dependencies/tinygltf
-	url = git@github.com:syoyo/tinygltf.git
+    path = Dependencies/tinygltf
+    url = https://github.com/syoyo/tinygltf.git
 [submodule "deps/stb"]
-	path = Dependencies/stb
-	url = git@github.com:nothings/stb.git
+    path = Dependencies/stb
+    url = https://github.com/nothings/stb.git
 [submodule "Dependencies/imnodes"]
-	path = Dependencies/imnodes
-	url = git@github.com:Nelarius/imnodes.git
+    path = Dependencies/imnodes
+    url = https://github.com/Nelarius/imnodes.git
 [submodule "Dependencies/filesystem"]
-	path = Dependencies/filesystem
-	url = git@github.com:gulrak/filesystem.git
+    path = Dependencies/filesystem
+    url = https://github.com/gulrak/filesystem.git
 [submodule "Dependencies/Format.cmake"]
-	path = Dependencies/Format.cmake
-	url = git@github.com:TheLartians/Format.cmake.git
+    path = Dependencies/Format.cmake
+    url = https://github.com/TheLartians/Format.cmake.git
 [submodule "Dependencies/pybind11"]
-	path = Dependencies/pybind11
-	url = git@github.com:pybind/pybind11.git
+    path = Dependencies/pybind11
+    url = https://github.com/pybind/pybind11.git
