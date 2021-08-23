@@ -133,7 +133,7 @@ void Device::InitMemoryAllocator() {
     allocatorInfo.flags = 0;
 
     // enable buffer device address capability for vma allocator
-    if (context->GetDescription().deviceFeatures.bufferDeviceAddress->bufferDeviceAddress) {
+    if (context->GetDescription().deviceFeatures.bufferDeviceAddress) {
         allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     }
 
