@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <unordered_set>
 #include <vulkan/vulkan.h>
 #include <VmaUsage.h>
 
@@ -34,16 +35,17 @@ namespace slim {
         ContextDesc& EnableSeparateDepthStencilLayout();
         ContextDesc& EnableDescriptorIndexing();
         ContextDesc& EnableNonSolidPolygonMode();
+        ContextDesc& EnableRayTracing();
 
         // allow finer-grain tuning by users
         VkPhysicalDeviceFeatures& GetDeviceFeatures() {
             return features.features;
         }
         VkPhysicalDeviceDescriptorIndexingFeatures& GetDescriptorIndexingFeatures() {
-            return deviceFeatures.descriptorIndexing;
+            return *deviceFeatures.descriptorIndexing;
         }
         VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures& GetSeparateDepthStencilLayoutFeatures() {
-            return deviceFeatures.separateDepthStencilLayout;
+            return *deviceFeatures.separateDepthStencilLayout;
         }
 
     private:
@@ -51,7 +53,6 @@ namespace slim {
         void PrepareForViewport();
         void PrepareForSwapchain();
         void PrepareForValidation();
-        VkSurfaceKHR PrepareSurface(VkInstance instance) const;
 
     private:
         bool validation = false;
@@ -62,14 +63,19 @@ namespace slim {
         // physical device features
         VkPhysicalDeviceFeatures2 features = {};
         struct {
-            VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures separateDepthStencilLayout = {};
-            VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexing = {};
+            std::shared_ptr<VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures> separateDepthStencilLayout;
+            std::shared_ptr<VkPhysicalDeviceDescriptorIndexingFeatures> descriptorIndexing;
+            std::shared_ptr<VkPhysicalDeviceBufferDeviceAddressFeatures> bufferDeviceAddress;
+            std::shared_ptr<VkPhysicalDeviceAccelerationStructureFeaturesKHR> accelerationStructure;
+            std::shared_ptr<VkPhysicalDeviceRayTracingPipelineFeaturesKHR> rayTracingPipeline;
+            std::shared_ptr<VkPhysicalDeviceRayQueryFeaturesKHR> rayQuery;
         } deviceFeatures;
 
         // extensions + validation layers
-        std::vector<const char*> instanceExtensions = {};
-        std::vector<const char*> validationLayers = {};
-        std::vector<const char*> deviceExtensions = {};
+        // clean up glfw
+        std::unordered_set<std::string> instanceExtensions = {};
+        std::unordered_set<std::string> validationLayers = {};
+        std::unordered_set<std::string> deviceExtensions = {};
     };
 
     class Context final : public NotCopyable, public NotMovable, public ReferenceCountable {
@@ -95,6 +101,10 @@ namespace slim {
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
         VkSurfaceKHR             surface        = VK_NULL_HANDLE;
         VkPhysicalDevice         physicalDevice = VK_NULL_HANDLE;
+
+        std::vector<const char*> instanceExtensions;
+        std::vector<const char*> deviceExtensions;
+        std::vector<const char*> validationLayers;
     };
 
 } // end of namespace slim

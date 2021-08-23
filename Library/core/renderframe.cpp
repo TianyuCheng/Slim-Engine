@@ -56,6 +56,7 @@ void RenderFrame::Reset() {
     if (transferCommandPools.get()) transferCommandPools->Reset();
 
     uniformBufferPool->Reset();
+    descriptorPool->Reset();
     activeSemahoreCount = 0;
     semaphorePool.clear();
 }

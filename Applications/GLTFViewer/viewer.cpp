@@ -2,6 +2,7 @@
 
 GLTFViewer::GLTFViewer() {
     InitContext();
+    InitDevice();
     InitWindow();
     InitInput();
     InitCamera();
@@ -100,6 +101,9 @@ void GLTFViewer::InitContext() {
             .EnableDescriptorIndexing();
 
     context = SlimPtr<Context>(contextDesc);
+}
+
+void GLTFViewer::InitDevice() {
     device = SlimPtr<Device>(context);
 }
 

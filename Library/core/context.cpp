@@ -47,56 +47,107 @@ ContextDesc& ContextDesc::EnableNonSolidPolygonMode() {
 
 ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
     // enable separate depth stencil layout
-    deviceFeatures.separateDepthStencilLayout.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
-    deviceFeatures.separateDepthStencilLayout.separateDepthStencilLayouts = VK_TRUE;
+    deviceFeatures.separateDepthStencilLayout.reset(new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures { });
+    deviceFeatures.separateDepthStencilLayout->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
+    deviceFeatures.separateDepthStencilLayout->separateDepthStencilLayouts = VK_TRUE;
     // connect to features
-    deviceFeatures.separateDepthStencilLayout.pNext = features.pNext;
-    features.pNext = &deviceFeatures.separateDepthStencilLayout;
+    deviceFeatures.separateDepthStencilLayout->pNext = features.pNext;
+    features.pNext = deviceFeatures.separateDepthStencilLayout.get();
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableDescriptorIndexing() {
     // add instance extensions
-    instanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    instanceExtensions.insert(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
     // add device extensions
-    deviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
-    deviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+    deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+
     // add physical device features
-    deviceFeatures.descriptorIndexing.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-    deviceFeatures.descriptorIndexing.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    deviceFeatures.descriptorIndexing.runtimeDescriptorArray = VK_TRUE;
-    deviceFeatures.descriptorIndexing.descriptorBindingVariableDescriptorCount = VK_TRUE;
-    deviceFeatures.descriptorIndexing.descriptorBindingPartiallyBound = VK_TRUE;
+    deviceFeatures.descriptorIndexing.reset(new VkPhysicalDeviceDescriptorIndexingFeatures { });
+    deviceFeatures.descriptorIndexing->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+    deviceFeatures.descriptorIndexing->shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    deviceFeatures.descriptorIndexing->runtimeDescriptorArray = VK_TRUE;
+    deviceFeatures.descriptorIndexing->descriptorBindingVariableDescriptorCount = VK_TRUE;
+    deviceFeatures.descriptorIndexing->descriptorBindingPartiallyBound = VK_TRUE;
+
     // connect to features
-    deviceFeatures.descriptorIndexing.pNext = features.pNext;
-    features.pNext = &deviceFeatures.descriptorIndexing;
+    deviceFeatures.descriptorIndexing->pNext = features.pNext;
+    features.pNext = deviceFeatures.descriptorIndexing.get();
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableRayTracing() {
+    EnableDescriptorIndexing(); // descriptor indexing is essential for ray tracing
+
+    // adding required device extensions
+    deviceExtensions.insert(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+    // deviceExtensions.insert(VK_KHR_RAY_QUERY_EXTENSION_NAME); // This requires RTX GPU
+    deviceExtensions.insert(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+
+    // adding buffer device address features
+    deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
+    deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
+
+    // adding acceleration structure feature
+    deviceFeatures.accelerationStructure.reset(new VkPhysicalDeviceAccelerationStructureFeaturesKHR { });
+    deviceFeatures.accelerationStructure->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    deviceFeatures.accelerationStructure->accelerationStructure = VK_TRUE;
+
+    // adding ray tracing pipeline features
+    deviceFeatures.rayTracingPipeline.reset(new VkPhysicalDeviceRayTracingPipelineFeaturesKHR { });
+    deviceFeatures.rayTracingPipeline->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    deviceFeatures.rayTracingPipeline->rayTracingPipeline = VK_TRUE;
+    deviceFeatures.rayTracingPipeline->rayTraversalPrimitiveCulling = VK_TRUE;
+
+    #if 0 // This requires RTX GPU
+    // adding ray query pipeline features
+    deviceFeatures.rayQuery.reset(new VkPhysicalDeviceRayQueryFeaturesKHR {});
+    deviceFeatures.rayQuery->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+    deviceFeatures.rayQuery->rayQuery = VK_TRUE;
+    #endif
+
+    // connect to features
+    deviceFeatures.bufferDeviceAddress->pNext = deviceFeatures.accelerationStructure.get();
+    deviceFeatures.accelerationStructure->pNext = deviceFeatures.rayTracingPipeline.get();
+    deviceFeatures.rayTracingPipeline->pNext = features.pNext;
+    features.pNext = deviceFeatures.bufferDeviceAddress.get();
+
     return *this;
 }
 
 void ContextDesc::PrepareForGlfw() {
-    // query for glfw extensions
     glfwInit();
+    // query for glfw extensions
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    for (uint32_t i = 0; i < glfwExtensionCount; i++)
-        instanceExtensions.push_back(glfwExtensions[i]);
+    for (uint32_t i = 0; i < glfwExtensionCount; i++) {
+        instanceExtensions.insert(glfwExtensions[i]);
+    }
+    glfwTerminate();
 }
 
 void ContextDesc::PrepareForViewport() {
     // MAINTENANCE1: contains the extension to allow negative height on viewport.
     // This would allow an OpenGL style viewport.
-    deviceExtensions.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
 }
 
 void ContextDesc::PrepareForSwapchain() {
     // SWAPCHAIN: contains the extension for swapchain for presentation
-    deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 }
 
 void ContextDesc::PrepareForValidation() {
-    validationLayers.push_back("VK_LAYER_KHRONOS_validation");
-    instanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    validationLayers.insert("VK_LAYER_KHRONOS_validation");
+    instanceExtensions.insert(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
     // TODO: need to query validation layer support
     const auto &supportedInstanceExtensions = GetSupportedInstanceExtensions();
@@ -124,28 +175,12 @@ void ContextDesc::PrepareForValidation() {
     }
 }
 
-VkSurfaceKHR ContextDesc::PrepareSurface(VkInstance instance) const {
-    // Vulkan is available, at least for compute
-    if (!glfwVulkanSupported())
-        throw std::runtime_error("GLFW does not support Vulkan!");
-
-    // for Vulkan, use GLFW_NO_API
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-    // create a glfw window
-    GLFWwindow *window = glfwCreateWindow(128, 128, "dummy", nullptr, nullptr);
-
-    // This surface is a dummy one for picking physical device
-    // create vulkan surface from glfw
-    VkSurfaceKHR surface = VK_NULL_HANDLE;;
-    ErrorCheck(glfwCreateWindowSurface(instance, window, nullptr, &surface), "create a dummy window surface");
-
-    glfwDestroyWindow(window);
-
-    return surface;
-}
-
 Context::Context(const ContextDesc& desc) : desc(desc) {
+    // initialize glfw
+    if (desc.present) {
+        glfwInit();
+    }
+
     InitInstance(desc);
     InitDebuggerMessener(desc);
     InitSurface(desc);
@@ -170,9 +205,30 @@ Context::~Context() {
         vkDestroyInstance(instance, nullptr);
         instance = VK_NULL_HANDLE;
     }
+
+    // clean up glfw
+    if (desc.present) {
+        glfwTerminate();
+    }
 }
 
 void Context::InitInstance(const ContextDesc& desc) {
+    // prepare extensions and layers
+    instanceExtensions.clear();
+    for (const std::string& name : desc.instanceExtensions) {
+        instanceExtensions.push_back(name.c_str());
+    }
+
+    deviceExtensions.clear();
+    for (const std::string& name : desc.deviceExtensions) {
+        deviceExtensions.push_back(name.c_str());
+    }
+
+    validationLayers.clear();
+    for (const std::string& name : desc.validationLayers) {
+        validationLayers.push_back(name.c_str());
+    }
+
     // prepare application info
     VkApplicationInfo appInfo = {};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -186,14 +242,14 @@ void Context::InitInstance(const ContextDesc& desc) {
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(desc.instanceExtensions.size());
-    createInfo.ppEnabledExtensionNames = desc.instanceExtensions.data();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
+    createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
     // prepare debug info
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
     if (desc.validation) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(desc.validationLayers.size());
-        createInfo.ppEnabledLayerNames = desc.validationLayers.data();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+        createInfo.ppEnabledLayerNames = validationLayers.data();
         FillVulkanDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
     } else {
@@ -217,7 +273,29 @@ void Context::InitDebuggerMessener(const ContextDesc& desc) {
 }
 
 void Context::InitSurface(const ContextDesc& desc) {
-    surface = desc.PrepareSurface(instance);
+    surface = VK_NULL_HANDLE;
+
+    if (!desc.present) {
+        return;
+    }
+
+    // Vulkan is available, at least for compute
+    if (!glfwVulkanSupported()) {
+        throw std::runtime_error("GLFW does not support Vulkan!");
+    }
+
+    // for Vulkan, use GLFW_NO_API
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    // create a glfw window
+    GLFWwindow *window = glfwCreateWindow(128, 128, "dummy", nullptr, nullptr);
+
+    // This surface is a dummy one for picking physical device
+    // create vulkan surface from glfw
+    ErrorCheck(glfwCreateWindowSurface(instance, window, nullptr, &surface), "create a dummy window surface");
+
+    // clean up window
+    glfwDestroyWindow(window);
 }
 
 void Context::InitPhysicalDevice(const ContextDesc &desc) {
@@ -267,11 +345,15 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
     // store scores of all devices
     std::vector<std::pair<VkPhysicalDevice,int>> candidates;
     for (const auto& device : devices) {
-        bool adequate = CheckDeviceExtensionSupport(device, desc.deviceExtensions);
+        bool adequate = CheckDeviceExtensionSupport(device, deviceExtensions);
         if (adequate) {
             int score = rateDevice(device, surface);
             candidates.push_back(std::make_pair(device, score));
         }
+    }
+
+    if (candidates.empty()) {
+        throw std::runtime_error("Device extensions not supported!");
     }
 
     // pick the device with highest score
