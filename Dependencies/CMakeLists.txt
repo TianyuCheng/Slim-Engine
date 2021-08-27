@@ -23,6 +23,7 @@ set(IMGUI_INCLUDE_DIRS
     PARENT_SCOPE)
 file(GLOB IMGUI_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/imgui/*.cpp)
 add_library(imgui STATIC ${IMGUI_SOURCES})
+target_include_directories(imgui PUBLIC ${IMGUI_INCLUDE_DIRS})
 
 # imnodes
 # ---------------------------------------------------------------
@@ -32,8 +33,18 @@ set(IMNODES_INCLUDE_DIRS
 file(GLOB IMNODES_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/imnodes/*.cpp)
 add_library(imnodes STATIC ${IMNODES_SOURCES})
 target_link_libraries(imnodes imgui)
-target_include_directories(imnodes PUBLIC ${IMGUI_INCLUDE_DIRS}
-                                          ${IMNODES_INCLUDE_DIRS})
+target_include_directories(imnodes PUBLIC ${IMNODES_INCLUDE_DIRS})
+
+# imguizmo
+# ---------------------------------------------------------------
+set(IMGUIZMO_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/ImGuizmo
+    PARENT_SCOPE)
+file(GLOB IMGUIZMO_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/ImGuizmo/*.cpp)
+add_library(imguizmo STATIC ${IMGUIZMO_SOURCES})
+set_target_properties(imguizmo PROPERTIES CXX_STANDARD 17)
+target_link_libraries(imguizmo imgui)
+target_include_directories(imguizmo PUBLIC ${IMGUIZMO_INCLUDE_DIRS})
 
 # glm
 # ---------------------------------------------------------------

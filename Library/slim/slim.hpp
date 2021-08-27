@@ -39,6 +39,9 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <imnodes.h>
+#include <ImGuizmo.h>
+#include <ImCurveEdit.h>
+#include <ImSequencer.h>
 #include <tiny_gltf.h>
 #include "imgui/dearimgui.h"
 #include "imgui/imgui_impl_vulkan.h"

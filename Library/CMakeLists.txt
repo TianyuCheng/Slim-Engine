@@ -23,10 +23,12 @@ add_library(slim STATIC
     ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.h
     ${PROJECT_SOURCE_DIR}/Dependencies/imgui/backends/imgui_impl_glfw.cpp
 )
+set_target_properties(slim PROPERTIES CXX_STANDARD 17)
 target_include_directories(slim PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${IMGUI_INCLUDE_DIRS}
     ${IMNODES_INCLUDE_DIRS}
+    ${IMGUIZMO_INCLUDE_DIRS}
     ${VULKAN_INCLUDES}
 )
-target_link_libraries(slim PUBLIC glm glfw imgui imnodes stb tinygltf ghc_filesystem ${VULKAN_LIBS})
+target_link_libraries(slim PUBLIC glm glfw imgui imnodes imguizmo stb tinygltf ghc_filesystem ${VULKAN_LIBS})

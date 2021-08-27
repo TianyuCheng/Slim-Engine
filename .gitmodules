@@ -28,3 +28,6 @@
 [submodule "Dependencies/pybind11"]
     path = Dependencies/pybind11
     url = https://github.com/pybind/pybind11.git
+[submodule "Dependencies/ImGuizmo"]
+    path = Dependencies/ImGuizmo
+    url = https://github.com/CedricGuillemet/ImGuizmo.git
