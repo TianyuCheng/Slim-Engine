@@ -28,7 +28,7 @@ void Transform::ApplyTransform() {
     worldToLocal = glm::inverse(localToWorld);
 }
 
-void Transform::ApplyParentTransform(const Transform &parent) {
+void Transform::ApplyTransform(const Transform &parent) {
     localToWorld = parent.localToWorld * localXform;
     worldToLocal = worldToLocal * parent.worldToLocal;
 }

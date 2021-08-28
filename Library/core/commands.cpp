@@ -53,7 +53,7 @@ void CommandBuffer::End() {
 }
 
 void CommandBuffer::NextSubpass(VkSubpassContents contents) {
-    vkCmdNextSubpass(handle, contents);
+    DeviceDispatch(vkCmdNextSubpass(handle, contents));
 }
 
 void CommandBuffer::Submit() {
@@ -129,7 +129,7 @@ void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, si
     // buffer update
     // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/vkCmdUpdateBuffer.html
     else if (size <= 65536 && size % 4 == 0 && offset % 4 == 0) {
-        vkCmdUpdateBuffer(handle, *buffer, offset, size, data);
+        DeviceDispatch(vkCmdUpdateBuffer(handle, *buffer, offset, size, data));
     }
 
     // use staging buffer
@@ -159,7 +159,7 @@ void CommandBuffer::CopyBufferToBuffer(Buffer *srcBuffer, size_t srcOffset, Buff
     copy.srcOffset = srcOffset;
     copy.dstOffset = dstOffset;
     copy.size = size;
-    vkCmdCopyBuffer(handle, *srcBuffer, *dstBuffer, 1, &copy);
+    DeviceDispatch(vkCmdCopyBuffer(handle, *srcBuffer, *dstBuffer, 1, &copy));
 }
 
 void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight,
@@ -178,7 +178,7 @@ void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, si
     copy.imageSubresource.layerCount = layerCount;
     copy.imageSubresource.mipLevel = mipLevel;
 
-    vkCmdCopyBufferToImage(handle, *srcBuffer, *dstImage, dstImage->layouts[baseLayer][mipLevel], 1, &copy);
+    DeviceDispatch(vkCmdCopyBufferToImage(handle, *srcBuffer, *dstImage, dstImage->layouts[baseLayer][mipLevel], 1, &copy));
 }
 
 void CommandBuffer::CopyImageToBuffer(Image *srcImage, const VkOffset3D &offset, const VkExtent3D &extent,
@@ -197,7 +197,7 @@ void CommandBuffer::CopyImageToBuffer(Image *srcImage, const VkOffset3D &offset,
     copy.imageSubresource.layerCount = layerCount;
     copy.imageSubresource.mipLevel = mipLevel;
 
-    vkCmdCopyImageToBuffer(handle, *srcImage, srcImage->layouts[baseLayer][mipLevel], *dstBuffer, 1, &copy);
+    DeviceDispatch(vkCmdCopyImageToBuffer(handle, *srcImage, srcImage->layouts[baseLayer][mipLevel], *dstBuffer, 1, &copy));
 }
 
 void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffset,
@@ -220,10 +220,10 @@ void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffse
     copy.dstSubresource.baseArrayLayer = dstBaseLayer;
     copy.dstSubresource.layerCount = dstLayerCount;
     copy.dstSubresource.mipLevel = dstMipLevel;
-    vkCmdCopyImage(handle,
+    DeviceDispatch(vkCmdCopyImage(handle,
                    *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
                    *dstImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
-                   1, &copy);
+                   1, &copy));
 }
 
 void CommandBuffer::BlitImage(Image *srcImage, const VkOffset3D &srcOffset1, const VkOffset3D &srcOffset2,
@@ -244,10 +244,10 @@ void CommandBuffer::BlitImage(Image *srcImage, const VkOffset3D &srcOffset1, con
     blit.dstSubresource.baseArrayLayer = dstBaseLayer;
     blit.dstSubresource.layerCount = dstLayerCount;
     blit.dstSubresource.mipLevel = dstMipLevel;
-    vkCmdBlitImage(handle,
+    DeviceDispatch(vkCmdBlitImage(handle,
                    *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
                    *dstImage, dstImage->layouts[dstBaseLayer][dstMipLevel],
-                   1, &blit, filter);
+                   1, &blit, filter));
 }
 
 void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
@@ -354,19 +354,19 @@ void CommandBuffer::PrepareForMemoryMapping(Image *image) {
 }
 
 void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
-    vkCmdDispatch(handle, x, y, z);
+    DeviceDispatch(vkCmdDispatch(handle, x, y, z));
 }
 
 void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance) {
-    vkCmdDraw(handle, vertexCount, instanceCount, firstVertex, firstInstance);
+    DeviceDispatch(vkCmdDraw(handle, vertexCount, instanceCount, firstVertex, firstInstance));
 }
 
 void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance) {
-    vkCmdDrawIndexed(handle, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    DeviceDispatch(vkCmdDrawIndexed(handle, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance));
 }
 
 void CommandBuffer::BindPipeline(Pipeline *pipeline) {
-    vkCmdBindPipeline(handle, pipeline->Type(), *pipeline);
+    DeviceDispatch(vkCmdBindPipeline(handle, pipeline->Type(), *pipeline));
 }
 
 void CommandBuffer::BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint) {
@@ -380,29 +380,29 @@ void CommandBuffer::BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint b
         if (descriptor->descriptorSets[i] != VK_NULL_HANDLE) {
             uint32_t dynamicOffsetCount = descriptor->dynamicOffsets[i].size();
             uint32_t* dynamicOffsetData = descriptor->dynamicOffsets[i].data();
-            vkCmdBindDescriptorSets(handle, bindPoint, layout, i, 1, &descriptor->descriptorSets[i], dynamicOffsetCount, dynamicOffsetData);
+            DeviceDispatch(vkCmdBindDescriptorSets(handle, bindPoint, layout, i, 1, &descriptor->descriptorSets[i], dynamicOffsetCount, dynamicOffsetData));
         }
     }
 }
 
 void CommandBuffer::BindIndexBuffer(IndexBuffer *buffer, size_t offset) {
-    vkCmdBindIndexBuffer(handle, *buffer, offset, buffer->indexType);
+    DeviceDispatch(vkCmdBindIndexBuffer(handle, *buffer, offset, buffer->indexType));
 }
 
 void CommandBuffer::BindIndexBuffer(Buffer *buffer, size_t offset, VkIndexType indexType) {
-    vkCmdBindIndexBuffer(handle, *buffer, offset, indexType);
+    DeviceDispatch(vkCmdBindIndexBuffer(handle, *buffer, offset, indexType));
 }
 
 void CommandBuffer::BindVertexBuffer(uint32_t binding, Buffer *buffer, uint64_t offset) {
     VkBuffer vBuffer = *buffer;
-    vkCmdBindVertexBuffers(handle, binding, 1, &vBuffer, &offset);
+    DeviceDispatch(vkCmdBindVertexBuffers(handle, binding, 1, &vBuffer, &offset));
 }
 
 void CommandBuffer::BindVertexBuffers(uint32_t binding, const std::vector<Buffer*> &buffers, const std::vector<uint64_t> &offsets) {
     std::vector<VkBuffer> vBuffers;
     for (auto buffer : buffers)
         vBuffers.push_back(*buffer);
-    vkCmdBindVertexBuffers(handle, binding, vBuffers.size(), vBuffers.data(), offsets.data());
+    DeviceDispatch(vkCmdBindVertexBuffers(handle, binding, vBuffers.size(), vBuffers.data(), offsets.data()));
 }
 
 void CommandBuffer::PushConstants(PipelineLayout *layout, const std::string &name, const void *value) {
@@ -411,7 +411,26 @@ void CommandBuffer::PushConstants(PipelineLayout *layout, const std::string &nam
 }
 
 void CommandBuffer::PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages) {
-    vkCmdPushConstants(handle, *layout, stages, offset, size, value);
+    DeviceDispatch(vkCmdPushConstants(handle, *layout, stages, offset, size, value));
+}
+
+void CommandBuffer::BuildAccelerationStructure(AccelerationStructure* accelerationStructure) {
+    BuildAccelerationStructures({ accelerationStructure });
+}
+
+void CommandBuffer::BuildAccelerationStructures(const std::vector<AccelerationStructure*> &accelerationStructures) {
+    for (AccelerationStructure* as : accelerationStructures) {
+        as->Prepare();
+    }
+
+    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildInfos = {};
+    std::vector<std::vector<VkAccelerationStructureBuildRangeInfoKHR>> buildRanges = {};
+    for (AccelerationStructure* as : accelerationStructures) {
+        buildInfos.push_back(as->buildInfo);
+        buildRanges.push_back(as->buildRanges);
+    }
+
+    assert(!!!"--> build acceleration structures");
 }
 
 CommandPool::CommandPool(Device *device, uint32_t queueFamilyIndex) : device(device) {
@@ -426,7 +445,7 @@ CommandPool::CommandPool(Device *device, uint32_t queueFamilyIndex) : device(dev
     createInfo.pNext = nullptr;
 
     // error checking
-    ErrorCheck(vkCreateCommandPool(*device, &createInfo, nullptr, &handle), "create command pool");
+    ErrorCheck(DeviceDispatch(vkCreateCommandPool(*device, &createInfo, nullptr, &handle)), "create command pool");
 }
 
 CommandPool::~CommandPool() {
@@ -475,7 +494,7 @@ CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
 
     // allocate command buffer
     VkCommandBuffer commandBuffer;
-    ErrorCheck(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer), "allocate command buffer");
+    ErrorCheck(DeviceDispatch(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer)), "allocate command buffer");
 
     // adding a new command buffer
     primaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(device, queue, commandBuffer));
@@ -498,7 +517,7 @@ CommandBuffer* CommandPool::RequestSecondaryCommandBufer() {
 
     // allocate command buffer
     VkCommandBuffer commandBuffer;
-    ErrorCheck(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer), "allocate command buffer")
+    ErrorCheck(DeviceDispatch(vkAllocateCommandBuffers(*device, &allocInfo, &commandBuffer)), "allocate command buffer")
 
     // adding a new command buffer
     secondaryCommandBuffers.push_back(SlimPtr<CommandBuffer>(device, queue, commandBuffer));

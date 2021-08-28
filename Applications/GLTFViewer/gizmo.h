@@ -7,8 +7,10 @@ using namespace slim;
 
 struct Gizmo : ReferenceCountable {
     // scene
-    SmartPtr<Scene> scene;
-    SmartPtr<Mesh> mesh;
+    SmartPtr<Scene::Builder> builder;
+    SmartPtr<Scene::Node> scene;
+    SmartPtr<Mesh> cylinderMesh;
+    SmartPtr<Mesh> coneMesh;
 
     // material
     SmartPtr<Shader> vShader;
@@ -18,38 +20,27 @@ struct Gizmo : ReferenceCountable {
     SmartPtr<Material> green;
     SmartPtr<Material> blue;
 
-    Gizmo(CommandBuffer* commandBuffer) {
-        InitMesh(commandBuffer);
+    Gizmo(CommandBuffer* commandBuffer, Scene::Builder* builder) : builder(builder) {
+        InitMesh();
         InitMaterial(commandBuffer);
         InitScene();
     }
 
-    void InitMesh(CommandBuffer* commandBuffer) {
+    void InitMesh() {
         GeometryData cylinder = Cylinder { 0.1f, 0.1f, 3.0f, 8, 1 }.Create();
         GeometryData cone = Cone { 0.5f, 1.0f, 16, 1 }.Create();
 
-        cylinderIndexCount = cylinder.indices.size();
-        cylinderVertexCount = cylinder.vertices.size();
+        // cylinder mesh
+        cylinderMesh = builder->CreateMesh();
+        cylinderMesh->SetIndexBuffer(cylinder.indices);
+        cylinderMesh->SetVertexBuffer(cylinder.vertices);
+        cylinderMesh->AddInputBinding(0, 0);
 
-        coneIndexCount = cone.indices.size();
-        coneVertexCount = cone.vertices.size();
-
-        // copy vertices
-        std::vector<GeometryData::Vertex> vertices;
-        vertices.reserve(cylinder.vertices.size() + cone.vertices.size());
-        std::copy(cylinder.vertices.begin(), cylinder.vertices.end(), std::back_inserter(vertices));
-        std::copy(cone.vertices.begin(), cone.vertices.end(), std::back_inserter(vertices));
-
-        // copy indices
-        std::vector<uint32_t> indices;
-        indices.reserve(cylinder.indices.size() + cone.indices.size());
-        std::copy(cylinder.indices.begin(), cylinder.indices.end(), std::back_inserter(indices));
-        std::copy(cone.indices.begin(), cone.indices.end(), std::back_inserter(indices));
-
-        // create mesh
-        mesh = SlimPtr<Mesh>();
-        mesh->SetIndexAttrib(commandBuffer, indices);
-        mesh->SetVertexAttrib(commandBuffer, vertices, 0);
+        // cone mesh
+        coneMesh = builder->CreateMesh();
+        coneMesh->SetIndexBuffer(cone.indices);
+        coneMesh->SetVertexBuffer(cone.vertices);
+        coneMesh->AddInputBinding(0, 0);
     }
 
     void InitMaterial(CommandBuffer* commandBuffer) {
@@ -88,42 +79,30 @@ struct Gizmo : ReferenceCountable {
     }
 
     void InitScene() {
-        manager = SlimPtr<SceneManager>();
-        scene = manager->Create<Scene>("gizmo");
+        scene = builder->CreateNode("gizmo");
 
-        auto redCylinder = manager->Create<Scene>("red-cylinder", scene);
-        auto redCone = manager->Create<Scene>("red-cylinder", redCylinder);
-        redCylinder->SetDraw(mesh, red, DrawIndexed {
-            cylinderIndexCount, 1, 0, 0, 0
-        });
-        redCone->SetDraw(mesh, red, DrawIndexed {
-            coneIndexCount, 1, cylinderIndexCount, static_cast<int32_t>(cylinderVertexCount), 0
-        });
+        auto redCylinder = builder->CreateNode("red-cylinder", scene);
+        auto redCone = builder->CreateNode("red-cylinder", redCylinder);
+        redCylinder->SetDraw(cylinderMesh, red);
+        redCone->SetDraw(coneMesh, red);
         redCylinder->Rotate(glm::vec3(0.0, 0.0, 1.0), -M_PI / 2.0);
         redCone->Translate(0.0, 3.0, 0.0);
 
-        auto greenCylinder = manager->Create<Scene>("green-cylinder", scene);
-        auto greenCone = manager->Create<Scene>("green-cylinder", greenCylinder);
-        greenCylinder->SetDraw(mesh, green, DrawIndexed { cylinderIndexCount, 1, 0, 0, 0 });
-        greenCone->SetDraw(mesh, green, DrawIndexed { coneIndexCount, 1, cylinderIndexCount, static_cast<int32_t>(cylinderVertexCount), 0 });
+        auto greenCylinder = builder->CreateNode("green-cylinder", scene);
+        auto greenCone = builder->CreateNode("green-cylinder", greenCylinder);
+        greenCylinder->SetDraw(cylinderMesh, green);
+        greenCone->SetDraw(coneMesh, green);
         greenCone->Translate(0.0, 3.0, 0.0);
 
-        auto blueCylinder = manager->Create<Scene>("blue-cylinder", scene);
-        auto blueCone = manager->Create<Scene>("blue-cylinder", blueCylinder);
-        blueCylinder->SetDraw(mesh, blue, DrawIndexed { cylinderIndexCount, 1, 0, 0, 0 });
-        blueCone->SetDraw(mesh, blue, DrawIndexed { coneIndexCount, 1, cylinderIndexCount, static_cast<int32_t>(cylinderVertexCount), 0 });
+        auto blueCylinder = builder->CreateNode("blue-cylinder", scene);
+        auto blueCone = builder->CreateNode("blue-cylinder", blueCylinder);
+        blueCylinder->SetDraw(cylinderMesh, blue);
+        blueCone->SetDraw(coneMesh, blue);
         blueCylinder->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI / 2.0);
         blueCone->Translate(0.0, 3.0, 0.0);
 
-        scene->Update();
+        scene->ApplyTransform();
     }
-
-private:
-    uint32_t cylinderIndexCount = 0;
-    uint32_t cylinderVertexCount = 0;
-    uint32_t coneIndexCount = 0;
-    uint32_t coneVertexCount = 0;
-    SmartPtr<SceneManager> manager;
 };
 
 #endif // GLTFVIEWER_GIZMO_H

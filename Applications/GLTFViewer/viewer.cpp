@@ -18,6 +18,7 @@ GLTFViewer::~GLTFViewer() {
 }
 
 void GLTFViewer::Run() {
+    builder->Build();
     while (window->IsRunning()) {
         Window::PollEvents();
 
@@ -38,7 +39,7 @@ void GLTFViewer::Run() {
         sceneFilter.Cull(skybox->scene, arcball);
         if (root) {
             root->SetTransform(arcball->GetModelMatrix());
-            root->Update();
+            root->ApplyTransform();
             sceneFilter.Cull(root, arcball);
         }
         sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
@@ -47,7 +48,7 @@ void GLTFViewer::Run() {
         // add gizmo
         gizmo->scene->SetTransform(arcball->GetModelMatrix(false));
         gizmo->scene->Scale(0.1, 0.1, 0.1);
-        gizmo->scene->Update();
+        gizmo->scene->ApplyTransform();
         gizmoFilter.Cull(gizmo->scene, arcball);
         gizmoFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         gizmoFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
@@ -105,6 +106,7 @@ void GLTFViewer::InitContext() {
 
 void GLTFViewer::InitDevice() {
     device = SlimPtr<Device>(context);
+    builder = SlimPtr<Scene::Builder>(device);
 }
 
 void GLTFViewer::InitWindow() {
@@ -131,15 +133,15 @@ void GLTFViewer::InitCamera() {
 
 void GLTFViewer::InitGizmo() {
     device->Execute([&](CommandBuffer* commandBuffer) {
-        gizmo = SlimPtr<Gizmo>(commandBuffer);
-        gizmo->scene->Update();
+        gizmo = SlimPtr<Gizmo>(commandBuffer, builder);
+        gizmo->scene->ApplyTransform();
     });
 }
 
 void GLTFViewer::InitSkybox() {
     device->Execute([&](CommandBuffer* commandBuffer) {
-        skybox = SlimPtr<Skybox>(commandBuffer);
-        gizmo->scene->Update();
+        skybox = SlimPtr<Skybox>(commandBuffer, builder);
+        gizmo->scene->ApplyTransform();
     });
 }
 
@@ -169,7 +171,8 @@ void GLTFViewer::InitSampler() {
 }
 
 void GLTFViewer::LoadModel() {
-    manager = SlimPtr<GLTFAssetManager>(device);
+    manager = SlimPtr<GLTFAssetManager>(device, builder);
+
     device->Execute([&](CommandBuffer* commandBuffer) {
         model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
         // model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
@@ -183,13 +186,12 @@ void GLTFViewer::LoadModel() {
         }
 
         // adding a wrapper node for transform control
-        scene = SlimPtr<SceneManager>();
-        root = scene->Create<Scene>("root");
+        root = builder->CreateNode("root");
 
         GLTFScene& scene = model.scenes[0];
         for (auto node : scene.roots) {
             root->AddChild(node);
         }
-        root->Update();
+        root->ApplyTransform();
     });
 }

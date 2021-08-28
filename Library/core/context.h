@@ -5,9 +5,8 @@
 #include <vector>
 #include <functional>
 #include <unordered_set>
-#include <vulkan/vulkan.h>
-#include <VmaUsage.h>
 
+#include "core/vulkan.h"
 #include "core/vkutils.h"
 #include "utility/interface.h"
 

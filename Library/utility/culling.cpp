@@ -18,13 +18,13 @@ void CPUCulling::Clear() {
     objects.clear();
 }
 
-void CPUCulling::Cull(Scene* scene, Camera* camera) {
-    scene->ForEach([&](Scene* scene) {
+void CPUCulling::Cull(Scene::Node* scene, Camera* camera) {
+    scene->ForEach([&](Scene::Node* scene) {
         return CullSceneNode(scene, camera);
     });
 }
 
-bool CPUCulling::CullSceneNode(Scene* scene, Camera*) {
+bool CPUCulling::CullSceneNode(Scene::Node* scene, Camera*) {
 
     // when user configures this object to be invisible
     if (!scene->IsVisible()) {
@@ -40,9 +40,30 @@ bool CPUCulling::CullSceneNode(Scene* scene, Camera*) {
         return false;
     }
 
-    for (const Primitive& primitive : *scene) {
+    for (const auto& primitive : *scene) {
+        auto [mesh, material] = primitive;
+
         // find technique
-        Technique* technique = primitive.material->GetTechnique();
+        Technique* technique = material->GetTechnique();
+
+        // draw command
+        DrawVariant draw;
+        if (mesh->GetIndexCount() == 0) {
+            DrawCommand drawCommand = {};
+            drawCommand.firstInstance = 0;  // MOTE: if drawIndirectFirstInstasnce is not disabled, this must be 0
+            drawCommand.instanceCount = 1;  // NOTE: we can use scene node to store instancing information
+            drawCommand.firstVertex = 0;
+            drawCommand.vertexCount = mesh->GetVertexCount();
+            draw = drawCommand;
+        } else {
+            DrawIndexed drawCommand = {};
+            drawCommand.firstInstance = 0;  // MOTE: if drawIndirectFirstInstasnce is not disabled, this must be 0
+            drawCommand.instanceCount = 1;  // NOTE: we can use scene node to store instancing information
+            drawCommand.firstIndex = 0;
+            drawCommand.indexCount = mesh->GetIndexCount();
+            drawCommand.vertexOffset = 0;
+            draw = drawCommand;
+        }
 
         // find queue for each pass
         for (auto &pass : *technique) {
@@ -55,13 +76,12 @@ bool CPUCulling::CullSceneNode(Scene* scene, Camera*) {
             // drawable
             queueIt->second.push_back(Drawable {
                 scene,
-                primitive.mesh, primitive.material, primitive.drawCommand,
+                mesh, material, draw,
                 pass.queue,
                 distance
             });
         }
     }
-
     return true;
 }
 

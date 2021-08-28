@@ -49,7 +49,8 @@ void Descriptor::Update() {
     }
 
     // update descriptor sets
-    vkUpdateDescriptorSets(*pool->GetDevice(), writes.size(), writes.data(), 0, nullptr);
+    Device* device = pool->GetDevice();
+    DeviceDispatch(vkUpdateDescriptorSets(*device, writes.size(), writes.data(), 0, nullptr));
 
     // clear existing updates
     writes.clear();
@@ -328,7 +329,7 @@ DescriptorPool::~DescriptorPool() {
 
     // destroy descriptor pool
     for (const auto &pool : pools) {
-        vkDestroyDescriptorPool(*device, pool, nullptr);
+        DeviceDispatch(vkDestroyDescriptorPool(*device, pool, nullptr));
     }
 }
 
@@ -357,7 +358,7 @@ uint32_t DescriptorPool::FindAvailablePoolIndex(uint32_t index) {
         createInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
         VkDescriptorPool pool = VK_NULL_HANDLE;
-        ErrorCheck(vkCreateDescriptorPool(*device, &createInfo, nullptr, &pool), "create new descriptor pool");
+        ErrorCheck(DeviceDispatch(vkCreateDescriptorPool(*device, &createInfo, nullptr, &pool)), "create new descriptor pool");
 
         pools.push_back(pool);
         poolSetCounts.push_back(0);
@@ -390,7 +391,7 @@ VkDescriptorSet DescriptorPool::Request(VkDescriptorSetLayout layout, uint32_t v
         allocInfo.pNext = &setCounts;
     }
 
-    ErrorCheck(vkAllocateDescriptorSets(*device, &allocInfo, &descriptorSet), "allocate a descriptor set");
+    ErrorCheck(DeviceDispatch(vkAllocateDescriptorSets(*device, &allocInfo, &descriptorSet)), "allocate a descriptor set");
 
     // increment allocated set counter in the pool
     poolSetCounts[poolIndex]++;

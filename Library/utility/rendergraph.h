@@ -4,8 +4,8 @@
 #include <string>
 #include <vector>
 #include <functional>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/device.h"
 #include "core/commands.h"
 #include "core/image.h"

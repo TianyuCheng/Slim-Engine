@@ -5,10 +5,9 @@
 #include <array>
 #include <vector>
 #include <string>
-#include <VmaUsage.h>
 #include <unordered_map>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/image.h"
 #include "core/context.h"
 #include "core/commands.h"

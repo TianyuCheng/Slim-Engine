@@ -301,6 +301,13 @@ namespace slim {
         }
     }
 
+    VkDeviceAddress GetDeviceAddress(VkDevice device, VkBuffer buffer) {
+        VkBufferDeviceAddressInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+        info.buffer = buffer;
+        return vkGetBufferDeviceAddress(device, &info);
+    }
+
     std::set<std::string> GetSupportedInstanceExtensions() {
         uint32_t count;
         vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr); //get number of extensions

@@ -9,6 +9,11 @@
 
 using namespace slim;
 
+PFN_vkVoidFunction LoadFunction(const char* name, void* user_data) {
+    VkInstance instance = static_cast<VkInstance>(user_data);
+    return vkGetInstanceProcAddr(instance, name);
+}
+
 DearImGui::DearImGui(Device* device, Window* window, ImGuiInitFunction init) : device(device), window(window) {
     InitImGui();
     init();
@@ -138,6 +143,7 @@ void DearImGui::InitVulkan() {
             std::cerr << "[DearImGui Error]: " << result << std::endl;
         }
     };
+    ImGui_ImplVulkan_LoadFunctions(LoadFunction, info.Instance);
     ImGui_ImplVulkan_Init(&info, renderPass);
 }
 

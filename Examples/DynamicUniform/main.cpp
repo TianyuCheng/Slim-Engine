@@ -17,6 +17,8 @@ struct alignas(256) UBOInstance {
 };
 
 int main() {
+    slim::Initialize();
+
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()

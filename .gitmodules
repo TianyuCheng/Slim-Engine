@@ -25,9 +25,9 @@
 [submodule "Dependencies/Format.cmake"]
     path = Dependencies/Format.cmake
     url = https://github.com/TheLartians/Format.cmake.git
-[submodule "Dependencies/pybind11"]
-    path = Dependencies/pybind11
-    url = https://github.com/pybind/pybind11.git
 [submodule "Dependencies/ImGuizmo"]
     path = Dependencies/ImGuizmo
     url = https://github.com/CedricGuillemet/ImGuizmo.git
+[submodule "Dependencies/volk"]
+	path = Dependencies/volk
+	url = https://github.com/zeux/volk.git

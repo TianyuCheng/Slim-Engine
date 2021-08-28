@@ -7,6 +7,8 @@ struct RefractProperties {
 };
 
 int main() {
+    slim::Initialize();
+
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -102,10 +104,10 @@ int main() {
     SmartPtr<Mesh> geomMesh = nullptr;
     SmartPtr<GPUImage> cubemap = nullptr;
     SmartPtr<Sampler> sampler = nullptr;
-    SmartPtr<SceneManager> manager = nullptr;
-    SmartPtr<Scene> root = nullptr;
-    SmartPtr<Scene> skybox = nullptr;
-    SmartPtr<Scene> geometry = nullptr;
+    SmartPtr<Scene::Builder> builder = nullptr;
+    SmartPtr<Scene::Node> root = nullptr;
+    SmartPtr<Scene::Node> skybox = nullptr;
+    SmartPtr<Scene::Node> geometry = nullptr;
     uint32_t geometryIndexCount = 0;
     device->Execute([&](CommandBuffer* commandBuffer) {
         cubemap = TextureLoader::LoadCubemap(commandBuffer,
@@ -128,32 +130,33 @@ int main() {
         refractMaterial->SetTexture("Skybox", cubemap, sampler);
         refractMaterial->SetUniform("Refract", refract.iota);
 
+        builder = SlimPtr<Scene::Builder>(device);
+
         auto skyboxData = Cube { };
         skyboxData.ccw = false;
         auto skyboxMeshData = skyboxData.Create();
-        skyboxMesh = SlimPtr<Mesh>();
-        skyboxMesh->SetVertexAttrib(commandBuffer, skyboxMeshData.vertices, 0);
-        skyboxMesh->SetIndexAttrib(commandBuffer, skyboxMeshData.indices);
+        skyboxMesh = builder->CreateMesh();
+        skyboxMesh->SetVertexBuffer(skyboxMeshData.vertices);
+        skyboxMesh->SetIndexBuffer(skyboxMeshData.indices);
+        skyboxMesh->AddInputBinding(0, 0);
 
         auto geomData = Cube { };
         auto geomMeshData = geomData.Create();
-        geomMesh = SlimPtr<Mesh>();
-        geomMesh->SetVertexAttrib(commandBuffer, geomMeshData.vertices, 0);
-        geomMesh->SetIndexAttrib(commandBuffer, geomMeshData.indices);
+        geomMesh = builder->CreateMesh();
+        geomMesh->SetVertexBuffer(geomMeshData.vertices);
+        geomMesh->SetIndexBuffer(geomMeshData.indices);
+        geomMesh->AddInputBinding(0, 0);
         geometryIndexCount = geomMeshData.indices.size();
 
-        manager = SlimPtr<SceneManager>();
-        root = manager->Create<Scene>("root");
+        root = builder->CreateNode("root");
 
-        skybox = manager->Create<Scene>("skybox", root);
-        skybox->SetDraw(skyboxMesh, skyboxMaterial, DrawIndexed {
-            static_cast<uint32_t>(skyboxMeshData.indices.size()), 1, 0, 0, 0
-        });
+        skybox = builder->CreateNode("skybox", root);
+        skybox->SetDraw(skyboxMesh, skyboxMaterial);
 
-        geometry = manager->Create<Scene>("geometry", root);
-        geometry->SetDraw(geomMesh, reflectMaterial, DrawIndexed {
-            geometryIndexCount, 1, 0, 0, 0
-        });
+        geometry = builder->CreateNode("geometry", root);
+        geometry->SetDraw(geomMesh, reflectMaterial);
+
+        builder->Build();
     });
 
     auto input = SlimPtr<Input>(window);
@@ -187,15 +190,11 @@ int main() {
             }
 
             if (selected == 0) {
-                geometry->SetDraw(geomMesh, reflectMaterial, DrawIndexed {
-                    geometryIndexCount, 1, 0, 0, 0
-                });
+                geometry->SetDraw(geomMesh, reflectMaterial);
             }
 
             if (selected == 1) {
-                geometry->SetDraw(geomMesh, refractMaterial, DrawIndexed {
-                    geometryIndexCount, 1, 0, 0, 0
-                });
+                geometry->SetDraw(geomMesh, refractMaterial);
             }
 
             ImGui::End();
@@ -212,7 +211,7 @@ int main() {
 
         // transform scene nodes
         geometry->SetTransform(arcball->GetModelMatrix());
-        root->Update();
+        root->ApplyTransform();
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();

@@ -71,7 +71,7 @@ Window::~Window() {
 
     // clean up swapchain
     if (swapchain) {
-        vkDestroySwapchainKHR(*device, swapchain, nullptr);
+        DeviceDispatch(vkDestroySwapchainKHR(*device, swapchain, nullptr));
         swapchain = VK_NULL_HANDLE;
     }
 
@@ -142,7 +142,7 @@ void Window::InitSwapchain() {
     swapchainColorSpace = surfaceFormat.colorSpace;
     swapchainExtent = extent;
 
-    ErrorCheck(vkCreateSwapchainKHR(*device, &createInfo, nullptr, &swapchain), "create swapchain");
+    ErrorCheck(DeviceDispatch(vkCreateSwapchainKHR(*device, &createInfo, nullptr, &swapchain)), "create swapchain");
 
     std::vector<VkImage> images;
     vkGetSwapchainImagesKHR(*device, swapchain, &imageCount, nullptr);

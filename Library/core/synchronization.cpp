@@ -9,7 +9,7 @@ Semaphore::Semaphore(Device *device) : device(device) {
     createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     createInfo.flags = 0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateSemaphore(*device, &createInfo, nullptr, &handle), "create semaphore");
+    ErrorCheck(DeviceDispatch(vkCreateSemaphore(*device, &createInfo, nullptr, &handle)), "create semaphore");
 }
 
 Semaphore::~Semaphore() {
@@ -24,7 +24,7 @@ Fence::Fence(Device *device, bool signaled) : device(device)  {
     createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     createInfo.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0x0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateFence(*device, &createInfo, nullptr, &handle), "create fence");
+    ErrorCheck(DeviceDispatch(vkCreateFence(*device, &createInfo, nullptr, &handle)), "create fence");
 }
 
 Fence::~Fence() {
@@ -47,7 +47,7 @@ Event::Event(Device *device, bool deviceOnly) : device(device)  {
     createInfo.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO;
     createInfo.flags = deviceOnly ? VK_EVENT_CREATE_DEVICE_ONLY_BIT_KHR : 0;
     createInfo.pNext = nullptr;
-    ErrorCheck(vkCreateEvent(*device, &createInfo, nullptr, &handle), "create event");
+    ErrorCheck(DeviceDispatch(vkCreateEvent(*device, &createInfo, nullptr, &handle)), "create event");
 }
 
 Event::~Event() {

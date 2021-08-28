@@ -4,8 +4,8 @@
 #include <map>
 #include <vector>
 
-#include "utility/mesh.h"
 #include "utility/view.h"
+#include "utility/mesh.h"
 #include "utility/material.h"
 #include "utility/technique.h"
 #include "utility/interface.h"
@@ -13,14 +13,18 @@
 
 namespace slim {
 
+    using DrawCommand = VkDrawIndirectCommand;
+    using DrawIndexed = VkDrawIndexedIndirectCommand;
+    using DrawVariant = std::variant<DrawCommand, DrawIndexed>;
+
     // data structure for objects to be drawn
     struct Drawable {
-        SmartPtr<Scene> node;
-        SmartPtr<Mesh> mesh;
-        SmartPtr<Material> material;
-        DrawVariant drawCommand;
-        RenderQueue queue;
-        float distanceToCamera;
+        SmartPtr<Scene::Node> node;
+        SmartPtr<Mesh>        mesh;
+        SmartPtr<Material>    material;
+        DrawVariant           drawCommand;
+        RenderQueue           queue;
+        float                 distanceToCamera;
     };
 
     // helper functions for sorting
@@ -32,13 +36,13 @@ namespace slim {
     class CPUCulling : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         void Clear();
-        void Cull(Scene* scene, Camera* camera);
+        void Cull(Scene::Node* scene, Camera* camera);
         void Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting);
 
         View<Drawable> GetDrawables(uint32_t firstQueue, uint32_t lastQueue);
 
     private:
-        bool CullSceneNode(Scene* scene, Camera* camera);
+        bool CullSceneNode(Scene::Node* scene, Camera* camera);
 
     private:
         RenderQueueMap objects;

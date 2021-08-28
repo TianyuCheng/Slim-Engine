@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/image.h"
 #include "core/buffer.h"
 #include "core/shader.h"

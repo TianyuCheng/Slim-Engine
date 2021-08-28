@@ -1,3 +1,4 @@
+#define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -259,6 +260,9 @@ void Context::InitInstance(const ContextDesc& desc) {
 
     // create vulkan instance
     ErrorCheck(vkCreateInstance(&createInfo, nullptr, &instance), "create instance");
+
+    // load instsance functions
+    volkLoadInstance(instance);
 }
 
 void Context::InitDebuggerMessener(const ContextDesc& desc) {

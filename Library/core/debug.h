@@ -3,8 +3,7 @@
 
 #include <cassert>
 
-#ifdef SLIM_VULKAN_SUPPORT
-#include <vulkan/vulkan.h>
+#include "core/vulkan.h"
 #include "core/vkutils.h"
 
 #ifdef NDEBUG
@@ -17,5 +16,4 @@
     }
 #endif
 
-#endif // SLIM_CORE_SUPPORT
 #endif // SLIM_CORE_DEBUG_H

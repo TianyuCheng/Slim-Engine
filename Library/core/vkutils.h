@@ -5,10 +5,12 @@
 #include <vector>
 #include <iostream>
 #include <optional>
-#include <vulkan/vulkan.h>
+
+#define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <VmaUsage.h>
+
+#include "core/vulkan.h"
 
 namespace slim {
 
@@ -44,6 +46,8 @@ namespace slim {
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 
     VkExtent2D ChooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabilitiesKHR& capabilities);
+
+    VkDeviceAddress GetDeviceAddress(VkDevice device, VkBuffer buffer);
 
     void LayoutTransition(VkCommandBuffer cmdbuffer,
                           Image *image,

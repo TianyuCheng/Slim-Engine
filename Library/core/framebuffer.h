@@ -3,8 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/hasher.h"
 #include "core/device.h"
 #include "core/renderpass.h"

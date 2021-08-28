@@ -21,8 +21,6 @@ struct GLTFPrimitive {
     BoundingBox boundingBox;
     SmartPtr<Mesh> mesh;
     SmartPtr<Material> material;
-    uint32_t indexCount = 0;
-    uint32_t vertexCount = 0;
 };
 
 struct GLTFMesh {
@@ -31,12 +29,12 @@ struct GLTFMesh {
 
 struct GLTFScene {
     std::string name;
-    std::vector<SmartPtr<Scene>> roots;
+    std::vector<Scene::Node*> roots;
 };
 
 struct GLTFModel {
     std::vector<GLTFScene>             scenes;
-    std::vector<SmartPtr<Scene>>       nodes;
+    std::vector<SmartPtr<Scene::Node>> nodes;
     std::vector<GLTFMesh>              meshes;
     std::vector<SmartPtr<Material>>    materials;
     std::vector<SmartPtr<Sampler>>     samplers;
@@ -63,14 +61,14 @@ struct alignas(128) MaterialFactors {
 
 class GLTFAssetManager : public ReferenceCountable {
 public:
-    explicit GLTFAssetManager(Device* device);
+    explicit GLTFAssetManager(Device* device, Scene::Builder* builder);
     GLTFModel Load(CommandBuffer* commandBuffer, const std::string& path);
 
 private:
     void LoadSamplers(GLTFModel& result, const tinygltf::Model& model);
     void LoadImages(GLTFModel& result, const tinygltf::Model& model, CommandBuffer* commandBuffer, const std::string& basedir);
     void LoadMaterials(GLTFModel& result, const tinygltf::Model& model);
-    void LoadMeshes(GLTFModel& result, const tinygltf::Model& model, CommandBuffer* commandBuffer);
+    void LoadMeshes(GLTFModel& result, const tinygltf::Model& model);
     void LoadNodes(GLTFModel& result, const tinygltf::Model& model);
     void LoadScenes(GLTFModel& result, const tinygltf::Model& model);
 
@@ -86,7 +84,7 @@ private:
 
 private:
     SmartPtr<Device>                  device;
-    SmartPtr<SceneManager>            manager;
+    SmartPtr<Scene::Builder>          builder;
     SmartPtr<Shader>                  vShaderPbr;
     SmartPtr<Shader>                  fShaderPbr;
     SmartPtr<Technique>               techniqueOpaque;

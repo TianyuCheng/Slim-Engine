@@ -2,36 +2,45 @@
 
 using namespace slim;
 
-void Mesh::SetVertexAttrib(Buffer *buffer, size_t offset, uint32_t index) {
-    // prepare vertex buffer
-    if (vertexBuffers.size() <= index) { vertexBuffers.resize(index + 1); }
-    if (vertexOffsets.size() <= index) { vertexOffsets.resize(index + 1); }
-    if (_vertexBuffers.size() <= index) { _vertexBuffers.resize(index + 1); }
+void Mesh::AddInputBinding(uint32_t binding, uint32_t offset) {
+    if (binding >= relativeOffsets.size()) {
+        relativeOffsets.resize(binding + 1);
+    }
+    relativeOffsets[binding] = offset;
 
-    // create vertex buffer
-    vertexOffsets[index] = offset;
-    vertexBuffers[index] = buffer;
-
-    // automatic buffer pointer management
-    _vertexBuffers[index] = buffer;
+    #ifndef NDBUEG
+    hasVertexAttribs = true;
+    #endif
 }
 
-void Mesh::SetIndexAttrib(Buffer *buffer, size_t offset, VkIndexType type) {
-    // prepare index buffer
-    indexBuffer = buffer;
-    indexOffset = offset;
-    indexType = type;
-
-    // automatic buffer pointer management
-    _indexBuffer = buffer;
+VkAabbPositionsKHR Mesh::GetAabbPositions() const {
+    const glm::vec3& min = aabb.Min();
+    const glm::vec3& max = aabb.Max();
+    VkAabbPositionsKHR aabb = {};
+    aabb.minX = min.x;
+    aabb.minY = min.y;
+    aabb.minZ = min.z;
+    aabb.maxX = max.x;
+    aabb.maxY = max.y;
+    aabb.maxZ = max.z;
+    return aabb;
 }
 
 void Mesh::Bind(CommandBuffer* commandBuffer) const {
-    // bind vertex buffers
-    commandBuffer->BindVertexBuffers(0, vertexBuffers, vertexOffsets);
+    #ifndef NDEBUG
+    if (!built) {
+        throw std::runtime_error("Mesh has not been built!");
+    }
+    if (!hasVertexAttribs) {
+        throw std::runtime_error("Vertex layout has not been specified for mesh!");
+    }
+    #endif
 
-    // bind index buffer
-    if (indexBuffer) {
-        commandBuffer->BindIndexBuffer(indexBuffer, indexOffset, indexType);
+    Device* device = commandBuffer->GetDevice();
+
+    // NOTE: ditch additional library wrappings, use raw vulkan directly
+    DeviceDispatch(vkCmdBindVertexBuffers(*commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), vertexOffsets.data()));
+    if (indexCount > 0) {
+        DeviceDispatch(vkCmdBindIndexBuffer(*commandBuffer, indexBuffer, indexOffset, indexType));
     }
 }

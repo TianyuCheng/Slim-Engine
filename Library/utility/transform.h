@@ -28,7 +28,7 @@ namespace slim {
         const glm::mat4& WorldToLocal() const;
 
         void ApplyTransform();
-        void ApplyParentTransform(const Transform &parent);
+        void ApplyTransform(const Transform &parent);
 
         void Scale(float x, float y, float z);
         void Rotate(const glm::vec3& axis, float radians);

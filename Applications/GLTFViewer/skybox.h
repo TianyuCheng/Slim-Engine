@@ -8,7 +8,8 @@ using namespace slim;
 
 struct Skybox : ReferenceCountable {
     // scene
-    SmartPtr<Scene> scene;
+    SmartPtr<Scene::Builder> builder;
+    SmartPtr<Scene::Node> scene;
     SmartPtr<Mesh> mesh;
 
     // material
@@ -22,9 +23,8 @@ struct Skybox : ReferenceCountable {
     SmartPtr<GPUImage> irradiance;
     SmartPtr<Sampler> sampler;
 
-    Skybox(CommandBuffer* commandBuffer) {
+    Skybox(CommandBuffer* commandBuffer, Scene::Builder* builder) : builder(builder) {
         InitCubemap(commandBuffer);
-        InitMesh(commandBuffer);
         InitMaterial(commandBuffer);
         InitScene();
     }
@@ -47,16 +47,6 @@ struct Skybox : ReferenceCountable {
                 ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/nz.png"));
 
         sampler = SlimPtr<Sampler>(commandBuffer->GetDevice(), SamplerDesc());
-    }
-
-    void InitMesh(CommandBuffer* commandBuffer) {
-        Cube skyboxData = Cube { };
-        skyboxData.ccw = false;
-        auto skyboxMeshData = skyboxData.Create();
-        mesh = SlimPtr<Mesh>();
-        mesh->SetVertexAttrib(commandBuffer, skyboxMeshData.vertices, 0);
-        mesh->SetIndexAttrib(commandBuffer, skyboxMeshData.indices);
-        indexCount = skyboxMeshData.indices.size();
     }
 
     void InitMaterial(CommandBuffer* commandBuffer) {
@@ -87,15 +77,18 @@ struct Skybox : ReferenceCountable {
     }
 
     void InitScene() {
-        manager = SlimPtr<SceneManager>();
-        scene = manager->Create<Scene>("skybox");
-        scene->SetDraw(mesh, material, DrawIndexed { indexCount, 1, 0, 0, 0 });
-        scene->Update();
-    }
+        Cube skyboxData = Cube { };
+        skyboxData.ccw = false;
+        auto skyboxMeshData = skyboxData.Create();
+        mesh = builder->CreateMesh();
+        mesh->SetVertexBuffer(skyboxMeshData.vertices);
+        mesh->SetIndexBuffer(skyboxMeshData.indices);
+        mesh->AddInputBinding(0, 0);
 
-private:
-    SmartPtr<SceneManager> manager;
-    uint32_t indexCount = 0;
+        scene = builder->CreateNode("skybox");
+        scene->SetDraw(mesh, material);
+        scene->ApplyTransform();
+    }
 };
 
 #endif // GLTFVIEWER_SKYBOX_H

@@ -1,59 +1,123 @@
 #ifndef SLIM_UTILITY_MESH_H
 #define SLIM_UTILITY_MESH_H
 
+#include <variant>
 #include "core/buffer.h"
 #include "core/commands.h"
 #include "utility/interface.h"
+#include "utility/transform.h"
+#include "utility/boundingbox.h"
 
 namespace slim {
 
-    class Mesh final : public NotCopyable, public NotMovable, public ReferenceCountable {
-        friend struct Submesh;
+    class Scene;
+
+    using DrawCommand = VkDrawIndirectCommand;
+    using DrawIndexed = VkDrawIndexedIndirectCommand;
+    using DrawVariant = std::variant<DrawCommand, DrawIndexed>;
+
+    // mesh
+    // lowest level building blocks
+    class Mesh : public NotCopyable, public NotMovable, public ReferenceCountable {
+        friend class Scene;
     public:
 
-        void SetVertexAttrib(Buffer *buffer, size_t offset, uint32_t index);
+        template <typename VertexType>
+        VertexType* AllocateVertexBuffer(size_t vertexCount) {
+            vertexData.resize(vertexCount * sizeof(VertexType));
+            this->vertexCount = vertexCount;
+            return reinterpret_cast<VertexType*>(vertexData.data());
+        }
 
-        void SetIndexAttrib(Buffer *buffer, size_t offset, VkIndexType indexType);
+        template <typename VertexType>
+        VertexType* SetVertexBuffer(const std::vector<VertexType>& data) {
+            VertexType* dst = AllocateVertexBuffer<VertexType>(data.size());
+            std::memcpy(dst, data.data(), sizeof(VertexType) * data.size());
+            return dst;
+        }
 
-        template <typename T>
-        void SetVertexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib, uint32_t index);
+        template <typename VertexType>
+        VertexType* GetVertexData() {
+            return vertexData.data();
+        }
 
-        template <typename T>
-        void SetIndexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib);
+        template <typename IndexType>
+        IndexType* AllocateIndexBuffer(size_t indexCount) {
+            indexData.resize(indexCount * sizeof(IndexType));
+            #ifndef NDBUEG
+            if (!std::is_same<IndexType, uint16_t>::value &&
+                !std::is_same<IndexType, uint32_t>::value) {
+                throw std::runtime_error("[Mesh] index type must be uint16_t or uint32_t");
+            }
+            #endif
+            indexType = sizeof(IndexType) == sizeof(uint32_t) ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
+            this->indexCount = indexCount;
+            return reinterpret_cast<IndexType*>(indexData.data());
+        }
+
+        template <typename IndexType>
+        IndexType* SetIndexBuffer(const std::vector<IndexType>& data) {
+            IndexType* dst = AllocateIndexBuffer<IndexType>(data.size());
+            std::memcpy(dst, data.data(), sizeof(IndexType) * data.size());
+            return dst;
+        }
+
+        template <typename IndexType>
+        IndexType* GetIndexData() {
+            return indexData.data();
+        }
+
+        VkIndexType GetIndexType() const {
+            return indexType;
+        }
+
+        uint64_t GetVertexCount() const {
+            return vertexCount;
+        }
+
+        uint64_t GetIndexCount() const {
+            return indexCount;
+        }
+
+        void SetBoundingBox(const BoundingBox& box) {
+            aabb = box;
+        }
+
+        BoundingBox GetBoundingBox(const Transform& transform) const {
+            return transform.LocalToWorld() * aabb;
+        }
+
+        // This method is for automatic vertex buffer binding
+        void AddInputBinding(uint32_t binding, uint32_t offset);
+
+        VkAabbPositionsKHR GetAabbPositions() const;
 
         void Bind(CommandBuffer* commandBuffer) const;
 
     private:
-        Buffer* indexBuffer;
-        size_t indexOffset;
+        // raw data
+        uint64_t vertexCount;
+        uint64_t indexCount = 0;
+        std::vector<uint8_t> vertexData = {};
+        std::vector<uint8_t> indexData = {};
         VkIndexType indexType;
+        std::vector<uint32_t> relativeOffsets = {};  // binding offsets
+        BoundingBox aabb;
 
-        std::vector<Buffer*> vertexBuffers;
-        std::vector<VkDeviceSize> vertexOffsets;
+        // for binding vertex and index buffers (filled by builder)
+        std::vector<VkBuffer> vertexBuffers = {};
+        std::vector<uint64_t> vertexOffsets = {};
+        VkBuffer indexBuffer = VK_NULL_HANDLE;
+        uint64_t indexOffset = 0;
+        uint64_t vertexOffset = 0;
+        DrawVariant drawCall;
 
-        // automatic free
-        SmartPtr<Buffer> _indexBuffer;
-        std::vector<SmartPtr<Buffer>> _vertexBuffers;
+        #ifndef NDBUEG
+        bool built = false;
+        bool hasVertexAttribs = false;
+        #endif
     };
-
-    template <typename T>
-    void Mesh::SetVertexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib, uint32_t index) {
-        // prepare vertex buffer
-        Buffer* buffer = new VertexBuffer(commandBuffer->GetDevice(), BufferSize(attrib));
-        commandBuffer->CopyDataToBuffer(attrib, buffer);
-
-        SetVertexAttrib(buffer, 0, index);
-    }
-
-    template <typename T>
-    void Mesh::SetIndexAttrib(CommandBuffer *commandBuffer, const std::vector<T> &attrib) {
-        // prepare index buffer
-        Buffer* buffer = new IndexBuffer(commandBuffer->GetDevice(), BufferSize(attrib));
-        commandBuffer->CopyDataToBuffer(attrib, buffer);
-
-        SetIndexAttrib(buffer, 0, sizeof(T) == 4 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
-    }
 
 } // end of namespace slim
 
-#endif // end of SLIM_UTILITY_MESH_H
+#endif // SLIM_UTILITY_MESH_H

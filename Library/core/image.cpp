@@ -176,7 +176,7 @@ VkImageView Image::AsTexture() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &textureView), "create texture view");
+        ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &textureView)), "create texture view");
     }
     return textureView;
 }
@@ -197,7 +197,7 @@ VkImageView Image::AsColorBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &colorView), "create color buffer view");
+        ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &colorView)), "create color buffer view");
     }
     return colorView;
 }
@@ -218,7 +218,7 @@ VkImageView Image::AsDepthBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthView), "create depth buffer view");
+        ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthView)), "create depth buffer view");
     }
     return depthView;
 }
@@ -239,7 +239,7 @@ VkImageView Image::AsStencilBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &stencilView), "create stencil buffer view");
+        ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &stencilView)), "create stencil buffer view");
     }
     return stencilView;
 }
@@ -260,7 +260,7 @@ VkImageView Image::AsDepthStencilBuffer() const {
         viewCreateInfo.subresourceRange.layerCount = createInfo.arrayLayers;
         viewCreateInfo.subresourceRange.baseMipLevel = 0;
         viewCreateInfo.subresourceRange.levelCount = createInfo.mipLevels;
-        ErrorCheck(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthStencilView), "create depth stencil view");
+        ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthStencilView)), "create depth stencil view");
     }
     return depthStencilView;
 }

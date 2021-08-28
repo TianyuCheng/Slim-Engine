@@ -38,8 +38,8 @@ private:
     SmartPtr<Arcball>          arcball;
     SmartPtr<GLTFAssetManager> manager;
 
-    SmartPtr<SceneManager>     scene;
-    SmartPtr<Scene>            root;
+    SmartPtr<Scene::Builder>   builder;
+    SmartPtr<Scene::Node>      root;
     SmartPtr<GPUImage>         dfglut;
     SmartPtr<Sampler>          diffuseSampler;
     SmartPtr<Sampler>          specularSampler;

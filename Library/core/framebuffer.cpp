@@ -43,11 +43,11 @@ Framebuffer::Framebuffer(Device *device, FramebufferDesc &desc)
     desc.handle.attachmentCount = desc.attachments.size();
     desc.handle.pAttachments = desc.attachments.data();
 
-    ErrorCheck(vkCreateFramebuffer(*device, &desc.handle, nullptr, &handle), "create framebuffer");
+    ErrorCheck(DeviceDispatch(vkCreateFramebuffer(*device, &desc.handle, nullptr, &handle)), "create framebuffer");
 }
 
 Framebuffer::~Framebuffer() {
     if (handle) {
-        vkDestroyFramebuffer(*device, handle, nullptr);
+        DeviceDispatch(vkDestroyFramebuffer(*device, handle, nullptr));
     }
 }

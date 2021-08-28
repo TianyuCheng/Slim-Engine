@@ -2,6 +2,7 @@
 #define SLIM_HPP
 
 // core
+#include "core/vulkan.h"
 #include "core/context.h"
 #include "core/device.h"
 #include "core/buffer.h"
@@ -22,11 +23,9 @@
 #include "utility/texture.h"
 #include "utility/camera.h"
 #include "utility/transform.h"
-#include "utility/skinnedmesh.h"
 #include "utility/scenegraph.h"
 #include "utility/rendergraph.h"
 #include "utility/filesystem.h"
-#include "utility/mesh.h"
 #include "utility/material.h"
 #include "utility/culling.h"
 #include "utility/meshrenderer.h"

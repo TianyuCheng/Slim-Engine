@@ -41,8 +41,7 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
     //  When material is non-metal, the base color represents the reflected diffuse color of the material. A linear 4% is used.
 }
 
-GLTFAssetManager::GLTFAssetManager(Device* device) : device(device) {
-    manager = SlimPtr<SceneManager>();
+GLTFAssetManager::GLTFAssetManager(Device* device, Scene::Builder* builder) : device(device), builder(builder) {
 
     // vertex shader
     auto vShaderPbr = SlimPtr<spirv::VertexShader>(device, "main", "shaders/gltf.vert.spv");
@@ -100,7 +99,7 @@ GLTFModel GLTFAssetManager::Load(CommandBuffer* commandBuffer, const std::string
     LoadMaterials(result, model);
 
     std::cout << "[LoadModel] Loading meshes" << std::endl;
-    LoadMeshes(result, model, commandBuffer);
+    LoadMeshes(result, model);
 
     std::cout << "[LoadModel] Loading nodes" << std::endl;
     LoadNodes(result, model);
@@ -261,7 +260,7 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
     }
 }
 
-void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& model, CommandBuffer *commandBuffer) {
+void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& model) {
     for (const auto& mesh : model.meshes) {
         result.meshes.push_back(GLTFMesh { });
         GLTFMesh& gltfmesh = result.meshes.back();
@@ -324,14 +323,13 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
 
             GLTFPrimitive prim;
 
-            prim.mesh = SlimPtr<Mesh>();
-            prim.mesh->SetVertexAttrib(commandBuffer, vertices, 0);
-            prim.vertexCount = vertices.size();
+            prim.mesh = builder->CreateMesh();
+            prim.mesh->SetVertexBuffer(vertices);
+            prim.mesh->AddInputBinding(0, offsetof(GLTFVertex, pos));
 
             // index
             if (!indices.empty()) {
-                prim.mesh->SetIndexAttrib(commandBuffer, indices);
-                prim.indexCount = indices.size();
+                prim.mesh->SetIndexBuffer(indices);
             }
 
             // topology
@@ -354,7 +352,7 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
     for (const auto &node : model.nodes) {
 
         // create new node
-        auto snode = manager->Create<Scene>(node.name);
+        auto snode = builder->CreateNode(node.name);
         result.nodes.push_back(snode);
 
         // initialize scene node transform
@@ -383,11 +381,8 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
         if (node.mesh >= 0) {
             const auto& mesh = result.meshes[node.mesh];
             for (const auto& primitive : mesh.primitives) {
-                if (primitive.indexCount > 0) {
-                    snode->AddDraw(primitive.mesh, primitive.material, DrawIndexed { primitive.indexCount, 1, 0, 0, 0 });
-                } else {
-                    snode->AddDraw(primitive.mesh, primitive.material, DrawCommand { primitive.vertexCount, 1, 0, 0 });
-                }
+                snode->AddDraw(primitive.mesh, primitive.material);
+                snode->AddDraw(primitive.mesh, primitive.material);
             }
         }
 
@@ -395,7 +390,7 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
 
     // initialize scene node hierarchy
     for (uint32_t i = 0; i < model.nodes.size(); i++) {
-        Scene* snode = result.nodes[i];
+        Scene::Node* snode = result.nodes[i];
         for (int child : model.nodes[i].children) {
             snode->AddChild(result.nodes[child]);
         }

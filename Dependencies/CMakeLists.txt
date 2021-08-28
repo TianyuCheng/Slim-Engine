@@ -1,3 +1,7 @@
+# code formatter
+# ---------------------------------------------------------------
+add_subdirectory(Format.cmake)
+
 # glfw
 # ---------------------------------------------------------------
 set(GLFW_BUILD_EXAMPLES
@@ -90,57 +94,21 @@ set(GHC_FILESYSTEM_WITH_INSTALL
     CACHE BOOL "disable install for GHC" FORCE)
 add_subdirectory(filesystem EXCLUDE_FROM_ALL)
 
-# vulkan & vulkan memory allocator
+# volk metaloader
 # ---------------------------------------------------------------
-find_package(Vulkan)
-message(STATUS "Build with Vulkan Support: ${Vulkan_FOUND}")
-if(${Vulkan_FOUND})
-  # vulkan sdk
-  message(STATUS "Vulkan Include Dirs: ${Vulkan_INCLUDE_DIRS}")
-  message(STATUS "Vulkan Libraries: ${Vulkan_LIBRARIES}")
-
-  # vulkan memory allocator
-  set(VMA_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/)
-  add_library(
-    vma STATIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/VmaUsage.cpp)
-  set_target_properties(vma PROPERTIES CXX_STANDARD 14)
-  target_include_directories(vma PRIVATE ${Vulkan_INCLUDE_DIRS})
-  target_link_libraries(vma PRIVATE ${Vulkan_LIBRARIES})
-
-  # unified vulkan support settings
-  set(VULKAN_SUPPORT
-      ON
-      PARENT_SCOPE)
-  set(VULKAN_INCLUDES
-      ${Vulkan_INCLUDE_DIRS} ${VMA_INCLUDE_DIRS}
-      PARENT_SCOPE)
-  set(VULKAN_LIBS
-      ${Vulkan_LIBRARIES} vma
-      PARENT_SCOPE)
-else()
-  # unified vulkan support settings
-  set(VULKAN_SUPPORT
-      OFF
-      PARENT_SCOPE)
-  set(VULKAN_INCLUDES
-      ""
-      PARENT_SCOPE)
-  set(VULKAN_LIBS
-      ""
-      PARENT_SCOPE)
-endif()
-
-# code formatter
-# ---------------------------------------------------------------
-add_subdirectory(Format.cmake)
-
-# pybind11
-# ---------------------------------------------------------------
-set(PYBIND11_INSTALL
+set(VOLK_PULL_IN_VULKAN
+    ON
+    CACHE BOOL "pull in vulkan library" FORCE)
+set(VOLK_INSTALL
     OFF
-    CACHE BOOL "pybind11 no install" FORCE)
-set(PYBIND11_TEST
-    OFF
-    CACHE BOOL "pybind11 no test" FORCE)
-add_subdirectory(pybind11)
+    CACHE BOOL "disable volk install" FORCE)
+add_subdirectory(volk)
+
+# vulkan memory allocator
+# ---------------------------------------------------------------
+set(VMA_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/
+    PARENT_SCOPE)
+add_library(vma STATIC ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/VmaUsage.cpp)
+set_target_properties(vma PROPERTIES CXX_STANDARD 14)
+target_link_libraries(vma PRIVATE volk volk_headers)

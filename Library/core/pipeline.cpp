@@ -109,7 +109,7 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
             layoutCreateInfo.pNext = &bindingFlagsCreateInfo;
         }
 
-        ErrorCheck(vkCreateDescriptorSetLayout(*device, &layoutCreateInfo, nullptr, &layout),
+        ErrorCheck(DeviceDispatch(vkCreateDescriptorSetLayout(*device, &layoutCreateInfo, nullptr, &layout)),
                 "create descriptor set layout");
 
         // create a set layout from device
@@ -134,7 +134,7 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
     pipelineLayoutCreateInfo.pSetLayouts = descriptorSetLayoutHandles.data();
     pipelineLayoutCreateInfo.pushConstantRangeCount = desc.pushConstantRange.size();
     pipelineLayoutCreateInfo.pPushConstantRanges = desc.pushConstantRange.data();
-    ErrorCheck(vkCreatePipelineLayout(*device, &pipelineLayoutCreateInfo, nullptr, &handle), "create pipeline layout");
+    ErrorCheck(DeviceDispatch(vkCreatePipelineLayout(*device, &pipelineLayoutCreateInfo, nullptr, &handle)), "create pipeline layout");
 }
 
 PipelineLayout::~PipelineLayout() {
@@ -552,7 +552,7 @@ Pipeline::~Pipeline() {
     layout.reset();
 
     if (handle) {
-        vkDestroyPipeline(*device, handle, nullptr);
+        DeviceDispatch(vkDestroyPipeline(*device, handle, nullptr));
         handle = VK_NULL_HANDLE;
     }
 }

@@ -29,6 +29,6 @@ target_include_directories(slim PUBLIC
     ${IMGUI_INCLUDE_DIRS}
     ${IMNODES_INCLUDE_DIRS}
     ${IMGUIZMO_INCLUDE_DIRS}
-    ${VULKAN_INCLUDES}
+    ${VMA_INCLUDE_DIRS}
 )
-target_link_libraries(slim PUBLIC glm glfw imgui imnodes imguizmo stb tinygltf ghc_filesystem ${VULKAN_LIBS})
+target_link_libraries(slim PUBLIC volk vma glm glfw imgui imnodes imguizmo stb tinygltf ghc_filesystem)

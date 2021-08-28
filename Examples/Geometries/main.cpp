@@ -11,14 +11,16 @@ struct Geometries {
 };
 
 template <typename T>
-Scene* CreateGeometry(SceneManager* sceneMgr, CommandBuffer* commandBuffer, Material* material, const T& geometry) {
+Scene::Node* CreateGeometry(Scene::Builder* builder, Material* material, const T& geometry) {
     GeometryData data = geometry.Create();
-    auto mesh = SlimPtr<Mesh>();
-    mesh->SetVertexAttrib(commandBuffer, data.vertices, 0);
-    mesh->SetIndexAttrib(commandBuffer, data.indices);
 
-    auto scene = sceneMgr->Create<Scene>("geometry");
-    scene->SetDraw(mesh, material, DrawIndexed { static_cast<uint32_t>(data.indices.size()), 1, 0, 0, 0 });
+    auto mesh = builder->CreateMesh();
+    mesh->SetVertexBuffer<GeometryData::Vertex>(data.vertices);
+    mesh->SetIndexBuffer(data.indices);
+    mesh->AddInputBinding(0, 0);
+
+    auto scene = builder->CreateNode("geometry");
+    scene->SetDraw(mesh, material);
     return scene;
 }
 
@@ -29,6 +31,8 @@ constexpr uint32_t CONE     = 3;
 constexpr uint32_t CYLINDER = 4;
 
 int main() {
+    slim::Initialize();
+
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -82,8 +86,8 @@ int main() {
     auto material = SlimPtr<Material>(device, technique);
 
     // create scene with meshes
-    auto sceneMgr = SlimPtr<SceneManager>();
-    SmartPtr<Scene> node = nullptr;
+    auto builder = SlimPtr<Scene::Builder>(device);
+    SmartPtr<Scene::Node> node = nullptr;
 
     Geometries geometries;
     geometries.plane = Plane { 1.0f, 1.0f, 6, 8, true };
@@ -195,16 +199,21 @@ int main() {
 
         // update scene
         if (changed || node == nullptr) {
-            device->Execute([&](CommandBuffer* commandBuffer) {
-                switch (selectedGeometry) {
-                    case PLANE:    node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.plane);    break;
-                    case CUBE:     node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cube);     break;
-                    case SPHERE:   node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.sphere);   break;
-                    case CONE:     node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cone);     break;
-                    case CYLINDER: node = CreateGeometry(sceneMgr, commandBuffer, material, geometries.cylinder); break;
-                }
-            });
+            // clear builder nodes
+            builder->Clear();
+
+            switch (selectedGeometry) {
+                case PLANE:    node = CreateGeometry(builder, material, geometries.plane);    break;
+                case CUBE:     node = CreateGeometry(builder, material, geometries.cube);     break;
+                case SPHERE:   node = CreateGeometry(builder, material, geometries.sphere);   break;
+                case CONE:     node = CreateGeometry(builder, material, geometries.cone);     break;
+                case CYLINDER: node = CreateGeometry(builder, material, geometries.cylinder); break;
+            }
             node->SetTransform(arcball->GetModelMatrix());
+
+            // rebuild geometry vbo/ibo
+            device->WaitIdle();
+            builder->Build();
         }
 
         // controller
@@ -214,7 +223,7 @@ int main() {
         }
 
         // transform scene nodes
-        node->Update();
+        node->ApplyTransform();
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();

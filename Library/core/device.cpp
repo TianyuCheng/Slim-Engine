@@ -103,6 +103,7 @@ void Device::InitLogicalDevice() {
 
     // create logical device
     ErrorCheck(vkCreateDevice(physicalDevice, &createInfo, nullptr, &handle), "create logical device");
+    volkLoadDeviceTable(&deviceTable, handle);
 
     // retrieve compute queue if necessary
     if (queueFamilyIndices.compute.has_value()) {
@@ -126,11 +127,38 @@ void Device::InitLogicalDevice() {
 }
 
 void Device::InitMemoryAllocator() {
+    // need to manually map functions to vma
+    VmaVulkanFunctions vulkanFunctions;
+    vulkanFunctions.vkGetPhysicalDeviceProperties           = vkGetPhysicalDeviceProperties;
+    vulkanFunctions.vkGetPhysicalDeviceMemoryProperties     = vkGetPhysicalDeviceMemoryProperties;
+    vulkanFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2KHR;
+    vulkanFunctions.vkAllocateMemory                        = deviceTable.vkAllocateMemory;
+    vulkanFunctions.vkFreeMemory                            = deviceTable.vkFreeMemory;
+    vulkanFunctions.vkMapMemory                             = deviceTable.vkMapMemory;
+    vulkanFunctions.vkUnmapMemory                           = deviceTable.vkUnmapMemory;
+    vulkanFunctions.vkFlushMappedMemoryRanges               = deviceTable.vkFlushMappedMemoryRanges;
+    vulkanFunctions.vkInvalidateMappedMemoryRanges          = deviceTable.vkInvalidateMappedMemoryRanges;
+    vulkanFunctions.vkBindBufferMemory                      = deviceTable.vkBindBufferMemory;
+    vulkanFunctions.vkBindImageMemory                       = deviceTable.vkBindImageMemory;
+    vulkanFunctions.vkGetBufferMemoryRequirements           = deviceTable.vkGetBufferMemoryRequirements;
+    vulkanFunctions.vkGetImageMemoryRequirements            = deviceTable.vkGetImageMemoryRequirements;
+    vulkanFunctions.vkCreateBuffer                          = deviceTable.vkCreateBuffer;
+    vulkanFunctions.vkDestroyBuffer                         = deviceTable.vkDestroyBuffer;
+    vulkanFunctions.vkCreateImage                           = deviceTable.vkCreateImage;
+    vulkanFunctions.vkDestroyImage                          = deviceTable.vkDestroyImage;
+    vulkanFunctions.vkCmdCopyBuffer                         = deviceTable.vkCmdCopyBuffer;
+    vulkanFunctions.vkGetBufferMemoryRequirements2KHR       = deviceTable.vkGetBufferMemoryRequirements2KHR;
+    vulkanFunctions.vkGetImageMemoryRequirements2KHR        = deviceTable.vkGetImageMemoryRequirements2KHR;
+    vulkanFunctions.vkBindBufferMemory2KHR                  = deviceTable.vkBindBufferMemory2KHR;
+    vulkanFunctions.vkBindImageMemory2KHR                   = deviceTable.vkBindImageMemory2KHR;
+
+    // create allocator
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = context->GetPhysicalDevice();
     allocatorInfo.device = handle;
     allocatorInfo.instance = context->GetInstance();
     allocatorInfo.flags = 0;
+    allocatorInfo.pVulkanFunctions = (const VmaVulkanFunctions*) &vulkanFunctions;
 
     // enable buffer device address capability for vma allocator
     if (context->GetDescription().deviceFeatures.bufferDeviceAddress) {

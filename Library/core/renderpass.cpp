@@ -261,12 +261,12 @@ RenderPass::RenderPass(Device *device, const RenderPassDesc &desc)
     renderPassInfo.dependencyCount = dependencies.size();
     renderPassInfo.pDependencies = dependencies.data();
 
-    ErrorCheck(vkCreateRenderPass(*device, &renderPassInfo, nullptr, &handle), "create render pass");
+    ErrorCheck(DeviceDispatch(vkCreateRenderPass(*device, &renderPassInfo, nullptr, &handle)), "create render pass");
 }
 
 RenderPass::~RenderPass() {
     if (handle) {
-        vkDestroyRenderPass(*device, handle, nullptr);
+        DeviceDispatch(vkDestroyRenderPass(*device, handle, nullptr));
         handle = VK_NULL_HANDLE;
     }
 }

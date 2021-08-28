@@ -3,11 +3,12 @@
 
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
 
+#define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "core/vulkan.h"
 #include "core/image.h"
 #include "core/context.h"
 #include "core/device.h"

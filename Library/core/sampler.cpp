@@ -75,12 +75,12 @@ SamplerDesc& SamplerDesc::AddressMode(VkSamplerAddressMode u, VkSamplerAddressMo
 }
 
 Sampler::Sampler(Device *device, const SamplerDesc &desc) : device(device) {
-    ErrorCheck(vkCreateSampler(*device, &desc.handle, nullptr, &handle), "create sampler");
+    ErrorCheck(DeviceDispatch(vkCreateSampler(*device, &desc.handle, nullptr, &handle)), "create sampler");
 }
 
 Sampler::~Sampler() {
     if (handle) {
-        vkDestroySampler(*device, handle, nullptr);
+        DeviceDispatch(vkDestroySampler(*device, handle, nullptr));
         handle = VK_NULL_HANDLE;
     }
 }

@@ -49,7 +49,7 @@ Shader::Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage,
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-    ErrorCheck(vkCreateShaderModule(*device, &createInfo, nullptr, &handle), "create shader");
+    ErrorCheck(DeviceDispatch(vkCreateShaderModule(*device, &createInfo, nullptr, &handle)), "create shader");
 
     // prepare shader stage info
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -60,7 +60,7 @@ Shader::Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage,
 
 Shader::~Shader() {
     if (handle) {
-        vkDestroyShaderModule(*device, handle, nullptr);
+        DeviceDispatch(vkDestroyShaderModule(*device, handle, nullptr));
         handle = nullptr;
     }
 }

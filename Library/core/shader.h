@@ -3,9 +3,8 @@
 
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
-#include <VmaUsage.h>
 
+#include "core/vulkan.h"
 #include "core/device.h"
 #include "utility/interface.h"
 

@@ -4,10 +4,9 @@
 #include <list>
 #include <string>
 #include <vector>
-#include <VmaUsage.h>
 #include <unordered_map>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/hasher.h"
 #include "core/device.h"
 #include "utility/transient.h"

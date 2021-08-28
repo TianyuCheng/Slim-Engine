@@ -5,12 +5,13 @@
 #include <vector>
 #include <iostream>
 #include <functional>
-#include <vulkan/vulkan.h>
-#include <VmaUsage.h>
 
+#include "core/vulkan.h"
 #include "core/vkutils.h"
 #include "core/context.h"
 #include "utility/interface.h"
+
+#define DeviceDispatch(CALL) (device->deviceTable.CALL)
 
 namespace slim {
 
@@ -44,6 +45,8 @@ namespace slim {
         VkQueue            GetGraphicsQueue() const { return graphicsQueue; }
         VkQueue            GetPresentQueue() const { return presentQueue; }
         VkQueue            GetTransferQueue() const { return transferQueue; }
+
+        VolkDeviceTable    deviceTable;
 
     private:
         void InitLogicalDevice();

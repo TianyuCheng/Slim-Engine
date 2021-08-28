@@ -3,12 +3,14 @@
 
 #include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/buffer.h"
 #include "core/device.h"
+#include "core/vkutils.h"
 #include "core/pipeline.h"
 #include "core/descriptor.h"
+#include "core/acceleration.h"
 #include "core/synchronization.h"
 #include "utility/interface.h"
 
@@ -48,6 +50,9 @@ namespace slim {
 
         void PushConstants(PipelineLayout *layout, const std::string &name, const void *value);
         void PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages);
+
+        void BuildAccelerationStructure(AccelerationStructure* accelerationStructure);
+        void BuildAccelerationStructures(const std::vector<AccelerationStructure*> &accelerationStructures);
 
         void CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset = 0);
         void CopyDataToImage(void *data, size_t size, Image *image,

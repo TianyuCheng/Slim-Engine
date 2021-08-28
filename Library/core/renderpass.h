@@ -5,8 +5,8 @@
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/device.h"
 #include "utility/interface.h"
 

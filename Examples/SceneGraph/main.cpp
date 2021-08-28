@@ -1,9 +1,10 @@
 #include <slim/slim.hpp>
-#include "helper.h"
 
 using namespace slim;
 
 int main() {
+    slim::Initialize();
+
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -34,8 +35,8 @@ int main() {
     technique->AddPass(RenderQueue::Opaque,
         GraphicsPipelineDesc()
             .SetName("textured")
-            .AddVertexBinding(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position) },
+            .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
+                { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GeometryData::Vertex, position) },
              })
             .SetVertexShader(vShader)
             .SetFragmentShader(fShader)
@@ -55,31 +56,41 @@ int main() {
     auto material2 = SlimPtr<Material>(device, technique);
     material2->SetUniform("Color", glm::vec3(0.0f, 1.0f, 1.0f));
 
-    // create mesh and its submeshes
-    auto mesh = SlimPtr<Mesh>(CreateMesh(device));
+    // scene builder
+    auto builder = SlimPtr<Scene::Builder>(device);
 
-    // create scene
-    auto sceneMgr = SlimPtr<SceneManager>();
-    auto scene    = sceneMgr->Create<Scene>("scene");
-    auto scene1   = sceneMgr->Create<Scene>("child0.1", scene);
-    auto scene11  = sceneMgr->Create<Scene>("child1.1", scene1);
-    auto scene2   = sceneMgr->Create<Scene>("child0.2", scene);
-    auto scene21  = sceneMgr->Create<Scene>("child2.1", scene2);
+    // cube mesh
+    auto cubeMesh = builder->CreateMesh();
     {
-        scene1->SetDraw(mesh, material1, DrawIndexed { 36, 1, 0, 0, 0 });
+        auto cubeData = Cube { }.Create();
+        cubeMesh->SetVertexBuffer<GeometryData::Vertex>(cubeData.vertices);
+        cubeMesh->SetIndexBuffer<uint32_t>(cubeData.indices);
+        cubeMesh->AddInputBinding(0, 0);
+    }
+
+    // scene nodes
+    auto scene    = builder->CreateNode("scene");
+    auto scene1   = builder->CreateNode("child0.1", scene);
+    auto scene11  = builder->CreateNode("child1.1", scene1);
+    auto scene2   = builder->CreateNode("child0.2", scene);
+    auto scene21  = builder->CreateNode("child2.1", scene2);
+    {
+        scene1->SetDraw(cubeMesh, material1);
         scene1->Translate(1.0f, 0.0f, 0.0f);
 
-        scene11->SetDraw(mesh, material1, DrawIndexed { 36, 1, 0, 0, 0 });
+        scene11->SetDraw(cubeMesh, material1);
         scene11->Translate(0.0f, 1.0f, 0.0f);
         scene11->Scale(0.5f, 0.5f, 0.5f);
 
-        scene2->SetDraw(mesh, material2, DrawIndexed { 36, 1, 0, 0, 0 });
+        scene2->SetDraw(cubeMesh, material2);
         scene2->Translate(-1.0f, 0.0f, 0.0f);
 
-        scene21->SetDraw(mesh, material2, DrawIndexed { 36, 1, 0, 0, 0 });
+        scene21->SetDraw(cubeMesh, material2);
         scene21->Translate(0.0f, 1.0f, 0.0f);
         scene21->Scale(0.5f, 0.5f, 0.5f);
     }
+
+    builder->Build();
 
     // render
     while (window->IsRunning()) {
@@ -96,7 +107,7 @@ int main() {
         // transform scene nodes
         scene1->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), +0.025);
         scene2->Rotate(glm::vec3(0.0f, 1.0f, 0.0f), -0.025);
-        scene->Update();
+        scene->ApplyTransform();
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();

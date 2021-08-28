@@ -2,8 +2,8 @@
 #define SLIM_UTILITY_ARCBALL_H
 
 #include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
 
+#include "core/vulkan.h"
 #include "core/input.h"
 #include "utility/camera.h"
 #include "utility/transform.h"

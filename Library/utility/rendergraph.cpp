@@ -378,6 +378,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     RenderFrame* renderFrame = graph->GetRenderFrame();
     RenderPass* renderPass = renderFrame->RequestRenderPass(renderPassDesc);
     Framebuffer* framebuffer = renderFrame->RequestFramebuffer(framebufferDesc.SetRenderPass(renderPass));
+    Device* device = renderFrame->GetDevice();
 
     // update render pass
     graph->renderPass.reset(renderPass);
@@ -392,7 +393,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     beginInfo.clearValueCount = clearValues.size();
     beginInfo.pClearValues = clearValues.data();
     beginInfo.pNext = nullptr;
-    vkCmdBeginRenderPass(*commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    DeviceDispatch(vkCmdBeginRenderPass(*commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE));
 
     RenderInfo info;
     info.renderGraph = graph;
@@ -409,7 +410,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     }
 
     // end render pass
-    vkCmdEndRenderPass(*commandBuffer);
+    DeviceDispatch(vkCmdEndRenderPass(*commandBuffer));
 }
 
 RenderGraph::RenderGraph(RenderFrame *frame)
@@ -631,16 +632,18 @@ void RenderGraph::Execute() {
             }
         }
     }
+
+    Device* device = renderFrame->GetDevice();
     if (computeSubmits.size()) {
-        ErrorCheck(vkQueueSubmit(renderFrame->GetDevice()->GetComputeQueue(),
+        ErrorCheck(DeviceDispatch(vkQueueSubmit(device->GetComputeQueue(),
                                  computeSubmits.size(), computeSubmits.data(),
-                                 *renderFrame->GetComputeFinishFence()),
+                                 *renderFrame->GetComputeFinishFence())),
                     "submit compute commands");
     }
     if (graphicsSubmits.size()) {
-        ErrorCheck(vkQueueSubmit(renderFrame->GetDevice()->GetGraphicsQueue(),
+        ErrorCheck(DeviceDispatch(vkQueueSubmit(device->GetGraphicsQueue(),
                                  graphicsSubmits.size(), graphicsSubmits.data(),
-                                 *renderFrame->GetGraphicsFinishFence()),
+                                 *renderFrame->GetGraphicsFinishFence())),
                     "submit graphics commands");
     }
     if (lastGraphicsCommandBuffer) {
