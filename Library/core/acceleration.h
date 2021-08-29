@@ -3,6 +3,7 @@
 
 #include "core/vulkan.h"
 #include "core/debug.h"
+#include "core/query.h"
 #include "core/device.h"
 #include "core/buffer.h"
 #include "core/vkutils.h"
@@ -10,11 +11,29 @@
 
 namespace slim {
 
+    class AccelerationStructure;
+    class AccelerationStructureInput;
+    class AccelerationStructureBuilder;
+
     class AccelerationStructure : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
-        friend class CommandBuffer;
+        friend class AccelerationStructureInput;
+        friend class AccelerationStructureBuilder;
     public:
-        explicit AccelerationStructure(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags);
+        explicit AccelerationStructure(AccelerationStructureInput* input);
         virtual ~AccelerationStructure();
+
+    private:
+        SmartPtr<Device> device;
+        SmartPtr<Buffer> buffer;
+    }; // end of AccelerationStructure
+
+    // ------------------------------------------------------------
+
+    class AccelerationStructureInput {
+        friend class AccelerationStructure;
+        friend class AccelerationStructureBuilder;
+    public:
+        explicit AccelerationStructureInput(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags);
 
         void AddInstance(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount);
 
@@ -30,16 +49,46 @@ namespace slim {
 
     private:
         SmartPtr<Device> device;
-        SmartPtr<Buffer> asBuffer;
+        VkAccelerationStructureTypeKHR type;
         VkAccelerationStructureCreateFlagsKHR createFlags;
-
-        uint32_t scratchSize = 0;
-        bool blas = false, tlas = false;
+        VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {};
         VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {};
         std::vector<VkAccelerationStructureGeometryKHR> geometries;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR> buildRanges;
+    }; // end of AccelerationStructureInput
 
-    }; // end of AccelerationStructure
+    // ------------------------------------------------------------
+
+    class AccelerationStructureBuilder {
+    public:
+        explicit AccelerationStructureBuilder(Device* device);
+
+        void EnableCompaction();
+
+        void BuildTlas(AccelerationStructureInput* input);
+        void BuildBlas(AccelerationStructureInput* input);
+        void BuildBlas(const std::vector<AccelerationStructureInput*>& inputs);
+
+    private:
+
+        void CreateTlas(CommandBuffer* commandBuffer,
+                        AccelerationStructureInput* input,
+                        VkDeviceAddress scratchAddress);
+        void CreateBlas(CommandBuffer* commandBuffer,
+                        const std::vector<uint32_t> &indices,
+                        const std::vector<AccelerationStructureInput*>& inputs,
+                        VkDeviceAddress scratchAddress, QueryPool* queryPool);
+        void CompactBlas(CommandBuffer* commandBuffer,
+                         const std::vector<uint32_t> &indices,
+                         const std::vector<AccelerationStructureInput*>& inputs,
+                         QueryPool* queryPool);
+
+    private:
+        SmartPtr<Device> device;
+        bool compaction = false;
+        SmartPtr<AccelerationStructure> tlas;
+        std::vector<SmartPtr<AccelerationStructure>> blas;
+    };
 
 } // end of namespace slim
 

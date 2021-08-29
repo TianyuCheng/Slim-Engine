@@ -169,7 +169,23 @@ void Device::InitMemoryAllocator() {
 }
 
 void Device::WaitIdle() const {
-    ErrorCheck(vkDeviceWaitIdle(handle), "device wait idle");
+    ErrorCheck(deviceTable.vkDeviceWaitIdle(handle), "device wait idle");
+}
+
+void Device::WaitIdle(VkQueueFlagBits queue) const {
+    switch (queue) {
+        case VK_QUEUE_COMPUTE_BIT:
+            ErrorCheck(deviceTable.vkQueueWaitIdle(computeQueue), "compute queue wait idle");
+            break;
+        case VK_QUEUE_GRAPHICS_BIT:
+            ErrorCheck(deviceTable.vkQueueWaitIdle(graphicsQueue), "graphics queue wait idle");
+            break;
+        case VK_QUEUE_TRANSFER_BIT:
+            ErrorCheck(deviceTable.vkQueueWaitIdle(transferQueue), "transfer queue wait idle");
+            break;
+        default:
+            throw std::runtime_error("invalid queue for wait idle");
+    }
 }
 
 Context* Device::GetContext() const {
@@ -191,7 +207,7 @@ void Device::Execute(std::function<void(CommandBuffer*)> callback, VkQueueFlagBi
     callback(commandBuffer);
     commandBuffer->End();
     commandBuffer->Submit();
-    WaitIdle();
+    WaitIdle(queue);
 }
 
 void Device::Execute(std::function<void(RenderFrame*, CommandBuffer*)> callback, VkQueueFlagBits queue) {
@@ -202,5 +218,5 @@ void Device::Execute(std::function<void(RenderFrame*, CommandBuffer*)> callback,
     callback(renderFrame.get(), commandBuffer);
     commandBuffer->End();
     commandBuffer->Submit();
-    WaitIdle();
+    WaitIdle(queue);
 }

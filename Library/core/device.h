@@ -32,6 +32,7 @@ namespace slim {
         virtual ~Device();
 
         void WaitIdle() const;
+        void WaitIdle(VkQueueFlagBits queue) const;
 
         Context*           GetContext() const;
         VmaAllocator       GetMemoryAllocator() const;

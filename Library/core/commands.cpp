@@ -17,6 +17,7 @@ CommandBuffer::~CommandBuffer() {
 
 void CommandBuffer::Reset() {
     stagingBuffers.clear();
+    scratchBuffers.clear();
     waitSemaphores.clear();
     signalSemaphores.clear();
     waitStages.clear();
@@ -414,25 +415,6 @@ void CommandBuffer::PushConstants(PipelineLayout *layout, size_t offset, const v
     DeviceDispatch(vkCmdPushConstants(handle, *layout, stages, offset, size, value));
 }
 
-void CommandBuffer::BuildAccelerationStructure(AccelerationStructure* accelerationStructure) {
-    BuildAccelerationStructures({ accelerationStructure });
-}
-
-void CommandBuffer::BuildAccelerationStructures(const std::vector<AccelerationStructure*> &accelerationStructures) {
-    for (AccelerationStructure* as : accelerationStructures) {
-        as->Prepare();
-    }
-
-    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildInfos = {};
-    std::vector<std::vector<VkAccelerationStructureBuildRangeInfoKHR>> buildRanges = {};
-    for (AccelerationStructure* as : accelerationStructures) {
-        buildInfos.push_back(as->buildInfo);
-        buildRanges.push_back(as->buildRanges);
-    }
-
-    assert(!!!"--> build acceleration structures");
-}
-
 CommandPool::CommandPool(Device *device, uint32_t queueFamilyIndex) : device(device) {
     // get device queue
     vkGetDeviceQueue(*device, queueFamilyIndex, 0, &queue);
@@ -474,12 +456,12 @@ void CommandPool::Reset() {
 
 CommandBuffer* CommandPool::Request(VkCommandBufferLevel level) {
     CommandBuffer *commandBuffer = level == VK_COMMAND_BUFFER_LEVEL_PRIMARY
-                                 ? RequestPrimaryCommandBufer()
-                                 : RequestSecondaryCommandBufer();
+                                 ? RequestPrimaryCommandBuffer()
+                                 : RequestSecondaryCommandBuffer();
     return commandBuffer;
 }
 
-CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
+CommandBuffer* CommandPool::RequestPrimaryCommandBuffer() {
     if (activePrimaryCommandBuffers < primaryCommandBuffers.size()) {
         return primaryCommandBuffers[activePrimaryCommandBuffers++].get();
     }
@@ -502,7 +484,7 @@ CommandBuffer* CommandPool::RequestPrimaryCommandBufer() {
     return primaryCommandBuffers.back().get();
 }
 
-CommandBuffer* CommandPool::RequestSecondaryCommandBufer() {
+CommandBuffer* CommandPool::RequestSecondaryCommandBuffer() {
     if (activeSecondaryCommandBuffers < secondaryCommandBuffers.size()) {
         return secondaryCommandBuffers[activeSecondaryCommandBuffers++].get();
     }

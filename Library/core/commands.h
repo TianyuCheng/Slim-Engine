@@ -51,9 +51,6 @@ namespace slim {
         void PushConstants(PipelineLayout *layout, const std::string &name, const void *value);
         void PushConstants(PipelineLayout *layout, size_t offset, const void *value, size_t size, VkShaderStageFlags stages);
 
-        void BuildAccelerationStructure(AccelerationStructure* accelerationStructure);
-        void BuildAccelerationStructures(const std::vector<AccelerationStructure*> &accelerationStructures);
-
         void CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset = 0);
         void CopyDataToImage(void *data, size_t size, Image *image,
                              const VkOffset3D &offset, const VkExtent3D &extent,
@@ -122,6 +119,7 @@ namespace slim {
         bool started = false;
         #endif
 
+        std::vector<SmartPtr<Buffer>> scratchBuffers;
         std::vector<SmartPtr<StagingBuffer>> stagingBuffers;
     };
 
@@ -154,8 +152,8 @@ namespace slim {
         CommandBuffer* Request(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     private:
-        CommandBuffer* RequestPrimaryCommandBufer();
-        CommandBuffer* RequestSecondaryCommandBufer();
+        CommandBuffer* RequestPrimaryCommandBuffer();
+        CommandBuffer* RequestSecondaryCommandBuffer();
 
     private:
         SmartPtr<Device> device;

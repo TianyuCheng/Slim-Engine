@@ -17,15 +17,9 @@ struct GeometryData {
     VkDeviceOrHostAddressConstKHR transformData;
 };
 
-VkDeviceAddress GetDeviceAddress(VkDevice device, VkBuffer buffer) {
-    VkBufferDeviceAddressInfo info = {};
-    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    info.buffer = buffer;
-    VkDeviceAddress address = vkGetBufferDeviceAddress(device, &info);
-    return address;
-}
-
 int main() {
+    slim::Initialize();
+
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
@@ -35,10 +29,6 @@ int main() {
             .EnableGLFW(true)
             .EnableRayTracing()
     );
-
-    auto vkCmdBuildAccelerationStructuresKHR = (PFN_vkCmdBuildAccelerationStructuresKHR) vkGetInstanceProcAddr(context->GetInstance(), "vkCmdBuildAccelerationStructuresKHR");
-    auto vkCreateAccelerationStructureKHR = (PFN_vkCreateAccelerationStructureKHR) vkGetInstanceProcAddr(context->GetInstance(), "vkCreateAccelerationStructureKHR");
-    auto vkDestroyAccelerationStructureKHR = (PFN_vkDestroyAccelerationStructureKHR) vkGetInstanceProcAddr(context->GetInstance(), "vkDestroyAccelerationStructureKHR");
 
     // create a slim device
     auto device = SlimPtr<Device>(context);
