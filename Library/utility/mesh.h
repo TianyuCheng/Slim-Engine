@@ -10,7 +10,10 @@
 
 namespace slim {
 
-    class Scene;
+    namespace scene {
+        class Node;
+        class Builder;
+    };
 
     using DrawCommand = VkDrawIndirectCommand;
     using DrawIndexed = VkDrawIndexedIndirectCommand;
@@ -19,7 +22,8 @@ namespace slim {
     // mesh
     // lowest level building blocks
     class Mesh : public NotCopyable, public NotMovable, public ReferenceCountable {
-        friend class Scene;
+        friend class scene::Node;
+        friend class scene::Builder;
     public:
 
         template <typename VertexType>
@@ -94,6 +98,14 @@ namespace slim {
 
         void Bind(CommandBuffer* commandBuffer) const;
 
+        std::tuple<Buffer*, uint64_t> GetVertexBuffer() const {
+            return std::make_tuple(vBuffer, vertexOffsets[0]);
+        }
+
+        std::tuple<Buffer*, uint64_t> GetIndexBuffer() const {
+            return std::make_tuple(iBuffer, indexOffset);
+        }
+
     private:
         // raw data
         uint64_t vertexCount;
@@ -116,6 +128,9 @@ namespace slim {
         bool built = false;
         bool hasVertexAttribs = false;
         #endif
+
+        SmartPtr<Buffer> vBuffer;
+        SmartPtr<Buffer> iBuffer;
     };
 
 } // end of namespace slim

@@ -12,7 +12,7 @@ Technique::~Technique() {
 
 void Technique::AddPass(RenderQueue queue, const GraphicsPipelineDesc &desc) {
     passes.push_back(Pass { desc, queue, nullptr });
-    queue2index.insert(std::make_pair(queue, passes.size() - 1));
+    queue2index.insert(std::make_pair(queue, static_cast<uint32_t>(passes.size() - 1)));
 }
 
 void Technique::Bind(uint32_t index, RenderFrame *renderFrame, RenderPass *renderPass, CommandBuffer *commandBuffer) {

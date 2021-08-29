@@ -1,6 +1,8 @@
 #include "core/device.h"
 #include "core/debug.h"
 #include "core/commands.h"
+#include "core/buffer.h"
+#include "core/acceleration.h"
 #include "core/renderframe.h"
 
 using namespace slim;
@@ -198,6 +200,20 @@ VmaAllocator Device::GetMemoryAllocator() const {
 
 QueueFamilyIndices Device::GetQueueFamilyIndices() const {
     return queueFamilyIndices;
+}
+
+VkDeviceAddress Device::GetDeviceAddress(Buffer* buffer) const {
+    VkBufferDeviceAddressInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    info.buffer = *buffer;
+    return deviceTable.vkGetBufferDeviceAddress(handle, &info);
+}
+
+VkDeviceAddress Device::GetDeviceAddress(accel::AccelStruct* as) const {
+    VkAccelerationStructureDeviceAddressInfoKHR info = {};
+    info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+    info.accelerationStructure = *as;
+    return deviceTable.vkGetAccelerationStructureDeviceAddressKHR(handle, &info);
 }
 
 void Device::Execute(std::function<void(CommandBuffer*)> callback, VkQueueFlagBits queue) {

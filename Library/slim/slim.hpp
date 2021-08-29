@@ -30,6 +30,7 @@
 #include "utility/culling.h"
 #include "utility/meshrenderer.h"
 #include "utility/geometry.h"
+#include "utility/rtbuilder.h"
 #include "utility/arcball.h"
 #include "utility/flycam.h"
 #include "utility/time.h"

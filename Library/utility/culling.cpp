@@ -18,13 +18,13 @@ void CPUCulling::Clear() {
     objects.clear();
 }
 
-void CPUCulling::Cull(Scene::Node* scene, Camera* camera) {
-    scene->ForEach([&](Scene::Node* scene) {
+void CPUCulling::Cull(scene::Node* scene, Camera* camera) {
+    scene->ForEach([&](scene::Node* scene) {
         return CullSceneNode(scene, camera);
     });
 }
 
-bool CPUCulling::CullSceneNode(Scene::Node* scene, Camera*) {
+bool CPUCulling::CullSceneNode(scene::Node* scene, Camera*) {
 
     // when user configures this object to be invisible
     if (!scene->IsVisible()) {

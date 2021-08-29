@@ -18,7 +18,6 @@ GLTFViewer::~GLTFViewer() {
 }
 
 void GLTFViewer::Run() {
-    builder->Build();
     while (window->IsRunning()) {
         Window::PollEvents();
 
@@ -106,7 +105,7 @@ void GLTFViewer::InitContext() {
 
 void GLTFViewer::InitDevice() {
     device = SlimPtr<Device>(context);
-    builder = SlimPtr<Scene::Builder>(device);
+    builder = SlimPtr<scene::Builder>(device);
 }
 
 void GLTFViewer::InitWindow() {
@@ -193,5 +192,7 @@ void GLTFViewer::LoadModel() {
             root->AddChild(node);
         }
         root->ApplyTransform();
+
+        builder->Build(commandBuffer);
     });
 }

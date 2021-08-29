@@ -17,6 +17,10 @@ namespace slim {
 
     class RenderFrame;
     class CommandBuffer;
+    class Buffer;
+    namespace accel {
+        class AccelStruct;
+    };
 
     /**
      * Device will take care of the following things:
@@ -46,6 +50,9 @@ namespace slim {
         VkQueue            GetGraphicsQueue() const { return graphicsQueue; }
         VkQueue            GetPresentQueue() const { return presentQueue; }
         VkQueue            GetTransferQueue() const { return transferQueue; }
+
+        VkDeviceAddress    GetDeviceAddress(Buffer* buffer) const;
+        VkDeviceAddress    GetDeviceAddress(accel::AccelStruct* as) const;
 
         VolkDeviceTable    deviceTable;
 

@@ -104,10 +104,10 @@ int main() {
     SmartPtr<Mesh> geomMesh = nullptr;
     SmartPtr<GPUImage> cubemap = nullptr;
     SmartPtr<Sampler> sampler = nullptr;
-    SmartPtr<Scene::Builder> builder = nullptr;
-    SmartPtr<Scene::Node> root = nullptr;
-    SmartPtr<Scene::Node> skybox = nullptr;
-    SmartPtr<Scene::Node> geometry = nullptr;
+    SmartPtr<scene::Builder> builder = nullptr;
+    SmartPtr<scene::Node> root = nullptr;
+    SmartPtr<scene::Node> skybox = nullptr;
+    SmartPtr<scene::Node> geometry = nullptr;
     uint32_t geometryIndexCount = 0;
     device->Execute([&](CommandBuffer* commandBuffer) {
         cubemap = TextureLoader::LoadCubemap(commandBuffer,
@@ -130,7 +130,7 @@ int main() {
         refractMaterial->SetTexture("Skybox", cubemap, sampler);
         refractMaterial->SetUniform("Refract", refract.iota);
 
-        builder = SlimPtr<Scene::Builder>(device);
+        builder = SlimPtr<scene::Builder>(device);
 
         auto skyboxData = Cube { };
         skyboxData.ccw = false;
@@ -156,7 +156,7 @@ int main() {
         geometry = builder->CreateNode("geometry", root);
         geometry->SetDraw(geomMesh, reflectMaterial);
 
-        builder->Build();
+        builder->Build(commandBuffer);
     });
 
     auto input = SlimPtr<Input>(window);

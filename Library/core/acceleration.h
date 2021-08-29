@@ -9,85 +9,71 @@
 #include "core/vkutils.h"
 #include "utility/interface.h"
 
-namespace slim {
+namespace slim::accel {
 
-    class AccelerationStructure;
-    class AccelerationStructureInput;
-    class AccelerationStructureBuilder;
+    class AccelStruct;
+    class Instance;
+    class Geometry;
+    class Builder;
 
-    class AccelerationStructure : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
-        friend class AccelerationStructureInput;
-        friend class AccelerationStructureBuilder;
+    // ------------------------------------------------------------
+
+    class AccelStruct : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
     public:
-        explicit AccelerationStructure(AccelerationStructureInput* input);
-        virtual ~AccelerationStructure();
+        explicit AccelStruct(Instance* instance);
+        explicit AccelStruct(Geometry* geometry);
+        virtual ~AccelStruct();
 
     private:
         SmartPtr<Device> device;
         SmartPtr<Buffer> buffer;
-    }; // end of AccelerationStructure
+        VkDeviceAddress address;
+    }; // end of Structure
 
     // ------------------------------------------------------------
 
-    class AccelerationStructureInput {
-        friend class AccelerationStructure;
-        friend class AccelerationStructureBuilder;
+    class Instance : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
+        friend class AccelStruct;
     public:
-        explicit AccelerationStructureInput(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags);
-
+        explicit Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
         void AddInstance(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount);
-
-        void AddBoundingBox(Buffer* aabbBuffer, uint64_t offset, uint64_t stride);
-
-        void AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
-                          Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
-                          Buffer* transformBuffer = nullptr, uint64_t transformOffset = 0,
-                          VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT);
-
-    private:
         void Prepare();
 
     private:
         SmartPtr<Device> device;
-        VkAccelerationStructureTypeKHR type;
+
+    public:
+        SmartPtr<AccelStruct> accel;
         VkAccelerationStructureCreateFlagsKHR createFlags;
-        VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {};
-        VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {};
         std::vector<VkAccelerationStructureGeometryKHR> geometries;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR> buildRanges;
-    }; // end of AccelerationStructureInput
+        VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {};
+        VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {};
+    };
 
     // ------------------------------------------------------------
 
-    class AccelerationStructureBuilder {
+    class Geometry : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
+        friend class AccelStruct;
     public:
-        explicit AccelerationStructureBuilder(Device* device);
-
-        void EnableCompaction();
-
-        void BuildTlas(AccelerationStructureInput* input);
-        void BuildBlas(AccelerationStructureInput* input);
-        void BuildBlas(const std::vector<AccelerationStructureInput*>& inputs);
-
-    private:
-
-        void CreateTlas(CommandBuffer* commandBuffer,
-                        AccelerationStructureInput* input,
-                        VkDeviceAddress scratchAddress);
-        void CreateBlas(CommandBuffer* commandBuffer,
-                        const std::vector<uint32_t> &indices,
-                        const std::vector<AccelerationStructureInput*>& inputs,
-                        VkDeviceAddress scratchAddress, QueryPool* queryPool);
-        void CompactBlas(CommandBuffer* commandBuffer,
-                         const std::vector<uint32_t> &indices,
-                         const std::vector<AccelerationStructureInput*>& inputs,
-                         QueryPool* queryPool);
+        explicit Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
+        void AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
+                          Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
+                          Buffer* transformBuffer = nullptr, uint64_t transformOffset = 0,
+                          VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT);
+        void Prepare();
 
     private:
         SmartPtr<Device> device;
-        bool compaction = false;
-        SmartPtr<AccelerationStructure> tlas;
-        std::vector<SmartPtr<AccelerationStructure>> blas;
+
+    public:
+        SmartPtr<AccelStruct> accel;
+        SmartPtr<AccelStruct> cleanupAccel;
+        VkAccelerationStructureCreateFlagsKHR createFlags;
+        std::vector<VkAccelerationStructureGeometryKHR> geometries;
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR> buildRanges;
+        VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {};
+        VkAccelerationStructureBuildGeometryInfoKHR buildInfo = {};
     };
 
 } // end of namespace slim

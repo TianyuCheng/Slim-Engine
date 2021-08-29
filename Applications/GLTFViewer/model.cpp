@@ -41,7 +41,7 @@ GraphicsPipelineDesc CreateGLTFPipelineDesc(const std::string &name, Shader* vSh
     //  When material is non-metal, the base color represents the reflected diffuse color of the material. A linear 4% is used.
 }
 
-GLTFAssetManager::GLTFAssetManager(Device* device, Scene::Builder* builder) : device(device), builder(builder) {
+GLTFAssetManager::GLTFAssetManager(Device* device, scene::Builder* builder) : device(device), builder(builder) {
 
     // vertex shader
     auto vShaderPbr = SlimPtr<spirv::VertexShader>(device, "main", "shaders/gltf.vert.spv");
@@ -390,7 +390,7 @@ void GLTFAssetManager::LoadNodes(GLTFModel &result, const tinygltf::Model &model
 
     // initialize scene node hierarchy
     for (uint32_t i = 0; i < model.nodes.size(); i++) {
-        Scene::Node* snode = result.nodes[i];
+        scene::Node* snode = result.nodes[i];
         for (int child : model.nodes[i].children) {
             snode->AddChild(result.nodes[child]);
         }

@@ -47,8 +47,6 @@ namespace slim {
 
     VkExtent2D ChooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabilitiesKHR& capabilities);
 
-    VkDeviceAddress GetDeviceAddress(VkDevice device, VkBuffer buffer);
-
     void LayoutTransition(VkCommandBuffer cmdbuffer,
                           Image *image,
                           const VkImageSubresourceRange &subresources,

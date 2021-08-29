@@ -7,8 +7,8 @@ using namespace slim;
 
 struct Gizmo : ReferenceCountable {
     // scene
-    SmartPtr<Scene::Builder> builder;
-    SmartPtr<Scene::Node> scene;
+    SmartPtr<scene::Builder> builder;
+    SmartPtr<scene::Node> scene;
     SmartPtr<Mesh> cylinderMesh;
     SmartPtr<Mesh> coneMesh;
 
@@ -20,7 +20,7 @@ struct Gizmo : ReferenceCountable {
     SmartPtr<Material> green;
     SmartPtr<Material> blue;
 
-    Gizmo(CommandBuffer* commandBuffer, Scene::Builder* builder) : builder(builder) {
+    Gizmo(CommandBuffer* commandBuffer, scene::Builder* builder) : builder(builder) {
         InitMesh();
         InitMaterial(commandBuffer);
         InitScene();

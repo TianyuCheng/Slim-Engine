@@ -114,10 +114,15 @@ ContextDesc& ContextDesc::EnableRayTracing() {
     deviceFeatures.rayQuery->rayQuery = VK_TRUE;
     #endif
 
+    deviceFeatures.hostQueryReset.reset(new VkPhysicalDeviceHostQueryResetFeatures { });
+    deviceFeatures.hostQueryReset->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES;
+    deviceFeatures.hostQueryReset->hostQueryReset = VK_TRUE;
+
     // connect to features
     deviceFeatures.bufferDeviceAddress->pNext = deviceFeatures.accelerationStructure.get();
     deviceFeatures.accelerationStructure->pNext = deviceFeatures.rayTracingPipeline.get();
-    deviceFeatures.rayTracingPipeline->pNext = features.pNext;
+    deviceFeatures.rayTracingPipeline->pNext = deviceFeatures.hostQueryReset.get();
+    deviceFeatures.hostQueryReset->pNext = features.pNext;
     features.pNext = deviceFeatures.bufferDeviceAddress.get();
 
     return *this;

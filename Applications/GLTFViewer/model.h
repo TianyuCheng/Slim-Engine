@@ -29,12 +29,12 @@ struct GLTFMesh {
 
 struct GLTFScene {
     std::string name;
-    std::vector<Scene::Node*> roots;
+    std::vector<scene::Node*> roots;
 };
 
 struct GLTFModel {
     std::vector<GLTFScene>             scenes;
-    std::vector<SmartPtr<Scene::Node>> nodes;
+    std::vector<SmartPtr<scene::Node>> nodes;
     std::vector<GLTFMesh>              meshes;
     std::vector<SmartPtr<Material>>    materials;
     std::vector<SmartPtr<Sampler>>     samplers;
@@ -61,7 +61,7 @@ struct alignas(128) MaterialFactors {
 
 class GLTFAssetManager : public ReferenceCountable {
 public:
-    explicit GLTFAssetManager(Device* device, Scene::Builder* builder);
+    explicit GLTFAssetManager(Device* device, scene::Builder* builder);
     GLTFModel Load(CommandBuffer* commandBuffer, const std::string& path);
 
 private:
@@ -84,7 +84,7 @@ private:
 
 private:
     SmartPtr<Device>                  device;
-    SmartPtr<Scene::Builder>          builder;
+    SmartPtr<scene::Builder>          builder;
     SmartPtr<Shader>                  vShaderPbr;
     SmartPtr<Shader>                  fShaderPbr;
     SmartPtr<Technique>               techniqueOpaque;

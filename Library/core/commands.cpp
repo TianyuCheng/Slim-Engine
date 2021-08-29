@@ -17,7 +17,6 @@ CommandBuffer::~CommandBuffer() {
 
 void CommandBuffer::Reset() {
     stagingBuffers.clear();
-    scratchBuffers.clear();
     waitSemaphores.clear();
     signalSemaphores.clear();
     waitStages.clear();

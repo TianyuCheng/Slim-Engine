@@ -119,7 +119,6 @@ namespace slim {
         bool started = false;
         #endif
 
-        std::vector<SmartPtr<Buffer>> scratchBuffers;
         std::vector<SmartPtr<StagingBuffer>> stagingBuffers;
     };
 

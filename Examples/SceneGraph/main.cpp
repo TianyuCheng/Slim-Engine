@@ -57,7 +57,7 @@ int main() {
     material2->SetUniform("Color", glm::vec3(0.0f, 1.0f, 1.0f));
 
     // scene builder
-    auto builder = SlimPtr<Scene::Builder>(device);
+    auto builder = SlimPtr<scene::Builder>(device);
 
     // cube mesh
     auto cubeMesh = builder->CreateMesh();
@@ -90,7 +90,9 @@ int main() {
         scene21->Scale(0.5f, 0.5f, 0.5f);
     }
 
-    builder->Build();
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        builder->Build(commandBuffer);
+    });
 
     // render
     while (window->IsRunning()) {

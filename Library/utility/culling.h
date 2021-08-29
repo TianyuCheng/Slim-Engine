@@ -3,6 +3,7 @@
 
 #include <map>
 #include <vector>
+#include <algorithm>
 
 #include "utility/view.h"
 #include "utility/mesh.h"
@@ -19,7 +20,7 @@ namespace slim {
 
     // data structure for objects to be drawn
     struct Drawable {
-        SmartPtr<Scene::Node> node;
+        SmartPtr<scene::Node> node;
         SmartPtr<Mesh>        mesh;
         SmartPtr<Material>    material;
         DrawVariant           drawCommand;
@@ -36,13 +37,13 @@ namespace slim {
     class CPUCulling : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
         void Clear();
-        void Cull(Scene::Node* scene, Camera* camera);
+        void Cull(scene::Node* scene, Camera* camera);
         void Sort(uint32_t firstQueue, uint32_t lastQueue, SortingOrder sorting);
 
         View<Drawable> GetDrawables(uint32_t firstQueue, uint32_t lastQueue);
 
     private:
-        bool CullSceneNode(Scene::Node* scene, Camera* camera);
+        bool CullSceneNode(scene::Node* scene, Camera* camera);
 
     private:
         RenderQueueMap objects;

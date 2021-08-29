@@ -8,8 +8,8 @@ using namespace slim;
 
 struct Skybox : ReferenceCountable {
     // scene
-    SmartPtr<Scene::Builder> builder;
-    SmartPtr<Scene::Node> scene;
+    SmartPtr<scene::Builder> builder;
+    SmartPtr<scene::Node> scene;
     SmartPtr<Mesh> mesh;
 
     // material
@@ -23,7 +23,7 @@ struct Skybox : ReferenceCountable {
     SmartPtr<GPUImage> irradiance;
     SmartPtr<Sampler> sampler;
 
-    Skybox(CommandBuffer* commandBuffer, Scene::Builder* builder) : builder(builder) {
+    Skybox(CommandBuffer* commandBuffer, scene::Builder* builder) : builder(builder) {
         InitCubemap(commandBuffer);
         InitMaterial(commandBuffer);
         InitScene();

@@ -11,7 +11,7 @@ struct Geometries {
 };
 
 template <typename T>
-Scene::Node* CreateGeometry(Scene::Builder* builder, Material* material, const T& geometry) {
+scene::Node* CreateGeometry(scene::Builder* builder, Material* material, const T& geometry) {
     GeometryData data = geometry.Create();
 
     auto mesh = builder->CreateMesh();
@@ -86,8 +86,8 @@ int main() {
     auto material = SlimPtr<Material>(device, technique);
 
     // create scene with meshes
-    auto builder = SlimPtr<Scene::Builder>(device);
-    SmartPtr<Scene::Node> node = nullptr;
+    auto builder = SlimPtr<scene::Builder>(device);
+    SmartPtr<scene::Node> node = nullptr;
 
     Geometries geometries;
     geometries.plane = Plane { 1.0f, 1.0f, 6, 8, true };
@@ -213,7 +213,9 @@ int main() {
 
             // rebuild geometry vbo/ibo
             device->WaitIdle();
-            builder->Build();
+            device->Execute([&](CommandBuffer* commandBuffer) {
+                builder->Build(commandBuffer);
+            });
         }
 
         // controller

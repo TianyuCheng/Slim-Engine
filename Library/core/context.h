@@ -68,6 +68,7 @@ namespace slim {
             std::shared_ptr<VkPhysicalDeviceAccelerationStructureFeaturesKHR> accelerationStructure;
             std::shared_ptr<VkPhysicalDeviceRayTracingPipelineFeaturesKHR> rayTracingPipeline;
             std::shared_ptr<VkPhysicalDeviceRayQueryFeaturesKHR> rayQuery;
+            std::shared_ptr<VkPhysicalDeviceHostQueryResetFeatures> hostQueryReset;
         } deviceFeatures;
 
         // extensions + validation layers
