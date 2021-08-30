@@ -121,7 +121,7 @@ void scene::Builder::Build() {
     // build blas
     if (accelBuilder.get()) {
         for (auto& mesh : meshes) {
-            accelBuilder->AddMesh(mesh, mesh->GetVertexStride());
+            accelBuilder->AddMesh(mesh);
         }
         accelBuilder->BuildBlas();
     }
@@ -137,7 +137,7 @@ void scene::Builder::Build() {
     if (accelBuilder.get()) {
         for (auto& node : nodes) {
             if (node->HasDraw()) {
-                accelBuilder->AddNode(node, node->transformOffset);
+                accelBuilder->AddNode(node);
             }
         }
         accelBuilder->BuildTlas();

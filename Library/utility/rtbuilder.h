@@ -22,8 +22,8 @@ namespace slim::accel {
 
         void EnableCompaction();
 
-        void AddMesh(Mesh* mesh, uint64_t vertexStride);
-        void AddNode(scene::Node* node, uint64_t transformOffset);
+        void AddMesh(Mesh* mesh);
+        void AddNode(scene::Node* node);
 
         void BuildTlas();
         void BuildBlas();

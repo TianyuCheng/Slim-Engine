@@ -118,7 +118,7 @@ namespace slim {
         void Bind(CommandBuffer* commandBuffer) const;
 
         std::tuple<Buffer*, uint64_t> GetVertexBuffer(uint32_t binding) const {
-            return std::make_tuple(vertexBuffer, vertexOffsets[0]);
+            return std::make_tuple(vertexBuffer, vertexOffsets[binding]);
         }
 
         std::tuple<Buffer*, uint64_t> GetIndexBuffer() const {

@@ -10,7 +10,7 @@ void accel::Builder::EnableCompaction() {
     compaction = true;
 }
 
-void accel::Builder::AddNode(scene::Node* node, uint64_t transformOffset) {
+void accel::Builder::AddNode(scene::Node* node) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Instance* instance = new Instance(device, createFlags);
 
@@ -23,7 +23,7 @@ void accel::Builder::AddNode(scene::Node* node, uint64_t transformOffset) {
     node->tlas = instance;
 }
 
-void accel::Builder::AddMesh(Mesh* mesh, uint64_t vertexStride) {
+void accel::Builder::AddMesh(Mesh* mesh) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Geometry* geometry = new Geometry(device, createFlags);
 
@@ -31,7 +31,7 @@ void accel::Builder::AddMesh(Mesh* mesh, uint64_t vertexStride) {
     auto [vBuffer, vOffset] = mesh->GetVertexBuffer(0);
     auto [iBuffer, iOffset] = mesh->GetIndexBuffer();
     geometry->AddTriangles(iBuffer, iOffset, mesh->GetIndexCount(), mesh->GetIndexType(),
-                           vBuffer, vOffset, vertexStride);
+                           vBuffer, vOffset, mesh->GetVertexStride());
 
     blas.push_back(geometry);
     mesh->blas = geometry;
