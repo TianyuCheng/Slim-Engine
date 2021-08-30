@@ -15,9 +15,8 @@ scene::Node* CreateGeometry(scene::Builder* builder, Material* material, const T
     GeometryData data = geometry.Create();
 
     auto mesh = builder->CreateMesh();
-    mesh->SetVertexBuffer<GeometryData::Vertex>(data.vertices);
+    mesh->SetVertexBuffer(data.vertices);
     mesh->SetIndexBuffer(data.indices);
-    mesh->AddInputBinding(0, 0);
 
     auto scene = builder->CreateNode("geometry");
     scene->SetDraw(mesh, material);
@@ -213,9 +212,7 @@ int main() {
 
             // rebuild geometry vbo/ibo
             device->WaitIdle();
-            device->Execute([&](CommandBuffer* commandBuffer) {
-                builder->Build(commandBuffer);
-            });
+            builder->Build();
         }
 
         // controller

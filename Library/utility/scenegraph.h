@@ -9,6 +9,7 @@
 #include "utility/interface.h"
 #include "utility/transform.h"
 #include "utility/boundingbox.h"
+#include "utility/rtbuilder.h"
 
 namespace slim::scene {
 
@@ -28,6 +29,8 @@ namespace slim::scene {
         // mesh
         void SetDraw(Mesh* mesh, Material* material);
         void AddDraw(Mesh* mesh, Material* material);
+        bool HasDraw() const { return !drawables.empty(); }
+        size_t NumDraws() const { return drawables.size(); }
 
         // getters
         const std::string& GetName() const    { return name; }
@@ -52,13 +55,29 @@ namespace slim::scene {
         auto begin() const { return drawables.begin(); }
         auto end()   const { return drawables.end();   }
 
+        // for ray tracing
+        std::tuple<Buffer*, uint64_t> GetTransformBuffer() const {
+            return std::make_tuple(transformBuffer, transformOffset);
+        }
+
         void* pNext = nullptr; // user pointer
+
+        // for raytracing
+        SmartPtr<accel::Instance> tlas = nullptr;
 
     private:
         std::string name = "anonymous";
+
+        // hierarchy
         Node* parent = nullptr;
-        Transform transform = glm::mat4(1.0);
         std::list<Node*> children = {};
+
+        // transform data
+        uint64_t transformOffset = 0;
+        SmartPtr<Buffer> transformBuffer = nullptr;
+        Transform transform = glm::mat4(1.0);
+
+        // drawables
         std::vector<std::tuple<Mesh*, Material*>> drawables = {};
         bool visible = true;
     };
@@ -87,20 +106,36 @@ namespace slim::scene {
         }
 
         void EnableRayTracing();
-        void Build(CommandBuffer* commandBuffer);
+        void EnableASCompaction();
+
+        void Build();
         void Clear();
 
         std::vector<SmartPtr<Node>> nodes;
         std::vector<SmartPtr<Mesh>> meshes;
 
     private:
-        std::tuple<uint64_t, uint64_t> CalculateBufferSizes() const;
+        VkBufferUsageFlags GetCommonBufferUsages() const;
+        VmaMemoryUsage GetCommonMemoryUsages() const;
+
+        void BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
+                               VkBufferUsageFlags bufferUsage,
+                               VmaMemoryUsage memoryUsage);
+
+        void BuildIndexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
+                              VkBufferUsageFlags bufferUsage,
+                              VmaMemoryUsage memoryUsage);
+
+        void BuildTransformBuffer(CommandBuffer*,
+                                  VkBufferUsageFlags bufferUsage,
+                                  VmaMemoryUsage memoryUsage);
 
     private:
         SmartPtr<Device> device;
         SmartPtr<Buffer> vertexBuffer;
         SmartPtr<Buffer> indexBuffer;
-        bool enableRayTracing = false;
+        SmartPtr<Buffer> transformBuffer;
+        SmartPtr<accel::Builder> accelBuilder;
     };
 
 } // end of slim namespace

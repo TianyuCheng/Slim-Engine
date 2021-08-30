@@ -83,7 +83,6 @@ struct Skybox : ReferenceCountable {
         mesh = builder->CreateMesh();
         mesh->SetVertexBuffer(skyboxMeshData.vertices);
         mesh->SetIndexBuffer(skyboxMeshData.indices);
-        mesh->AddInputBinding(0, 0);
 
         scene = builder->CreateNode("skybox");
         scene->SetDraw(mesh, material);

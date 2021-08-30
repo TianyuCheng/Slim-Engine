@@ -2,17 +2,6 @@
 
 using namespace slim;
 
-void Mesh::AddInputBinding(uint32_t binding, uint32_t offset) {
-    if (binding >= relativeOffsets.size()) {
-        relativeOffsets.resize(binding + 1);
-    }
-    relativeOffsets[binding] = offset;
-
-    #ifndef NDBUEG
-    hasVertexAttribs = true;
-    #endif
-}
-
 VkAabbPositionsKHR Mesh::GetAabbPositions() const {
     const glm::vec3& min = aabb.Min();
     const glm::vec3& max = aabb.Max();
@@ -41,6 +30,6 @@ void Mesh::Bind(CommandBuffer* commandBuffer) const {
     // NOTE: ditch additional library wrappings, use raw vulkan directly
     DeviceDispatch(vkCmdBindVertexBuffers(*commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), vertexOffsets.data()));
     if (indexCount > 0) {
-        DeviceDispatch(vkCmdBindIndexBuffer(*commandBuffer, indexBuffer, indexOffset, indexType));
+        DeviceDispatch(vkCmdBindIndexBuffer(*commandBuffer, *indexBuffer, indexOffset, indexType));
     }
 }

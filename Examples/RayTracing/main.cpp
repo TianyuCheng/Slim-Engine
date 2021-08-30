@@ -41,19 +41,17 @@ int main() {
                    glm::vec3(0.0, 0.0, 0.0),
                    glm::vec3(0.0, 1.0, 0.0));
 
-    // create builders
+    // create builder
     auto sceneBuilder = SlimPtr<scene::Builder>(device);
-    auto accelBuilder = SlimPtr<accel::Builder>(device);
     sceneBuilder->EnableRayTracing();
-    accelBuilder->EnableCompaction();
+    sceneBuilder->EnableASCompaction();
 
     // create mesh
     auto cubeMesh = sceneBuilder->CreateMesh();
     {
         auto cubeData = Cube{}.Create();
-        cubeMesh->SetVertexBuffer<GeometryData::Vertex>(cubeData.vertices);
-        cubeMesh->SetIndexBuffer<uint32_t>(cubeData.indices);
-        cubeMesh->AddInputBinding(0, 0);
+        cubeMesh->SetVertexBuffer(cubeData.vertices);
+        cubeMesh->SetIndexBuffer(cubeData.indices);
     }
 
     // create scene
@@ -63,20 +61,7 @@ int main() {
         sphereNode->SetDraw(cubeMesh, nullptr);
     }
     sceneRoot->ApplyTransform();
-    device->Execute([&](CommandBuffer* commandBuffer) {
-        sceneBuilder->Build(commandBuffer);
-    });
-
-    // create acceleration structure
-    for (auto& mesh : sceneBuilder->meshes) {
-        accelBuilder->AddMesh(mesh, sizeof(GeometryData));
-    }
-    accelBuilder->BuildBlas();
-
-    for (auto& node : sceneBuilder->nodes) {
-        accelBuilder->AddNode(node);
-    }
-    accelBuilder->BuildTlas();
+    sceneBuilder->Build();
 
     // // while (window->IsRunning()) {
     // //     Window::PollEvents();

@@ -1,4 +1,5 @@
 #include "utility/rtbuilder.h"
+#include "utility/scenegraph.h"
 
 using namespace slim;
 
@@ -9,20 +10,56 @@ void accel::Builder::EnableCompaction() {
     compaction = true;
 }
 
+void accel::Builder::AddNode(scene::Node* node, uint64_t transformOffset) {
+    VkAccelerationStructureCreateFlagsKHR createFlags = 0;
+    Instance* instance = new Instance(device, createFlags);
+
+    auto [tBuffer, tOffset] = node->GetTransformBuffer();
+    for (uint32_t i = 0; i < node->NumDraws(); i++) {
+        instance->AddInstance(tBuffer, tOffset + sizeof(VkAccelerationStructureInstanceKHR), 1);
+    }
+
+    tlas.push_back(instance);
+    node->tlas = instance;
+}
+
 void accel::Builder::AddMesh(Mesh* mesh, uint64_t vertexStride) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Geometry* geometry = new Geometry(device, createFlags);
 
-    auto [vBuffer, vOffset] = mesh->GetVertexBuffer();
+    // NOTE: assume position is in first vertex buffer, offset 0
+    auto [vBuffer, vOffset] = mesh->GetVertexBuffer(0);
     auto [iBuffer, iOffset] = mesh->GetIndexBuffer();
     geometry->AddTriangles(iBuffer, iOffset, mesh->GetIndexCount(), mesh->GetIndexType(),
                            vBuffer, vOffset, vertexStride);
 
     blas.push_back(geometry);
+    mesh->blas = geometry;
 }
 
-void accel::Builder::AddNode(scene::Node* node) {
-    assert(!!!"not implemented");
+void accel::Builder::BuildTlas() {
+    // prepare acceleration structure input
+    for (auto& as : tlas) {
+        as->Prepare();
+    }
+
+    // find data structure sizes
+    uint32_t maxScratchSize = 0;
+    for (auto& as : tlas) {
+        uint32_t scratchSize = as->sizeInfo.buildScratchSize;
+        maxScratchSize = std::max(maxScratchSize, scratchSize);
+    }
+
+    // scratch buffer
+    VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    auto scratchBuffer = SlimPtr<Buffer>(device, maxScratchSize, bufferUsage, memoryUsage);
+    VkDeviceAddress scratchAddress = device->GetDeviceAddress(scratchBuffer);
+
+    // build tlas
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        CreateTlas(commandBuffer, scratchAddress);
+    });
 }
 
 void accel::Builder::BuildBlas() {
@@ -82,15 +119,28 @@ void accel::Builder::BuildBlas() {
 
 void accel::Builder::CreateTlas(CommandBuffer* commandBuffer,
                                 VkDeviceAddress scratchAddress) {
-    // // 1. create
-    // tlas = new AccelerationStructure(input);
-    //
-    // // 2. build
-    // input->buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
-    // input->buildInfo.dstAccelerationStructure = *tlas;
-    // input->buildInfo.scratchData.deviceAddress = scratchAddress;
-    // VkAccelerationStructureBuildRangeInfoKHR* buildRanges = input->buildRanges.data();
-    // DeviceDispatch(vkCmdBuildAccelerationStructuresKHR(*commandBuffer, 1, &input->buildInfo, &buildRanges));
+
+    for (auto& input : tlas) {
+        // 1. create
+        auto as = new AccelStruct(input);
+        input->accel = as;
+
+        // 2. build
+        input->buildInfo.srcAccelerationStructure = VK_NULL_HANDLE;
+        input->buildInfo.dstAccelerationStructure = *as;
+        input->buildInfo.scratchData.deviceAddress = scratchAddress;
+        VkAccelerationStructureBuildRangeInfoKHR* buildRanges = input->buildRanges.data();
+        DeviceDispatch(vkCmdBuildAccelerationStructuresKHR(*commandBuffer, 1, &input->buildInfo, &buildRanges));
+
+        // 3. buffer barrier
+        VkMemoryBarrier barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+        barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+        barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+        vkCmdPipelineBarrier(*commandBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                             VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
+                             &barrier, 0, nullptr, 0, nullptr);
+    }
 }
 
 void accel::Builder::CreateBlas(CommandBuffer* commandBuffer,

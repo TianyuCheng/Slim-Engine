@@ -103,51 +103,45 @@ void scene::Node::ApplyTransform() {
 scene::Builder::Builder(Device* device) : device(device) {
 }
 
-void scene::Builder::Build(CommandBuffer* commandBuffer) {
-    auto [vertexBufferSize, indexBufferSize] = CalculateBufferSizes();
+void scene::Builder::Build() {
+    VkBufferUsageFlags bufferUsage = GetCommonBufferUsages();
+    VmaMemoryUsage memoryUsage = GetCommonMemoryUsages();
 
-    VkBufferUsageFlags commonBufferUsageFlags = 0;
-    if (enableRayTracing) {
-        commonBufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-        commonBufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    }
-
-    // prepare vertex buffer for all geometries in the scene
-    vertexBuffer = SlimPtr<Buffer>(device, vertexBufferSize,
-                                   commonBufferUsageFlags | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                   VMA_MEMORY_USAGE_GPU_ONLY);
-
-    // prepare index buffer for all geometries in the scene
-    indexBuffer = SlimPtr<Buffer>(device, indexBufferSize,
-                                  commonBufferUsageFlags | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                  VMA_MEMORY_USAGE_GPU_ONLY);
-
-    // buffer handles
-    VkBuffer vBuffer = *vertexBuffer;
-    VkBuffer iBuffer = *indexBuffer;
-
-    // copy the data of the whole scene to gpu
-    std::vector<uint8_t> vertexData(vertexBufferSize);
-    std::vector<uint8_t> indexData(indexBufferSize);
-    for (Mesh* mesh : meshes) {
-        std::memcpy(vertexData.data() + mesh->vertexOffset, mesh->vertexData.data(), mesh->vertexData.size());
-        std::memcpy(indexData.data() + mesh->indexOffset, mesh->indexData.data(), mesh->indexData.size());
-        // assign the vertex and index buffers
-        mesh->indexBuffer = iBuffer;
-        mesh->vertexBuffers.resize(mesh->relativeOffsets.size());
-        for (uint32_t i = 0; i < mesh->relativeOffsets.size(); i++) {
-            mesh->vertexBuffers[i] = vBuffer;
+    // build mesh data
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        for (auto& mesh : meshes) {
+            BuildVertexBuffer(commandBuffer, mesh, bufferUsage, memoryUsage);
+            BuildIndexBuffer(commandBuffer, mesh, bufferUsage, memoryUsage);
+            #ifndef NDEBUG
+            mesh->built = true;
+            #endif
         }
-        // keep the original vertex/index buffer handle for other usage
-        mesh->iBuffer = indexBuffer;
-        mesh->vBuffer = vertexBuffer;
-        #ifndef NDBUEG
-        // mark mesh as built
-        mesh->built = true;
-        #endif
+    });
+
+    // build blas
+    if (accelBuilder.get()) {
+        for (auto& mesh : meshes) {
+            accelBuilder->AddMesh(mesh, mesh->GetVertexStride());
+        }
+        accelBuilder->BuildBlas();
     }
-    commandBuffer->CopyDataToBuffer(vertexData, vertexBuffer);
-    commandBuffer->CopyDataToBuffer(indexData, indexBuffer);
+
+    // build transform buffer (prepare for tlas)
+    if (accelBuilder.get()) {
+        device->Execute([&](CommandBuffer* commandBuffer) {
+            BuildTransformBuffer(commandBuffer, bufferUsage, memoryUsage);
+        });
+    }
+
+    // build tlas
+    if (accelBuilder.get()) {
+        for (auto& node : nodes) {
+            if (node->HasDraw()) {
+                accelBuilder->AddNode(node, node->transformOffset);
+            }
+        }
+        accelBuilder->BuildTlas();
+    }
 }
 
 void scene::Builder::Clear() {
@@ -156,25 +150,87 @@ void scene::Builder::Clear() {
 }
 
 void scene::Builder::EnableRayTracing() {
-    enableRayTracing = true;
+    accelBuilder = SlimPtr<accel::Builder>(device);
 }
 
-std::tuple<uint64_t, uint64_t> scene::Builder::CalculateBufferSizes() const {
-    uint64_t vertexBufferSize = 0;
-    uint64_t indexBufferSize = 0;
-    for (Mesh* mesh : meshes) {
+void scene::Builder::EnableASCompaction() {
+    accelBuilder->EnableCompaction();
+}
 
-        // update vertex and index buffer offsets
-        mesh->indexOffset = indexBufferSize;
-        mesh->vertexOffset = vertexBufferSize;
-        mesh->vertexOffsets.reserve(mesh->relativeOffsets.size());
-        for (auto relativeOffset : mesh->relativeOffsets) {
-            mesh->vertexOffsets.push_back(vertexBufferSize + relativeOffset);
-        }
-
-        // update total vertex and index buffer size
-        vertexBufferSize += mesh->vertexData.size();
-        indexBufferSize += mesh->indexData.size();
+VkBufferUsageFlags scene::Builder::GetCommonBufferUsages() const {
+    VkBufferUsageFlags commonBufferUsageFlags = 0;
+    if (accelBuilder) {
+        commonBufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+        commonBufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
     }
-    return std::make_tuple(vertexBufferSize, indexBufferSize);
+    return commonBufferUsageFlags;
+}
+
+VmaMemoryUsage scene::Builder::GetCommonMemoryUsages() const {
+    return VMA_MEMORY_USAGE_GPU_ONLY;
+}
+
+void scene::Builder::BuildIndexBuffer(CommandBuffer* commandBuffer, Mesh* mesh, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage) {
+    // create and update index buffer
+    if (mesh->indexCount > 0) {
+        mesh->indexOffset = 0;
+        mesh->indexBuffer = SlimPtr<Buffer>(device, mesh->indexData.size(),
+                                            bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                            memoryUsage);
+        commandBuffer->CopyDataToBuffer(mesh->indexData, mesh->indexBuffer, mesh->indexOffset);
+    }
+}
+
+void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh, VkBufferUsageFlags bufferUsage, VmaMemoryUsage memoryUsage) {
+    // create and update vertex buffer
+    uint64_t vertexBufferSize = 0;
+    uint64_t vertexBufferOffset = 0;
+    for (const auto& attrib : mesh->vertexData) {
+        vertexBufferSize += attrib.size();
+    }
+    mesh->vertexBuffer = SlimPtr<Buffer>(device, vertexBufferSize,
+                                         bufferUsage | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                         memoryUsage);
+    for (const auto& attrib : mesh->vertexData) {
+        mesh->vertexBuffers.push_back(*mesh->vertexBuffer);
+        mesh->vertexOffsets.push_back(vertexBufferOffset);
+        commandBuffer->CopyDataToBuffer(attrib, mesh->vertexBuffer, vertexBufferOffset);
+    }
+}
+
+void scene::Builder::BuildTransformBuffer(CommandBuffer* commandBuffer,
+                                          VkBufferUsageFlags bufferUsage,
+                                          VmaMemoryUsage memoryUsage) {
+    uint64_t transformId = 0;
+    uint64_t numTransforms = 0;
+    for (auto& node : nodes) {
+        numTransforms += node->NumDraws();
+    }
+
+    uint64_t bufferSize = numTransforms * sizeof(VkAccelerationStructureInstanceKHR);
+    transformBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
+
+    std::vector<VkAccelerationStructureInstanceKHR> instances;
+    for (auto& node : nodes) {
+        node->transformBuffer = transformBuffer;
+        node->transformOffset = transformId * sizeof(VkAccelerationStructureInstanceKHR);
+        for (auto& [mesh, _] : *node) {
+            accel::AccelStruct* as = mesh->blas->accel;
+            #ifndef NDEBUG
+            if (as == nullptr) {
+                throw std::runtime_error("node's geometry blas has not been built!");
+            }
+            #endif
+            instances.push_back(VkAccelerationStructureInstanceKHR { });
+            auto& instance = instances.back();
+            instance.transform = node->GetVkTransformMatrix();
+            instance.instanceCustomIndex = transformId++;
+            instance.accelerationStructureReference = device->GetDeviceAddress(as);
+            instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
+            instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
+            instance.mask = 0xff;
+        }
+    }
+
+    commandBuffer->CopyDataToBuffer(instances, transformBuffer);
 }

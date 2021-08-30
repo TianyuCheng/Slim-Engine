@@ -5,7 +5,14 @@
 #include <vector>
 #include "core/commands.h"
 #include "core/acceleration.h"
-#include "utility/scenegraph.h"
+
+namespace slim {
+    class Mesh;
+}
+
+namespace slim::scene {
+    class Node;
+}
 
 namespace slim::accel {
 
@@ -16,7 +23,7 @@ namespace slim::accel {
         void EnableCompaction();
 
         void AddMesh(Mesh* mesh, uint64_t vertexStride);
-        void AddNode(scene::Node* node);
+        void AddNode(scene::Node* node, uint64_t transformOffset);
 
         void BuildTlas();
         void BuildBlas();

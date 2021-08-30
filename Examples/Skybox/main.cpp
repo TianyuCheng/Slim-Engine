@@ -138,14 +138,12 @@ int main() {
         skyboxMesh = builder->CreateMesh();
         skyboxMesh->SetVertexBuffer(skyboxMeshData.vertices);
         skyboxMesh->SetIndexBuffer(skyboxMeshData.indices);
-        skyboxMesh->AddInputBinding(0, 0);
 
         auto geomData = Cube { };
         auto geomMeshData = geomData.Create();
         geomMesh = builder->CreateMesh();
         geomMesh->SetVertexBuffer(geomMeshData.vertices);
         geomMesh->SetIndexBuffer(geomMeshData.indices);
-        geomMesh->AddInputBinding(0, 0);
         geometryIndexCount = geomMeshData.indices.size();
 
         root = builder->CreateNode("root");
@@ -156,8 +154,8 @@ int main() {
         geometry = builder->CreateNode("geometry", root);
         geometry->SetDraw(geomMesh, reflectMaterial);
 
-        builder->Build(commandBuffer);
     });
+    builder->Build();
 
     auto input = SlimPtr<Input>(window);
     auto arcball = SlimPtr<Arcball>();

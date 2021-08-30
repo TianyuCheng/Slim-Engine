@@ -34,13 +34,11 @@ struct Gizmo : ReferenceCountable {
         cylinderMesh = builder->CreateMesh();
         cylinderMesh->SetIndexBuffer(cylinder.indices);
         cylinderMesh->SetVertexBuffer(cylinder.vertices);
-        cylinderMesh->AddInputBinding(0, 0);
 
         // cone mesh
         coneMesh = builder->CreateMesh();
         coneMesh->SetIndexBuffer(cone.indices);
         coneMesh->SetVertexBuffer(cone.vertices);
-        coneMesh->AddInputBinding(0, 0);
     }
 
     void InitMaterial(CommandBuffer* commandBuffer) {

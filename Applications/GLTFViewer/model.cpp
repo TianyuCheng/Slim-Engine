@@ -325,7 +325,6 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
 
             prim.mesh = builder->CreateMesh();
             prim.mesh->SetVertexBuffer(vertices);
-            prim.mesh->AddInputBinding(0, offsetof(GLTFVertex, pos));
 
             // index
             if (!indices.empty()) {

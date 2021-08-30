@@ -25,7 +25,8 @@ accel::AccelStruct::AccelStruct(Geometry* geometry)
     address = device->GetDeviceAddress(this);
 }
 
-accel::AccelStruct::AccelStruct(Instance* instance) {
+accel::AccelStruct::AccelStruct(Instance* instance)
+    : device(instance->device) {
 
     VkBufferCreateFlags bufferFlags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR;
     VmaMemoryUsage memoryFlags = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -33,7 +34,7 @@ accel::AccelStruct::AccelStruct(Instance* instance) {
 
     VkAccelerationStructureCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-    createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+    createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     createInfo.createFlags = instance->createFlags;
     createInfo.buffer = *buffer;
     createInfo.deviceAddress = {};
@@ -61,8 +62,10 @@ void accel::Instance::AddInstance(Buffer* instanceBuffer, uint64_t instanceOffse
     // prepare geometry data
     geometries.push_back(VkAccelerationStructureGeometryKHR { });
     auto& geometry = geometries.back();
+    geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     geometry.flags = 0;
     geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+    geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(instanceBuffer) + instanceOffset;
     geometry.geometry.instances.arrayOfPointers = VK_FALSE;
 

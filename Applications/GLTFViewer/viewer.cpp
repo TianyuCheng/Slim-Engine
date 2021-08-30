@@ -11,6 +11,7 @@ GLTFViewer::GLTFViewer() {
     InitSampler();
     InitSkybox();
     LoadModel();
+    builder->Build();
 }
 
 GLTFViewer::~GLTFViewer() {
@@ -192,7 +193,5 @@ void GLTFViewer::LoadModel() {
             root->AddChild(node);
         }
         root->ApplyTransform();
-
-        builder->Build(commandBuffer);
     });
 }

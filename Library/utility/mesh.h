@@ -4,6 +4,7 @@
 #include <variant>
 #include "core/buffer.h"
 #include "core/commands.h"
+#include "core/acceleration.h"
 #include "utility/interface.h"
 #include "utility/transform.h"
 #include "utility/boundingbox.h"
@@ -19,6 +20,10 @@ namespace slim {
     using DrawIndexed = VkDrawIndexedIndirectCommand;
     using DrawVariant = std::variant<DrawCommand, DrawIndexed>;
 
+    using VertexData = std::vector<std::vector<uint8_t>>;
+    using VertexOffset = std::vector<uint64_t>;
+    using IndexData = std::vector<uint8_t>;
+
     // mesh
     // lowest level building blocks
     class Mesh : public NotCopyable, public NotMovable, public ReferenceCountable {
@@ -27,22 +32,35 @@ namespace slim {
     public:
 
         template <typename VertexType>
-        VertexType* AllocateVertexBuffer(size_t vertexCount) {
-            vertexData.resize(vertexCount * sizeof(VertexType));
+        VertexType* AllocateVertexBuffer(size_t vertexCount, size_t binding) {
+            if (vertexData.size() <= binding) {
+                vertexData.resize(binding + 1);
+            }
+            vertexData[binding].resize(vertexCount * sizeof(VertexType));
+            #ifndef NDEBUG
+            if (this->vertexCount != 0 && this->vertexCount != vertexCount) {
+                throw std::runtime_error("inconsistent vertex count for vertex buffers!");
+            }
+            hasVertexAttribs = true;
+            #endif
+            // we assume position is in the first binding with offset 0
+            if (binding == 0) {
+                vertexStride = sizeof(VertexType);
+            }
             this->vertexCount = vertexCount;
-            return reinterpret_cast<VertexType*>(vertexData.data());
+            return reinterpret_cast<VertexType*>(vertexData[binding].data());
         }
 
         template <typename VertexType>
-        VertexType* SetVertexBuffer(const std::vector<VertexType>& data) {
-            VertexType* dst = AllocateVertexBuffer<VertexType>(data.size());
+        VertexType* GetVertexData(uint32_t binding) {
+            return vertexData[binding].data();
+        }
+
+        template <typename VertexType>
+        VertexType* SetVertexBuffer(const std::vector<VertexType>& data, size_t binding = 0) {
+            VertexType* dst = AllocateVertexBuffer<VertexType>(data.size(), binding);
             std::memcpy(dst, data.data(), sizeof(VertexType) * data.size());
             return dst;
-        }
-
-        template <typename VertexType>
-        VertexType* GetVertexData() {
-            return vertexData.data();
         }
 
         template <typename IndexType>
@@ -60,19 +78,23 @@ namespace slim {
         }
 
         template <typename IndexType>
+        IndexType* GetIndexData() {
+            return indexData.data();
+        }
+
+        template <typename IndexType>
         IndexType* SetIndexBuffer(const std::vector<IndexType>& data) {
             IndexType* dst = AllocateIndexBuffer<IndexType>(data.size());
             std::memcpy(dst, data.data(), sizeof(IndexType) * data.size());
             return dst;
         }
 
-        template <typename IndexType>
-        IndexType* GetIndexData() {
-            return indexData.data();
-        }
-
         VkIndexType GetIndexType() const {
             return indexType;
+        }
+
+        uint32_t GetVertexStride() const {
+            return vertexStride;
         }
 
         uint64_t GetVertexCount() const {
@@ -91,46 +113,47 @@ namespace slim {
             return transform.LocalToWorld() * aabb;
         }
 
-        // This method is for automatic vertex buffer binding
-        void AddInputBinding(uint32_t binding, uint32_t offset);
-
         VkAabbPositionsKHR GetAabbPositions() const;
 
         void Bind(CommandBuffer* commandBuffer) const;
 
-        std::tuple<Buffer*, uint64_t> GetVertexBuffer() const {
-            return std::make_tuple(vBuffer, vertexOffsets[0]);
+        std::tuple<Buffer*, uint64_t> GetVertexBuffer(uint32_t binding) const {
+            return std::make_tuple(vertexBuffer, vertexOffsets[0]);
         }
 
         std::tuple<Buffer*, uint64_t> GetIndexBuffer() const {
-            return std::make_tuple(iBuffer, indexOffset);
+            return std::make_tuple(indexBuffer, indexOffset);
         }
 
+        // for raytracing
+        SmartPtr<accel::Geometry> blas = nullptr;
+
     private:
-        // raw data
-        uint64_t vertexCount;
+        // index data
         uint64_t indexCount = 0;
-        std::vector<uint8_t> vertexData = {};
-        std::vector<uint8_t> indexData = {};
-        VkIndexType indexType;
-        std::vector<uint32_t> relativeOffsets = {};  // binding offsets
+        uint64_t indexOffset = 0;
+        IndexData indexData = {};
+        VkIndexType indexType = VK_INDEX_TYPE_UINT32;
+        SmartPtr<Buffer> indexBuffer = nullptr;
+
+        // vertex data
+        uint64_t vertexCount = 0;
+        uint32_t vertexStride = 0;
+        VertexData vertexData = {};
+        VertexOffset vertexOffsets = {};
+        SmartPtr<Buffer> vertexBuffer = nullptr; // for automatic destroy
+        std::vector<VkBuffer> vertexBuffers = {};
+
+        // bounding box
         BoundingBox aabb;
 
-        // for binding vertex and index buffers (filled by builder)
-        std::vector<VkBuffer> vertexBuffers = {};
-        std::vector<uint64_t> vertexOffsets = {};
-        VkBuffer indexBuffer = VK_NULL_HANDLE;
-        uint64_t indexOffset = 0;
-        uint64_t vertexOffset = 0;
+        // draw call information
         DrawVariant drawCall;
 
         #ifndef NDBUEG
         bool built = false;
         bool hasVertexAttribs = false;
         #endif
-
-        SmartPtr<Buffer> vBuffer;
-        SmartPtr<Buffer> iBuffer;
     };
 
 } // end of namespace slim

@@ -63,9 +63,8 @@ int main() {
     auto cubeMesh = builder->CreateMesh();
     {
         auto cubeData = Cube { }.Create();
-        cubeMesh->SetVertexBuffer<GeometryData::Vertex>(cubeData.vertices);
-        cubeMesh->SetIndexBuffer<uint32_t>(cubeData.indices);
-        cubeMesh->AddInputBinding(0, 0);
+        cubeMesh->SetVertexBuffer(cubeData.vertices);
+        cubeMesh->SetIndexBuffer(cubeData.indices);
     }
 
     // scene nodes
@@ -90,9 +89,7 @@ int main() {
         scene21->Scale(0.5f, 0.5f, 0.5f);
     }
 
-    device->Execute([&](CommandBuffer* commandBuffer) {
-        builder->Build(commandBuffer);
-    });
+    builder->Build();
 
     // render
     while (window->IsRunning()) {
