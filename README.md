@@ -32,40 +32,40 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
 
 * Dear ImGui
     - This is an example showcasing integration of a well-known immediate mode GUI library (Dear ImGui).
-	- ![Screenshot](./Examples/DearImGui/screenshot.png =100x)
+	- ![Screenshot](./Examples/DearImGui/screenshot.png).
 
 * Depth Buffering
     - This is an example showcasing how to enable depth testing with with depth/stencil attachment.
-	- ![Screenshot](./Examples/DepthBuffering/screenshot.png =100x)
+	- ![Screenshot](./Examples/DepthBuffering/screenshot.png)
 
 * Multisampling
     - This is an example showcasing how to enable multisampling with resolve attachment.
-	- ![Screenshot](./Examples/Multisampling/screenshot.png =100x)
+	- ![Screenshot](./Examples/Multisampling/screenshot.png)
 
 * Texture Mapping
     - This is an example showcasing how to load and setup 2D texture for rendering.
-	- ![Screenshot](./Examples/TextureMapping/screenshot.png =100x)
+	- ![Screenshot](./Examples/TextureMapping/screenshot.png)
 
 * Render to Texture
     - This is an example showcasing how to do render to texture with multipass frame graph.
-	- ![Screenshot](./Examples/RenderToTexture/screenshot.png =100x)
+	- ![Screenshot](./Examples/RenderToTexture/screenshot.png)
 
 * Scene Graph
     - This is an example showcasing how to use hierarchical scene graph for scene management.
-	- ![Screenshot](./Examples/SceneGraph/screenshot.png =100x)
+	- ![Screenshot](./Examples/SceneGraph/screenshot.png)
 
 * Geometries
     - This is an example showcasing how to use slim's geometry data generation API.
-	- ![Screenshot](./Examples/Geometries/screenshot.png =100x)
+	- ![Screenshot](./Examples/Geometries/screenshot.png)
 
 * Descriptor Indexing
     - This is an example showcasing how to use descriptor indexing feature provided by vulkan.
     - This is a feature used heavily for GPU-driven pipeline.
-	- ![Screenshot](./Examples/DescriptorIndexing/screenshot.png =100x)
+	- ![Screenshot](./Examples/DescriptorIndexing/screenshot.png)
 
 * Skybox
     - This is an example showcasing how to setup a skybox, and implement reflect/refract materials.
-	- ![Screenshot](./Examples/Geometries/screenshot.png =100x)
+	- ![Screenshot](./Examples/Skybox/screenshot.png)
 
 Applications
 ------------
