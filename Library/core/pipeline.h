@@ -233,14 +233,32 @@ namespace slim {
     // |_| \_\__,_|\__, ||_||_|  \__,_|\___|_|_| |_|\__, |
     //             |___/                            |___/
 
-    // TODO: RayTracingPipelineDesc is currently just a placeholder, its implementation is not targeted as
-    // first-class. I will come back to this once other things are settled.
     class RayTracingPipelineDesc final : public PipelineDesc, public TriviallyConvertible<VkRayTracingPipelineCreateInfoKHR> {
         friend class Pipeline;
     public:
         explicit RayTracingPipelineDesc();
         explicit RayTracingPipelineDesc(const std::string &name);
         RayTracingPipelineDesc& SetName(const std::string &name) { this->name = name; return *this; }
+        RayTracingPipelineDesc& SetPipelineLayout(const PipelineLayoutDesc &layout);
+
+        // settings
+        RayTracingPipelineDesc& SetMaxRayRecursionDepth(int depth = 1);
+
+        // shader table
+        RayTracingPipelineDesc& SetRayGenShader(Shader* shader);
+        RayTracingPipelineDesc& SetMissShader(Shader* shader);
+        RayTracingPipelineDesc& SetAnyHitShader(Shader* shader);
+        RayTracingPipelineDesc& SetClosestHitShader(Shader* shader);
+        RayTracingPipelineDesc& SetIntersectionShader(Shader* shader);
+
+    private:
+        VkPipelineLibraryCreateInfoKHR pipelineLibraryCreateInfo = {};
+        std::vector<VkRayTracingShaderGroupCreateInfoKHR> rayGenCreateInfos = {};
+        std::vector<VkRayTracingShaderGroupCreateInfoKHR> missCreateInfos = {};
+        std::vector<VkRayTracingShaderGroupCreateInfoKHR> hitCreateInfos = {};
+        std::vector<VkRayTracingShaderGroupCreateInfoKHR> callableCreateInfos = {};
+        std::vector<SmartPtr<Shader>> shaders = {};
+        std::vector<VkPipelineShaderStageCreateInfo> shaderInfos = {};
     };
 
     //  ____  _            _ _
@@ -258,10 +276,22 @@ namespace slim {
         virtual ~Pipeline();
         VkPipelineBindPoint Type() const { return bindPoint; }
         PipelineLayout* Layout() const { return layout.get(); }
+
+        VkStridedDeviceAddressRegionKHR* GetRayGenRegion() { return &raygen; }
+        VkStridedDeviceAddressRegionKHR* GetMissRegion() { return &miss; }
+        VkStridedDeviceAddressRegionKHR* GetHitRegion() { return &hit; }
+        VkStridedDeviceAddressRegionKHR* GetCallableRegion() { return &callable; }
+
     private:
         SmartPtr<Device> device = nullptr;
         VkPipelineBindPoint bindPoint;
         SmartPtr<PipelineLayout> layout;
+
+        SmartPtr<Buffer> sbtBuffer;
+        VkStridedDeviceAddressRegionKHR raygen;
+        VkStridedDeviceAddressRegionKHR miss;
+        VkStridedDeviceAddressRegionKHR hit;
+        VkStridedDeviceAddressRegionKHR callable;
     };
 
 } // end of namespace slim

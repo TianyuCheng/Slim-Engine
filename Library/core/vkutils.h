@@ -1,10 +1,10 @@
 #ifndef SLIM_CORE_VKUTILS_H
 #define SLIM_CORE_VKUTILS_H
 
-#include <set>
 #include <vector>
 #include <iostream>
 #include <optional>
+#include <unordered_set>
 
 #define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
@@ -31,9 +31,9 @@ namespace slim {
 
     const uint32_t VKAPIVersion = VK_API_VERSION_1_2;
 
-    std::set<std::string> GetSupportedInstanceExtensions();
+    std::unordered_set<std::string> GetSupportedInstanceExtensions();
 
-    bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*> &deviceExtensions);
+    std::unordered_set<std::string> CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*> &deviceExtensions);
 
     QueueFamilyIndices FindQueueFamilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface = VK_NULL_HANDLE);
 

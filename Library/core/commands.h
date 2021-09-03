@@ -41,8 +41,8 @@ namespace slim {
         void DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, uint32_t vertexOffset, uint32_t firstInstance);
 
         void BindPipeline(Pipeline *pipeline);
-        void BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
-        void BindDescriptor(Descriptor *descriptor, const std::vector<uint32_t> &dynamicOffset, VkPipelineBindPoint bindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS);
+        void BindDescriptor(Descriptor *descriptor, VkPipelineBindPoint bindPoint);
+        void BindDescriptor(Descriptor *descriptor, const std::vector<uint32_t> &dynamicOffset, VkPipelineBindPoint bindPoint);
         void BindIndexBuffer(IndexBuffer *buffer, size_t offset = 0);
         void BindIndexBuffer(Buffer *buffer, size_t offset, VkIndexType indexType);
         void BindVertexBuffer(uint32_t binding, Buffer *buffer, uint64_t offset);
@@ -96,6 +96,7 @@ namespace slim {
         void PrepareForTransferDst(Image *image);
         void PrepareForPresentSrc(Image *image);
         void PrepareForMemoryMapping(Image *image);
+        void PrepareForStorage(Image *image);
 
         Device* GetDevice() const { return device; }
 

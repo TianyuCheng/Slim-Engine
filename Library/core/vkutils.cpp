@@ -157,20 +157,19 @@ namespace slim {
         info.flags = 0;
     }
 
-    bool CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*> &deviceExtensions) {
+    std::unordered_set<std::string> CheckDeviceExtensionSupport(VkPhysicalDevice device, const std::vector<const char*> &deviceExtensions) {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
         std::vector<VkExtensionProperties> availableExtensions(extensionCount);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-        std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+        std::unordered_set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
         for (const auto& extension : availableExtensions) {
             requiredExtensions.erase(extension.extensionName);
         }
-
-        return requiredExtensions.empty();
+        return requiredExtensions;
     }
 
     QueueFamilyIndices FindQueueFamilyIndices(VkPhysicalDevice device, VkSurfaceKHR surface) {
@@ -301,12 +300,12 @@ namespace slim {
         }
     }
 
-    std::set<std::string> GetSupportedInstanceExtensions() {
+    std::unordered_set<std::string> GetSupportedInstanceExtensions() {
         uint32_t count;
         vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr); //get number of extensions
         std::vector<VkExtensionProperties> extensions(count);
         vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data()); //populate buffer
-        std::set<std::string> results;
+        std::unordered_set<std::string> results;
         for (auto &extension : extensions)
             results.insert(extension.extensionName);
         return results;

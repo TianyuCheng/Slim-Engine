@@ -35,6 +35,8 @@ namespace slim {
 
         uint32_t QueueIndex(RenderQueue queue) const;
 
+        VkPipelineBindPoint Type(uint32_t index) const;
+
         // passes traversal
         auto begin()       { return passes.begin(); }
         auto end()         { return passes.end();   }

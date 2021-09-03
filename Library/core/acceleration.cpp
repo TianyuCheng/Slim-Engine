@@ -58,7 +58,7 @@ accel::Instance::Instance(Device* device, VkAccelerationStructureCreateFlagsKHR 
     sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 }
 
-void accel::Instance::AddInstance(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount) {
+void accel::Instance::AddInstances(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount) {
     // prepare geometry data
     geometries.push_back(VkAccelerationStructureGeometryKHR { });
     auto& geometry = geometries.back();
@@ -66,16 +66,23 @@ void accel::Instance::AddInstance(Buffer* instanceBuffer, uint64_t instanceOffse
     geometry.flags = 0;
     geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-    geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(instanceBuffer) + instanceOffset;
+    geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(instanceBuffer);
     geometry.geometry.instances.arrayOfPointers = VK_FALSE;
 
     // prepare geometry offsets
     buildRanges.push_back(VkAccelerationStructureBuildRangeInfoKHR {});
     auto& buildRange = buildRanges.back();
     buildRange.primitiveCount = instanceCount;
-    buildRange.primitiveOffset = 0;
+    buildRange.primitiveOffset = instanceOffset;
     buildRange.firstVertex = 0;
     buildRange.transformOffset = 0;
+
+    #ifndef NDEBUG
+    if (geometries.size() > 1) {
+        std::cerr << "[ERROR] top level acceleration structure receives multiple instances addition" << std::endl;
+        throw std::runtime_error("[ERROR] top level acceleration structure receives multiple instances addition");
+    }
+    #endif
 }
 
 void accel::Instance::Instance::Prepare() {

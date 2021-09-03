@@ -58,6 +58,8 @@ void Descriptor::Update() {
     bufferInfos.clear();
     writeDescriptorSets.clear();
     variableDescriptorCounts.clear();
+    accelInfos.clear();
+    accelerations.clear();
 }
 
 bool Descriptor::HasBinding(const std::string &name) const {
@@ -115,11 +117,11 @@ void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> 
     }
 }
 
-void Descriptor::SetImage(const std::string &name, Image *image) {
-    SetImages(name, { image });
+void Descriptor::SetSampledImage(const std::string &name, Image *image) {
+    SetSampledImages(name, { image });
 }
 
-void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &images) {
+void Descriptor::SetSampledImages(const std::string &name, const std::vector<Image*> &images) {
     auto [set, binding, flags] = FindDescriptorSet(name);
 
     imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
@@ -138,6 +140,46 @@ void Descriptor::SetImages(const std::string &name, const std::vector<Image*> &i
     update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     update.pNext = nullptr;
     update.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    update.dstSet = VK_NULL_HANDLE;
+    update.dstBinding = binding;
+    update.dstArrayElement = 0;
+    update.descriptorCount = infos.size();
+    update.pImageInfo = infos.data();
+    update.pBufferInfo = nullptr;
+    update.pTexelBufferView = nullptr;
+
+    writes.push_back(update);
+    writeDescriptorSets.push_back(set);
+
+    if ((flags & VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT) != 0U) {
+        variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(images.size()),
+                                                 variableDescriptorCounts[set]);
+    }
+}
+
+void Descriptor::SetStorageImage(const std::string &name, Image *image) {
+    SetStorageImages(name, { image });
+}
+
+void Descriptor::SetStorageImages(const std::string &name, const std::vector<Image*> &images) {
+    auto [set, binding, flags] = FindDescriptorSet(name);
+
+    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
+    auto& infos = imageInfos.back();
+    infos.reserve(images.size());
+
+    for (auto* image : images) {
+        VkDescriptorImageInfo imageInfo = {};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+        imageInfo.imageView = image->AsTexture();
+        imageInfo.sampler = nullptr;
+        infos.push_back(imageInfo);
+    }
+
+    VkWriteDescriptorSet update = {};
+    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     update.dstSet = VK_NULL_HANDLE;
     update.dstBinding = binding;
     update.dstArrayElement = 0;
@@ -193,6 +235,43 @@ void Descriptor::SetSamplers(const std::string &name, const std::vector<Sampler*
         variableDescriptorCounts[set] = std::max(static_cast<uint32_t>(samplers.size()),
                                                  variableDescriptorCounts[set]);
     }
+}
+
+void Descriptor::SetAccelStruct(const std::string& name, accel::AccelStruct* accel) {
+    SetAccelStructs(name, { accel });
+}
+
+void Descriptor::SetAccelStructs(const std::string& name, const std::vector<accel::AccelStruct*>& accels) {
+    auto [set, binding, flags] = FindDescriptorSet(name);
+
+    accelerations.push_back(std::vector<VkAccelerationStructureKHR> { });
+    auto& accs = accelerations.back();
+    accs.reserve(accels.size());
+    for (uint32_t i = 0; i < accels.size(); i++) {
+        accs.push_back(*accels[i]);
+    }
+
+    accelInfos.push_back(VkWriteDescriptorSetAccelerationStructureKHR { });
+    auto& asDesc = accelInfos.back();
+    asDesc.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+    asDesc.accelerationStructureCount = accs.size();
+    asDesc.pAccelerationStructures = accs.data();
+
+    VkWriteDescriptorSet update = {};
+    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+    update.dstSet = VK_NULL_HANDLE;
+    update.dstBinding = binding;
+    update.dstArrayElement = 0;
+    update.descriptorCount = accels.size();
+    update.pImageInfo = nullptr;
+    update.pBufferInfo = nullptr;
+    update.pTexelBufferView = nullptr;
+    update.pNext = &asDesc;
+
+    writes.push_back(update);
+    writeDescriptorSets.push_back(set);
 }
 
 void Descriptor::SetUniform(const std::string &name, Buffer* buffer) {

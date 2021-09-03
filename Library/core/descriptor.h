@@ -18,41 +18,43 @@ namespace slim {
     class Descriptor final : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend class CommandBuffer;
     public:
-        explicit Descriptor(DescriptorPool *pool, PipelineLayout *pipelineLayout);
+        explicit Descriptor(DescriptorPool* pool, PipelineLayout* pipelineLayout);
         virtual ~Descriptor();
 
         // binding a uniform buffer, with offset and size for the target buffer
-        void SetUniform(const std::string &name, Buffer *buffer);
-        void SetUniform(const std::string &name, const BufferAlloc &bufferAlloc);
-        void SetUniforms(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
+        void SetUniform(const std::string& name, Buffer* buffer);
+        void SetUniform(const std::string& name, const BufferAlloc& bufferAlloc);
+        void SetUniforms(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
 
         // binding a dynamic uniform buffer, with offset and size for the target buffer
         // NOTE: size is for each individual uniform element in the buffer
-        void SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize);
-        void SetDynamic(const std::string &name, const BufferAlloc &bufferAlloc);
+        void SetDynamic(const std::string& name, Buffer* buffer, size_t elemSize);
+        void SetDynamic(const std::string& name, const BufferAlloc& bufferAlloc);
 
         // binding a storage buffer, with offset and size for the target buffer
-        void SetStorage(const std::string &name, Buffer *buffer);
-        void SetStorage(const std::string &name, const BufferAlloc &bufferAlloc);
-        void SetStorages(const std::string &name, const std::vector<BufferAlloc> &bufferAllocs);
+        void SetStorage(const std::string& name, Buffer* buffer);
+        void SetStorage(const std::string& name, const BufferAlloc& bufferAlloc);
+        void SetStorages(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
 
         // binding a combined image + sampler
-        void SetTexture(const std::string &name, Image *image, Sampler *sampler);
-
-        // binding a combined image + sampler
-        void SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers);
+        void SetTexture(const std::string& name, Image* image, Sampler* sampler);
+        void SetTextures(const std::string& name, const std::vector<Image*>& images, const std::vector<Sampler*>& samplers);
 
         // binding image uniform
-        void SetImage(const std::string &name, Image *image);
+        void SetSampledImage(const std::string& name, Image* image);
+        void SetSampledImages(const std::string& name, const std::vector<Image*>& images);
 
-        // binding image array uniform
-        void SetImages(const std::string &name, const std::vector<Image*> &images);
+        // binding image uniform
+        void SetStorageImage(const std::string& name, Image* image);
+        void SetStorageImages(const std::string& name, const std::vector<Image*>& images);
 
         // binding sampler uniform
-        void SetSampler(const std::string &name, Sampler *sampler);
+        void SetSampler(const std::string& name, Sampler* sampler);
+        void SetSamplers(const std::string& name, const std::vector<Sampler*>& samplers);
 
-        // binding image array uniform
-        void SetSamplers(const std::string &name, const std::vector<Sampler*> &samplers);
+        // binding acceleration structure
+        void SetAccelStruct(const std::string& name, accel::AccelStruct* accel);
+        void SetAccelStructs(const std::string& name, const std::vector<accel::AccelStruct*>& accels);
 
         bool HasBinding(const std::string &name) const;
         std::tuple<uint32_t, uint32_t> GetBinding(const std::string &name);
@@ -72,6 +74,8 @@ namespace slim {
         std::vector<VkDescriptorSet> descriptorSets;
         std::list<std::vector<VkDescriptorBufferInfo>> bufferInfos;
         std::list<std::vector<VkDescriptorImageInfo>> imageInfos;
+        std::list<VkWriteDescriptorSetAccelerationStructureKHR> accelInfos;
+        std::list<std::vector<VkAccelerationStructureKHR>> accelerations;
         std::vector<std::vector<uint32_t>> dynamicOffsets;
     };
 

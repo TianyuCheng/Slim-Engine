@@ -55,7 +55,7 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
         descriptor->SetUniform("Camera", cameraUniform);
         descriptor->SetDynamic("Model", modelUniform, sizeof(ModelData));
         descriptor->SetDynamicOffset("Model", index * sizeof(ModelData));
-        commandBuffer->BindDescriptor(descriptor);
+        commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 
         // draw
         const auto& draw = drawable.drawCommand;

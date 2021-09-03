@@ -90,5 +90,6 @@ void Material::Bind(uint32_t index,
     technique->Bind(index, renderFrame, renderPass, commandBuffer);
 
     // bind descriptor
-    commandBuffer->BindDescriptor(descriptors[index]);
+    VkPipelineBindPoint bindPoint = technique->Type(index);
+    commandBuffer->BindDescriptor(descriptors[index], bindPoint);
 }

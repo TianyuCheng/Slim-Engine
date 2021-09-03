@@ -55,15 +55,7 @@ namespace slim::scene {
         auto begin() const { return drawables.begin(); }
         auto end()   const { return drawables.end();   }
 
-        // for ray tracing
-        std::tuple<Buffer*, uint64_t> GetTransformBuffer() const {
-            return std::make_tuple(transformBuffer, transformOffset);
-        }
-
         void* pNext = nullptr; // user pointer
-
-        // for raytracing
-        SmartPtr<accel::Instance> tlas = nullptr;
 
     private:
         std::string name = "anonymous";
@@ -73,8 +65,6 @@ namespace slim::scene {
         std::list<Node*> children = {};
 
         // transform data
-        uint64_t transformOffset = 0;
-        SmartPtr<Buffer> transformBuffer = nullptr;
         Transform transform = glm::mat4(1.0);
 
         // drawables
@@ -110,6 +100,8 @@ namespace slim::scene {
 
         void Build();
         void Clear();
+
+        accel::Builder* GetAccelBuilder() const { return accelBuilder; }
 
         std::vector<SmartPtr<Node>> nodes;
         std::vector<SmartPtr<Mesh>> meshes;

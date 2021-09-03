@@ -131,8 +131,8 @@ namespace slim {
     BUFFER_TYPE(StagingBuffer,       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,   VMA_MEMORY_USAGE_CPU_ONLY);
     BUFFER_TYPE(VertexBuffer,        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,  VMA_MEMORY_USAGE_GPU_ONLY);
     BUFFER_TYPE(UniformBuffer,       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    BUFFER_TYPE(HostStorageBuffer,   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);  // TODO: need to think more about the memory usage
-    BUFFER_TYPE(DeviceStorageBuffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);  // TODO: need to think more about the memory usage
+    BUFFER_TYPE(HostStorageBuffer,   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    BUFFER_TYPE(DeviceStorageBuffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_TO_CPU);
     #undef BUFFER_TYPE
 
     class IndexBuffer final : public Buffer {

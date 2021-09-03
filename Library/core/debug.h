@@ -2,12 +2,13 @@
 #define SLIM_CORE_DEBUG_H
 
 #include <cassert>
+#include <iostream>
 
 #include "core/vulkan.h"
 #include "core/vkutils.h"
 
 #ifdef NDEBUG
-#define ErrorCheck(result, message) { result }
+#define ErrorCheck(result, message) { result; }
 #else
 #define ErrorCheck(result, message)                                                                                            \
     if ((result) != VK_SUCCESS) {                                                                                              \

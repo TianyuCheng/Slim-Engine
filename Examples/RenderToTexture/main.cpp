@@ -106,7 +106,7 @@ int main() {
                 glm::mat4 mvp = proj * view * m;
                 auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
                 descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
-                commandBuffer->BindDescriptor(descriptor);
+                commandBuffer->BindDescriptor(descriptor, pipeline->Type());
                 commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                 commandBuffer->BindIndexBuffer(iBuffer);
                 commandBuffer->DrawIndexed(6, 1, 0, 0, 0);

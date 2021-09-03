@@ -68,8 +68,8 @@ VkTransformMatrixKHR scene::Node::GetVkTransformMatrix() const {
 
     VkTransformMatrixKHR matrix = {};
     for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            matrix.matrix[i][j] = localToWorld[i][j];
+        for (int j = 0; j < 4; j++) {
+            matrix.matrix[i][j] = localToWorld[j][i];
         }
     }
     return matrix;
@@ -118,28 +118,19 @@ void scene::Builder::Build() {
         }
     });
 
-    // build blas
     if (accelBuilder.get()) {
+        // build blas
         for (auto& mesh : meshes) {
             accelBuilder->AddMesh(mesh);
         }
         accelBuilder->BuildBlas();
-    }
 
-    // build transform buffer (prepare for tlas)
-    if (accelBuilder.get()) {
+        // build transform buffer (prepare for tlas)
         device->Execute([&](CommandBuffer* commandBuffer) {
             BuildTransformBuffer(commandBuffer, bufferUsage, memoryUsage);
         });
-    }
 
-    // build tlas
-    if (accelBuilder.get()) {
-        for (auto& node : nodes) {
-            if (node->HasDraw()) {
-                accelBuilder->AddNode(node);
-            }
-        }
+        // build tlas
         accelBuilder->BuildTlas();
     }
 }
@@ -212,8 +203,6 @@ void scene::Builder::BuildTransformBuffer(CommandBuffer* commandBuffer,
 
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     for (auto& node : nodes) {
-        node->transformBuffer = transformBuffer;
-        node->transformOffset = transformId * sizeof(VkAccelerationStructureInstanceKHR);
         for (auto& [mesh, _] : *node) {
             accel::AccelStruct* as = mesh->blas->accel;
             #ifndef NDEBUG
@@ -233,4 +222,5 @@ void scene::Builder::BuildTransformBuffer(CommandBuffer* commandBuffer,
     }
 
     commandBuffer->CopyDataToBuffer(instances, transformBuffer);
+    accelBuilder->AddInstances(transformBuffer, 0, numTransforms);
 }

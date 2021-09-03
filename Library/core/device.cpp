@@ -66,7 +66,7 @@ void Device::InitLogicalDevice() {
     queueFamilyIndices = FindQueueFamilyIndices(physicalDevice, surface);
 
     // uniquify queue family indices
-    std::set<uint32_t> uniqueQueueFamilies;
+    std::unordered_set<uint32_t> uniqueQueueFamilies;
     if (queueFamilyIndices.compute.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.compute.value());
     if (queueFamilyIndices.graphics.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.graphics.value());
     if (queueFamilyIndices.present.has_value()) uniqueQueueFamilies.insert(queueFamilyIndices.present.value());

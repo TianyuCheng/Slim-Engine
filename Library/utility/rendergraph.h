@@ -102,6 +102,7 @@ namespace slim {
             void SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear);
 
             void SetTexture(RenderGraph::Resource *resource);
+            void SetStorage(RenderGraph::Resource *resource);
 
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
@@ -117,6 +118,7 @@ namespace slim {
             std::vector<uint32_t> usedAsDepthStencilAttachment = {};
             std::vector<uint32_t> usedAsPreserveAttachment = {};
             std::vector<uint32_t> usedAsTexture = {};
+            std::vector<uint32_t> usedAsStorage = {};
         };
 
         // -------------------------------------------------------------------------------
@@ -144,6 +146,7 @@ namespace slim {
             void SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear);
 
             void SetTexture(RenderGraph::Resource* resource);
+            void SetStorage(RenderGraph::Resource *resource);
 
             void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
 
@@ -154,6 +157,7 @@ namespace slim {
 
             uint32_t AddAttachment(const RenderGraph::ResourceMetadata& metadata);
             uint32_t AddTexture(Resource* resource);
+            uint32_t AddStorage(Resource* resource);
 
         private:
             std::string name;
@@ -178,6 +182,10 @@ namespace slim {
             // texture does not participate in render pass creation (not attachment)
             std::vector<Resource*> textures = {};
             std::unordered_map<Resource*, uint32_t> textureMap = {};
+
+            // storage does not participate in render pass creation (not attachment)
+            std::vector<Resource*> storages = {};
+            std::unordered_map<Resource*, uint32_t> storageMap = {};
         };
 
         // -------------------------------------------------------------------------------

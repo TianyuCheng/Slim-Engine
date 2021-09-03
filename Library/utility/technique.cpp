@@ -33,3 +33,7 @@ uint32_t Technique::QueueIndex(RenderQueue queue) const {
 PipelineLayout* Technique::Layout(uint32_t index) const {
     return passes[index].desc.Layout();
 }
+
+VkPipelineBindPoint Technique::Type(uint32_t index) const {
+    return passes[index].pipeline->Type();
+}

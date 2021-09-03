@@ -89,6 +89,10 @@ function(compile_glsl Target Directory)
         "${Directory}/*.vert"
         "${Directory}/*.frag"
         "${Directory}/*.comp"
+        "${Directory}/*.rgen"
+        "${Directory}/*.rmiss"
+        "${Directory}/*.rchit"
+        "${Directory}/*.rahit"
     )
 
     foreach(GLSL ${GLSL_SOURCE_FILES})
@@ -98,7 +102,7 @@ function(compile_glsl Target Directory)
         add_custom_command(
             OUTPUT  ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/"
-            COMMAND ${SHADERCOMPILER} ${GLSL} -g -o ${SPIRV}
+            COMMAND ${SHADERCOMPILER} --target-env=vulkan1.2 ${GLSL} -g -o ${SPIRV}
             DEPENDS ${GLSL}
             COMMENT "Building ${SPIRV}"
         )

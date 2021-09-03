@@ -36,7 +36,7 @@ namespace slim::accel {
         friend class AccelStruct;
     public:
         explicit Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
-        void AddInstance(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount);
+        void AddInstances(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount);
         void Prepare();
 
     private:

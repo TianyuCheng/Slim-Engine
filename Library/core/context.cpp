@@ -168,14 +168,20 @@ void ContextDesc::PrepareForValidation() {
     // list all instance extensions
     if (instanceExtensions.size()) {
         std::cout << "[CreateInstance] with instance extensions: " << std::endl;
-        bool anyNotFound = false;
+        std::vector<std::string> extensionsNotFound = {};
         for (auto &extension : instanceExtensions) {
             bool found = supportedInstanceExtensions.find(std::string(extension)) != supportedInstanceExtensions.end();
             std::cout << "- " << extension << ": ";
             std::cout << (found ? "FOUND" : "NOT FOUND") << std::endl;
-            anyNotFound |= !found;
+            if (!found) {
+                extensionsNotFound.push_back(std::string(extension));
+            }
         }
-        if (anyNotFound) {
+        for (auto& extension : extensionsNotFound) {
+            std::cerr << "Error: " << extension << ": NOT FOUND" << std::endl;
+        }
+        if (!extensionsNotFound.empty()) {
+            std::cerr << "[ERROR] FAILED TO FIND ALL INSTANCE EXTENSIONS" << std::endl;
             throw std::runtime_error("Failed to find all instance extensions!");
         }
     }
@@ -290,6 +296,7 @@ void Context::InitSurface(const ContextDesc& desc) {
 
     // Vulkan is available, at least for compute
     if (!glfwVulkanSupported()) {
+        std::cerr << "[ERROR] GLFW does not support vulkan" << std::endl;
         throw std::runtime_error("GLFW does not support Vulkan!");
     }
 
@@ -344,6 +351,7 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
     if (deviceCount == 0) {
+        std::cerr << "[ERROR] FAILED TO FIND GPUS WITH VULKAN SUPPORT" << std::endl;
         throw std::runtime_error("Failed to find GPUs with Vulkan support!");
     }
 
@@ -352,16 +360,25 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
     // store scores of all devices
-    std::vector<std::pair<VkPhysicalDevice,int>> candidates;
+    std::vector<std::pair<VkPhysicalDevice, int>> candidates;
     for (const auto& device : devices) {
-        bool adequate = CheckDeviceExtensionSupport(device, deviceExtensions);
-        if (adequate) {
+        auto unsupported = CheckDeviceExtensionSupport(device, deviceExtensions);
+        if (unsupported.empty()) {
             int score = rateDevice(device, surface);
             candidates.push_back(std::make_pair(device, score));
         }
     }
 
+    // check available device candidates
     if (candidates.empty()) {
+        std::cerr << "[ERROR] DEVICE EXTENSIONS NOT SUPPORTED" << std::endl;
+        for (const auto& device : devices) {
+            std::cerr << "GPU: " << std::endl;
+            auto unsupported = CheckDeviceExtensionSupport(device, deviceExtensions);
+            for (auto& extension : unsupported) {
+                std::cerr << "[UNSUPPORTED] " << extension << std::endl;
+            }
+        }
         throw std::runtime_error("Device extensions not supported!");
     }
 
@@ -376,6 +393,21 @@ void Context::InitPhysicalDevice(const ContextDesc &desc) {
 
     // sanity check
     if (physicalDevice == VK_NULL_HANDLE) {
+        std::cerr << "[ERROR] FAILED TO FIND A SUITABLE GPU" << std::endl;
         throw std::runtime_error("Failed to find a suitable GPU!");
     }
+}
+
+VkPhysicalDeviceRayTracingPipelinePropertiesKHR Context::GetRayTracingPipelineProperties() {
+    if (rayTracingPipelineProperties.sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR) {
+        return rayTracingPipelineProperties;
+    }
+    rayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+
+    VkPhysicalDeviceProperties2 prop2 = {};
+    prop2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    prop2.pNext = &rayTracingPipelineProperties;
+
+    vkGetPhysicalDeviceProperties2(physicalDevice, &prop2);
+    return rayTracingPipelineProperties;
 }

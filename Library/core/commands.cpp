@@ -75,7 +75,7 @@ void CommandBuffer::Submit() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &handle;
 
-    ErrorCheck(vkQueueSubmit(queue, 1, &submitInfo, signalFence), "submit command buffer");
+    ErrorCheck(DeviceDispatch(vkQueueSubmit(queue, 1, &submitInfo, signalFence)), "submit command buffer");
 
     // clean up
     waitSemaphores.clear();
@@ -351,6 +351,10 @@ void CommandBuffer::PrepareForMemoryMapping(Image *image) {
         VK_ACCESS_MEMORY_READ_BIT,
         0, image->createInfo.arrayLayers,
         0, image->createInfo.mipLevels);
+}
+
+void CommandBuffer::PrepareForStorage(Image *image) {
+    PrepareForMemoryMapping(image);
 }
 
 void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) {

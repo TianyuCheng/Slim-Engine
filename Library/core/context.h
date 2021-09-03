@@ -89,6 +89,9 @@ namespace slim {
         VkSurfaceKHR GetSurface() const { return surface; }
         const ContextDesc& GetDescription() const { return desc; }
 
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR
+            GetRayTracingPipelineProperties();
+
     private:
         void InitInstance(const ContextDesc &desc);
         void InitDebuggerMessener(const ContextDesc &desc);
@@ -105,6 +108,8 @@ namespace slim {
         std::vector<const char*> instanceExtensions;
         std::vector<const char*> deviceExtensions;
         std::vector<const char*> validationLayers;
+
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR rayTracingPipelineProperties = {};
     };
 
 } // end of namespace slim

@@ -135,7 +135,7 @@ int main() {
 
                 // prepare bindless textures
                 // TODO: we need a way to properly define variable descriptor count when allocating descriptor set
-                descriptor->SetImages("Images", { texture1, texture2 });
+                descriptor->SetSampledImages("Images", { texture1, texture2 });
                 descriptor->SetSampler("Sampler", sampler);
 
                 // prepare model uniform buffer
@@ -149,11 +149,11 @@ int main() {
                 // draw objects
                 commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                 commandBuffer->BindIndexBuffer(iBuffer);
-                commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+                commandBuffer->BindDescriptor(descriptor, pipeline->Type());
                 for (uint32_t i = 0; i < N; i++) {
                     int material = (i % 2);
                     commandBuffer->PushConstants(pipeline->Layout(), "Material", &material);
-                    commandBuffer->BindDescriptor(modelDescriptors[i], VK_PIPELINE_BIND_POINT_GRAPHICS);
+                    commandBuffer->BindDescriptor(modelDescriptors[i], pipeline->Type());
                     commandBuffer->DrawIndexed(6, 1, 0, 0, 0);
                 }
 

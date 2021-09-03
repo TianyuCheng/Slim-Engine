@@ -100,6 +100,12 @@ void RenderGraph::Subpass::SetTexture(RenderGraph::Resource *resource) {
     usedAsTexture.push_back(textureId);
 }
 
+void RenderGraph::Subpass::SetStorage(RenderGraph::Resource *resource) {
+    uint32_t textureId = parent->AddStorage(resource);
+    resource->writers.push_back(parent);
+    usedAsStorage.push_back(textureId);
+}
+
 void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo &renderInfo)> callback) {
     this->callback = callback;
 }
@@ -164,6 +170,10 @@ void RenderGraph::Pass::SetTexture(RenderGraph::Resource *resource) {
     defaultSubpass->SetTexture(resource);
 }
 
+void RenderGraph::Pass::SetStorage(RenderGraph::Resource *resource) {
+    defaultSubpass->SetStorage(resource);
+}
+
 uint32_t RenderGraph::Pass::AddAttachment(const RenderGraph::ResourceMetadata& metadata) {
     // find the resource
     auto it = attachmentMap.find(metadata.resource);
@@ -190,6 +200,26 @@ uint32_t RenderGraph::Pass::AddTexture(Resource* resource) {
         // update texture mapping
         textureMap.insert(std::make_pair(resource, textureId));
         return textureId;
+    }
+    return it->second;
+}
+
+uint32_t RenderGraph::Pass::AddStorage(Resource* resource) {
+    #ifndef NDEBUG
+    if (!compute) {
+        throw std::runtime_error("AddStorage should only be used for compute passes");
+    }
+    #endif
+
+    // find the resource
+    auto it = storageMap.find(resource);
+    if (it == storageMap.end()) {
+        uint32_t storageId = storages.size();
+        // adding to storages
+        storages.push_back(resource);
+        // update storage mapping
+        storageMap.insert(std::make_pair(resource, storageId));
+        return storageId;
     }
     return it->second;
 }
@@ -241,6 +271,12 @@ void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     for (auto &textureId : defaultSubpass->usedAsTexture) {
         textures[textureId]->image->layouts[0][0] = textures[textureId]->layout;
         commandBuffer->PrepareForShaderRead(textures[textureId]->image);
+    }
+
+    // storage layout transition
+    for (auto &storageId : defaultSubpass->usedAsStorage) {
+        storages[storageId]->image->layouts[0][0] = storages[storageId]->layout;
+        commandBuffer->PrepareForStorage(storages[storageId]->image);
     }
 
     // TODO: add other types of resources which needs layout transition
@@ -494,6 +530,7 @@ void RenderGraph::CompilePass(Pass *pass) {
 
     // any texture used by this pass should be retained
     for (auto &texture : pass->textures) CompileResource(texture);
+    for (auto &storage : pass->storages) CompileResource(storage);
 
     // adding this pass in a post-order
     timeline.push_back(pass);
