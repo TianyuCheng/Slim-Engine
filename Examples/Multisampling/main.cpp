@@ -112,7 +112,7 @@ int main() {
                     glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, 0.0));
                     glm::mat4 mvp = proj * view * m;
                     auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
+                    descriptor->SetUniformBuffer("Camera", renderFrame->RequestUniformBuffer(mvp));
                     commandBuffer->BindDescriptor(descriptor, pipeline->Type());
                     commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                     commandBuffer->BindIndexBuffer(iBuffer);
@@ -124,7 +124,7 @@ int main() {
                     glm::mat4 m = glm::translate(model, glm::vec3(0.0, 0.0, -1.0));
                     glm::mat4 mvp = proj * view * m;
                     auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(mvp));
+                    descriptor->SetUniformBuffer("Camera", renderFrame->RequestUniformBuffer(mvp));
                     commandBuffer->BindDescriptor(descriptor, pipeline->Type());
                     commandBuffer->BindVertexBuffer(0, vBuffer, 0);
                     commandBuffer->BindIndexBuffer(iBuffer);

@@ -26,6 +26,11 @@ namespace slim {
         explicit CommandBuffer(Device *device, VkQueue queue, VkCommandBuffer commandBuffer);
         virtual ~CommandBuffer();
 
+        void SetName(const std::string& name) const;
+        void BeginRegion(const std::string& name) const;
+        void EndRegion() const;
+        void InsertMarker(const std::string& marker) const;
+
         void Begin();
         void End();
         void Submit();

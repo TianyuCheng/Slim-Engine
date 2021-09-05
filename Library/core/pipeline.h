@@ -282,6 +282,8 @@ namespace slim {
         VkStridedDeviceAddressRegionKHR* GetHitRegion() { return &hit; }
         VkStridedDeviceAddressRegionKHR* GetCallableRegion() { return &callable; }
 
+        void SetName(const std::string& name) const;
+
     private:
         SmartPtr<Device> device = nullptr;
         VkPipelineBindPoint bindPoint;

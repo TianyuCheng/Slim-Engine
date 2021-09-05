@@ -16,6 +16,7 @@ namespace slim {
     public:
         explicit Semaphore(Device *device);
         virtual ~Semaphore();
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device = nullptr;
     };
@@ -27,6 +28,7 @@ namespace slim {
         virtual ~Fence();
         void Reset() const;
         void Wait(uint64_t timeout = UINT64_MAX) const;
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device = nullptr;
     };
@@ -37,6 +39,7 @@ namespace slim {
     public:
         explicit Event(Device *device, bool deviceOnly = false);
         virtual ~Event();
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device = nullptr;
     };

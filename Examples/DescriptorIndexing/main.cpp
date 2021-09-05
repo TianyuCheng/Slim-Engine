@@ -130,7 +130,7 @@ int main() {
                     CameraData cameraData;
                     cameraData.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
                     cameraData.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-                    descriptor->SetUniform("Camera", renderFrame->RequestUniformBuffer(cameraData));
+                    descriptor->SetUniformBuffer("Camera", renderFrame->RequestUniformBuffer(cameraData));
                 }
 
                 // prepare bindless textures
@@ -143,7 +143,7 @@ int main() {
                 for (uint32_t i = 0; i < N; i++) {
                     auto model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
                     modelDescriptors[i] = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-                    modelDescriptors[i]->SetUniform("Models", renderFrame->RequestUniformBuffer(model));
+                    modelDescriptors[i]->SetUniformBuffer("Models", renderFrame->RequestUniformBuffer(model));
                 }
 
                 // draw objects

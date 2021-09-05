@@ -15,9 +15,11 @@
 
 namespace slim {
 
-    class RenderFrame;
-    class CommandBuffer;
+    class Image;
     class Buffer;
+    class Sampler;
+    class CommandBuffer;
+    class RenderFrame;
     namespace accel {
         class AccelStruct;
     };
@@ -46,6 +48,7 @@ namespace slim {
         void               Execute(std::function<void(RenderFrame *, CommandBuffer*)> callback,
                                    VkQueueFlagBits queue = VK_QUEUE_TRANSFER_BIT);
 
+        bool               IsDebuggerEnabled() const { return debugExtPresent; }
         VkQueue            GetComputeQueue() const { return computeQueue; }
         VkQueue            GetGraphicsQueue() const { return graphicsQueue; }
         VkQueue            GetPresentQueue() const { return presentQueue; }
@@ -53,6 +56,8 @@ namespace slim {
 
         VkDeviceAddress    GetDeviceAddress(Buffer* buffer) const;
         VkDeviceAddress    GetDeviceAddress(accel::AccelStruct* as) const;
+
+        void               SetName(const std::string& name) const;
 
         VolkDeviceTable    deviceTable;
 
@@ -62,6 +67,7 @@ namespace slim {
 
     private:
         SmartPtr<Context> context;
+        bool debugExtPresent = false;
 
         VmaAllocator               allocator      = VK_NULL_HANDLE;
 

@@ -103,6 +103,9 @@ namespace slim::scene {
 
         accel::Builder* GetAccelBuilder() const { return accelBuilder; }
 
+        uint32_t GetNumInstances() const { return numInstances; }
+        void ForEach(std::function<void(Node*, Mesh*, Material*, uint32_t)> callback);
+
         std::vector<SmartPtr<Node>> nodes;
         std::vector<SmartPtr<Mesh>> meshes;
 
@@ -128,6 +131,7 @@ namespace slim::scene {
         SmartPtr<Buffer> indexBuffer;
         SmartPtr<Buffer> transformBuffer;
         SmartPtr<accel::Builder> accelBuilder;
+        uint32_t numInstances = 0;
     };
 
 } // end of slim namespace

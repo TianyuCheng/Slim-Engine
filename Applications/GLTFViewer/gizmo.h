@@ -67,13 +67,13 @@ struct Gizmo : ReferenceCountable {
         );
 
         red = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
-        red->SetUniform("Color", glm::vec3(1.0, 0.0, 0.0));
+        red->SetUniformBuffer("Color", glm::vec3(1.0, 0.0, 0.0));
 
         green = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
-        green->SetUniform("Color", glm::vec3(0.0, 1.0, 0.0));
+        green->SetUniformBuffer("Color", glm::vec3(0.0, 1.0, 0.0));
 
         blue = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
-        blue->SetUniform("Color", glm::vec3(0.0, 0.0, 1.0));
+        blue->SetUniformBuffer("Color", glm::vec3(0.0, 0.0, 1.0));
     }
 
     void InitScene() {

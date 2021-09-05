@@ -86,6 +86,8 @@ namespace slim {
         template <typename T>
         size_t Size(size_t offset = 0) const;
 
+        void SetName(const std::string& name) const;
+
     private:
         SmartPtr<Device>  device = VK_NULL_HANDLE;
         VmaAllocation     allocation;

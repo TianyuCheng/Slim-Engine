@@ -567,6 +567,7 @@ Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device),
     assert(desc.name.length() > 0 && "PipelineDesc must have a name!");
     assert(desc.renderPass && "PipelineDesc must have a valid renderPass!");
     #endif
+    SetName(desc.GetName());
 
     desc.Initialize(device);
     layout = desc.Layout();
@@ -626,6 +627,8 @@ Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device),
 }
 
 Pipeline::Pipeline(Device *device, ComputePipelineDesc &desc) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_COMPUTE) {
+    SetName(desc.GetName());
+
     desc.Initialize(device);
     layout = desc.Layout();
 
@@ -645,6 +648,8 @@ Pipeline::Pipeline(Device *device, ComputePipelineDesc &desc) : device(device), 
 }
 
 Pipeline::Pipeline(Device *device, RayTracingPipelineDesc &desc) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR) {
+    SetName(desc.GetName());
+
     desc.Initialize(device);
     layout = desc.Layout();
 
@@ -722,5 +727,16 @@ Pipeline::~Pipeline() {
     if (handle) {
         DeviceDispatch(vkDestroyPipeline(*device, handle, nullptr));
         handle = VK_NULL_HANDLE;
+    }
+}
+
+void Pipeline::SetName(const std::string& name) const {
+    if (device->IsDebuggerEnabled()) {
+        VkDebugMarkerObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT;
+        nameInfo.object = (uint64_t) handle;
+        nameInfo.pObjectName = name.c_str();
+        ErrorCheck(DeviceDispatch(vkDebugMarkerSetObjectNameEXT(*device, &nameInfo)), "set query pool name");
     }
 }

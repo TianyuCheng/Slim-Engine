@@ -26,10 +26,7 @@ glm::vec3 GetArcballVector(const VkExtent2D &screen, int x, int y) {
     return P;
 }
 
-Arcball::Arcball() : Camera("arcabll") {
-}
-
-Arcball::Arcball(const VkExtent2D &screen) : Camera("arcball"), screen(screen) {
+Arcball::Arcball(const std::string& name) : Camera(name) {
 }
 
 void Arcball::Reset() {

@@ -128,7 +128,7 @@ int main() {
 
         refractMaterial = SlimPtr<Material>(device, techniqueRefract);
         refractMaterial->SetTexture("Skybox", cubemap, sampler);
-        refractMaterial->SetUniform("Refract", refract.iota);
+        refractMaterial->SetUniformBuffer("Refract", refract.iota);
 
         builder = SlimPtr<scene::Builder>(device);
 

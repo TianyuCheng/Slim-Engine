@@ -43,6 +43,11 @@ void Device::InitLogicalDevice() {
         validationLayers.push_back(name.c_str());
     }
 
+    std::vector<const char*> debugExtensions;
+    for (const std::string& name : desc.debugExtensions) {
+        debugExtensions.push_back(name.c_str());
+    }
+
     // query device extensions (portability subset)
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
@@ -59,6 +64,20 @@ void Device::InitLogicalDevice() {
         std::cout << "[CreateDevice] with extensions: " << std::endl;
         for (auto &extension : deviceExtensions) {
             std::cout << "- " << extension << std::endl;
+        }
+    }
+
+    // list all debug extensions
+    if (debugExtensions.size()) {
+        debugExtPresent = true;
+        std::cout << "[CreateDevice] with debug extensions: " << std::endl;
+        for (auto &extension : debugExtensions) {
+            std::cout << "- " << extension << std::endl;
+        }
+        auto unsatisfied = CheckDeviceExtensionSupport(physicalDevice, debugExtensions);
+        if (!unsatisfied.empty()) {
+            debugExtPresent = false;
+            std::cout << "[CreateDevice] fail to turn on debug marker" << std::endl;
         }
     }
 
@@ -235,4 +254,15 @@ void Device::Execute(std::function<void(RenderFrame*, CommandBuffer*)> callback,
     commandBuffer->End();
     commandBuffer->Submit();
     WaitIdle(queue);
+}
+
+void Device::SetName(const std::string& name) const {
+    if (IsDebuggerEnabled()) {
+        VkDebugMarkerObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT;
+        nameInfo.object = (uint64_t) handle;
+        nameInfo.pObjectName = name.c_str();
+        ErrorCheck(deviceTable.vkDebugMarkerSetObjectNameEXT(handle, &nameInfo), "set buffer name");
+    }
 }

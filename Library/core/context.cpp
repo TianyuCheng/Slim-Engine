@@ -11,6 +11,8 @@ ContextDesc::ContextDesc() {
     // initialize physical device features
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features.pNext = nullptr;
+    // debug extensions
+    debugExtensions.insert(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
 }
 
 ContextDesc& ContextDesc::EnableValidation(bool value) {
@@ -87,14 +89,8 @@ ContextDesc& ContextDesc::EnableRayTracing() {
     deviceExtensions.insert(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
     // deviceExtensions.insert(VK_KHR_RAY_QUERY_EXTENSION_NAME); // This requires RTX GPU
     deviceExtensions.insert(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-    deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
-
-    // adding buffer device address features
-    deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
-    deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-    deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
 
     // adding acceleration structure feature
     deviceFeatures.accelerationStructure.reset(new VkPhysicalDeviceAccelerationStructureFeaturesKHR { });
@@ -119,12 +115,37 @@ ContextDesc& ContextDesc::EnableRayTracing() {
     deviceFeatures.hostQueryReset->hostQueryReset = VK_TRUE;
 
     // connect to features
-    deviceFeatures.bufferDeviceAddress->pNext = deviceFeatures.accelerationStructure.get();
     deviceFeatures.accelerationStructure->pNext = deviceFeatures.rayTracingPipeline.get();
     deviceFeatures.rayTracingPipeline->pNext = deviceFeatures.hostQueryReset.get();
     deviceFeatures.hostQueryReset->pNext = features.pNext;
+    features.pNext = deviceFeatures.accelerationStructure.get();
+
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableBufferDeviceAddress() {
+    // add device extension
+    deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+
+    // adding buffer device address features
+    deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
+    deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+    deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
+
+    // connect to features
+    deviceFeatures.bufferDeviceAddress->pNext = features.pNext;
     features.pNext = deviceFeatures.bufferDeviceAddress.get();
 
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableShaderInt64() {
+    features.features.shaderInt64 = VK_TRUE;
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableShaderFloat64() {
+    features.features.shaderFloat64 = VK_TRUE;
     return *this;
 }
 

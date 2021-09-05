@@ -29,7 +29,7 @@ void accel::Builder::AddMesh(Mesh* mesh) {
                            vBuffer, vOffset, mesh->GetVertexStride());
 
     blas.push_back(geometry);
-    mesh->blas = geometry;
+    mesh->SetBlasGeometry(geometry);
 }
 
 void accel::Builder::BuildTlas() {

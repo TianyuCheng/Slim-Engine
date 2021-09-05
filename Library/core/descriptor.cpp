@@ -274,35 +274,35 @@ void Descriptor::SetAccelStructs(const std::string& name, const std::vector<acce
     writeDescriptorSets.push_back(set);
 }
 
-void Descriptor::SetUniform(const std::string &name, Buffer* buffer) {
+void Descriptor::SetUniformBuffer(const std::string &name, Buffer* buffer) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { BufferAlloc(buffer) });
 }
 
-void Descriptor::SetUniform(const std::string &name, const BufferAlloc& alloc) {
+void Descriptor::SetUniformBuffer(const std::string &name, const BufferAlloc& alloc) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, { alloc });
 }
 
-void Descriptor::SetUniforms(const std::string &name, const std::vector<BufferAlloc> &allocs) {
+void Descriptor::SetUniformBuffers(const std::string &name, const std::vector<BufferAlloc> &allocs) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, allocs);
 }
 
-void Descriptor::SetDynamic(const std::string &name, Buffer *buffer, size_t elemSize) {
+void Descriptor::SetDynamicUniformBuffer(const std::string &name, Buffer *buffer, size_t elemSize) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { BufferAlloc(buffer, 0, elemSize) });
 }
 
-void Descriptor::SetDynamic(const std::string &name, const BufferAlloc& alloc) {
+void Descriptor::SetDynamicUniformBuffer(const std::string &name, const BufferAlloc& alloc) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, { alloc });
 }
 
-void Descriptor::SetStorage(const std::string &name, Buffer* buffer) {
+void Descriptor::SetStorageBuffer(const std::string &name, Buffer* buffer) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { BufferAlloc(buffer) });
 }
 
-void Descriptor::SetStorage(const std::string &name, const BufferAlloc& alloc) {
+void Descriptor::SetStorageBuffer(const std::string &name, const BufferAlloc& alloc) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, { alloc });
 }
 
-void Descriptor::SetStorages(const std::string &name, const std::vector<BufferAlloc>& allocs) {
+void Descriptor::SetStorageBuffers(const std::string &name, const std::vector<BufferAlloc>& allocs) {
     SetBuffer(name, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, allocs);
 }
 

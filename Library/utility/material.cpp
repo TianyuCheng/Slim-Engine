@@ -2,7 +2,7 @@
 
 using namespace slim;
 
-Material::Material(Device *device, Technique *technique) : technique(technique) {
+Material::Material(Device *device, Technique *technique) : device(device), technique(technique) {
     // a material should not need too many descriptors,
     // 32 should be large enough for most cases without
     // needing to create additional descriptorPool
@@ -43,13 +43,13 @@ void Material::SetTexture(const std::string &name, Image *texture, Sampler *samp
     #endif
 }
 
-void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
+void Material::SetUniformBuffer(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     #ifndef NDEBUG
     bool found = false;
     #endif
     for (Descriptor* descriptor : descriptors) {
         if (descriptor->HasBinding(name)) {
-            descriptor->SetUniform(name, BufferAlloc { buffer, offset ,size });
+            descriptor->SetUniformBuffer(name, BufferAlloc { buffer, offset ,size });
             #ifndef NDEBUG
             found = true;
             #endif
@@ -62,13 +62,13 @@ void Material::SetUniform(const std::string &name, Buffer *buffer, size_t offset
     #endif
 }
 
-void Material::SetStorage(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
+void Material::SetStorageBuffer(const std::string &name, Buffer *buffer, size_t offset, size_t size) {
     #ifndef NDEBUG
     bool found = false;
     #endif
     for (Descriptor* descriptor : descriptors) {
         if (descriptor->HasBinding(name)) {
-            descriptor->SetStorage(name, BufferAlloc { buffer, offset ,size });
+            descriptor->SetStorageBuffer(name, BufferAlloc { buffer, offset ,size });
             #ifndef NDEBUG
             found = true;
             #endif

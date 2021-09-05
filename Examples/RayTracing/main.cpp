@@ -2,11 +2,19 @@
 
 using namespace slim;
 
-struct Material {
-    alignas(16) glm::vec3 baseColor;
-    alignas(16) glm::vec3 emitColor;
-    alignas(4)  float metalness;
-    alignas(4)  float roughness;
+struct RayTracingMaterial {
+    glm::vec4 baseColor;
+    glm::vec4 emissiveColor;
+};
+
+struct RayTracingInstance {
+    glm::mat4 modelMatrix;
+    glm::mat4 normalMatrix;
+    uint32_t instanceId;
+    uint32_t materialId;
+    VkDeviceAddress indexAddress;
+    VkDeviceAddress vertexAddress;
+    VkDeviceAddress materialAddress;
 };
 
 struct CameraData {
@@ -27,6 +35,8 @@ int main() {
             .EnableValidation(true)
             .EnableGLFW(true)
             .EnableRayTracing()
+            .EnableBufferDeviceAddress()
+            .EnableShaderInt64()
     );
 
     // create a slim device
@@ -66,51 +76,95 @@ int main() {
         planeMesh->SetVertexBuffer(planeData.vertices);
     }
 
+    // create materials
+    auto whiteMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
+    auto redMaterial   = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
+    auto greenMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
+    auto lightMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 0.0, 1.0, 1.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
+
     // create scene
     auto sceneRoot = sceneBuilder->CreateNode("root");
+    auto lightNode = sceneBuilder->CreateNode("light", sceneRoot);
     auto floorNode = sceneBuilder->CreateNode("floor", sceneRoot);
     auto ceilingNode = sceneBuilder->CreateNode("ceiling", sceneRoot);
+    auto backWallNode = sceneBuilder->CreateNode("backWall", sceneRoot);
     auto leftWallNode = sceneBuilder->CreateNode("leftWall", sceneRoot);
     auto rightWallNode = sceneBuilder->CreateNode("rightWall", sceneRoot);
-    auto backWallNode = sceneBuilder->CreateNode("backWall", sceneRoot);
     auto shortBoxNode = sceneBuilder->CreateNode("shortBox", sceneRoot);
     auto tallBoxNode = sceneBuilder->CreateNode("tallBox", sceneRoot);
     {
         sceneRoot->Scale(2.0, 2.0, 2.0);
 
+        lightNode->Translate(0.0, 0.499, 0.0);
+        lightNode->Scale(0.5, 0.5, 0.5);
+        lightNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
+        lightNode->SetDraw(planeMesh, lightMaterial);
+
         floorNode->Translate(0.0, -0.5, 0.0);
-        floorNode->SetDraw(planeMesh, nullptr);
+        floorNode->SetDraw(planeMesh, whiteMaterial);
 
         ceilingNode->Translate(0.0, 0.5, 0.0);
         ceilingNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
-        ceilingNode->SetDraw(planeMesh, nullptr);
+        ceilingNode->SetDraw(planeMesh, whiteMaterial);
+
+        backWallNode->Translate(0.0, 0.0, -0.5);
+        backWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI / 2.0);
+        backWallNode->SetDraw(planeMesh, whiteMaterial);
 
         leftWallNode->Translate(-0.5, 0.0, 0.0);
         leftWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
         leftWallNode->Rotate(glm::vec3(0.0, 0.0, 1.0), -M_PI / 2);
-        leftWallNode->SetDraw(planeMesh, nullptr);
+        leftWallNode->SetDraw(planeMesh, greenMaterial);
 
         rightWallNode->Translate(0.5, 0.0, 0.0);
         rightWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
         rightWallNode->Rotate(glm::vec3(0.0, 0.0, 1.0), M_PI / 2);
-        rightWallNode->SetDraw(planeMesh, nullptr);
+        rightWallNode->SetDraw(planeMesh, redMaterial);
 
-        backWallNode->Translate(0.0, 0.0, -0.5);
-        backWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI / 2.0);
-        backWallNode->SetDraw(planeMesh, nullptr);
-
-        shortBoxNode->Translate(0.2, -0.25, 0.2);
+        shortBoxNode->Translate(0.1, -0.25, 0.4);
         shortBoxNode->Rotate(glm::vec3(0.0, 1.0, 0.0), M_PI / 4.0);
         shortBoxNode->Scale(0.5, 0.5, 0.5);
-        shortBoxNode->SetDraw(cubeMesh, nullptr);
+        shortBoxNode->SetDraw(cubeMesh, whiteMaterial);
 
-        tallBoxNode->Translate(-0.2, -0.15, -0.2);
+        tallBoxNode->Translate(-0.2, -0.15, 0.1);
         tallBoxNode->Rotate(glm::vec3(0.0, 1.0, 0.0), M_PI / 4.0);
         tallBoxNode->Scale(0.5, 1.0, 0.5);
-        tallBoxNode->SetDraw(cubeMesh, nullptr);
+        tallBoxNode->SetDraw(cubeMesh, whiteMaterial);
     }
     sceneRoot->ApplyTransform();
     sceneBuilder->Build();
+
+    std::vector<Material*> materials = {
+        whiteMaterial,
+        redMaterial,
+        greenMaterial,
+        lightMaterial,
+    };
+    auto materialCount = materials.size();
+    auto instanceCount = sceneBuilder->GetNumInstances();
+    auto materialBuffer = SlimPtr<Buffer>(device, materialCount * sizeof(RayTracingMaterial), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    auto instanceBuffer = SlimPtr<Buffer>(device, instanceCount * sizeof(RayTracingInstance), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    std::vector<RayTracingMaterial> materialsData;
+    for (auto* material : materials) {
+        materialsData.push_back(material->GetData<RayTracingMaterial>());
+    }
+    std::vector<RayTracingInstance> instancesData(instanceCount);
+    sceneBuilder->ForEach([&](auto* node, auto* mesh, auto* material, uint32_t instanceId) {
+        auto& instance = instancesData[instanceId];
+        instance.instanceId = instanceId;
+        instance.materialId = std::find(materials.begin(), materials.end(), material) - materials.begin();
+        instance.modelMatrix = node->GetTransform().LocalToWorld();
+        instance.normalMatrix = glm::transpose(glm::inverse(instance.modelMatrix)); // glm::transpose(node->GetTransform().WorldToLocal());
+        instance.indexAddress = mesh->GetIndexAddress(device);
+        instance.vertexAddress = mesh->GetVertexAddress(device, 0);
+        instance.materialAddress = device->GetDeviceAddress(materialBuffer);
+    });
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        commandBuffer->CopyDataToBuffer(materialsData, materialBuffer);
+        commandBuffer->CopyDataToBuffer(instancesData, instanceBuffer);
+    });
+    materialBuffer->SetName("material buffer");
+    instanceBuffer->SetName("instance buffer");
 
     // shaders
     auto rayGenShader = SlimPtr<spirv::RayGenShader>(device, "main", "shaders/raytrace.rgen.spv");
@@ -127,11 +181,12 @@ int main() {
             .SetRayGenShader(rayGenShader)
             .SetMissShader(rayMissShader)
             .SetClosestHitShader(closestShader)
-            .SetMaxRayRecursionDepth(2)
+            .SetMaxRayRecursionDepth(4)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Accel",  0, 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                .AddBinding("Image",  0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                .AddBinding("Camera", 1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                .AddBinding("Accel",     0, 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                .AddBinding("Image",     0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                .AddBinding("Camera",    1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                .AddBinding("Scenes",    1, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
             ));
 
     // persistent resources
@@ -184,7 +239,8 @@ int main() {
                 auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), rtPipeline->Layout());
                 descriptor->SetAccelStruct("Accel", sceneBuilder->GetAccelBuilder()->GetTlas());
                 descriptor->SetStorageImage("Image", rtBuffer->GetImage());
-                descriptor->SetUniform("Camera", cameraUniformBuffer);
+                descriptor->SetUniformBuffer("Camera", cameraUniformBuffer);
+                descriptor->SetStorageBuffer("Scenes", instanceBuffer);
                 commandBuffer->BindDescriptor(descriptor, rtPipeline->Type());
 
                 // ray trace

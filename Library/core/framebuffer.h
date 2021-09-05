@@ -31,6 +31,7 @@ namespace slim {
         Framebuffer(Device *device, FramebufferDesc &desc);
         virtual ~Framebuffer();
 
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device;
     };

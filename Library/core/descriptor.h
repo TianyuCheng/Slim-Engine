@@ -22,19 +22,19 @@ namespace slim {
         virtual ~Descriptor();
 
         // binding a uniform buffer, with offset and size for the target buffer
-        void SetUniform(const std::string& name, Buffer* buffer);
-        void SetUniform(const std::string& name, const BufferAlloc& bufferAlloc);
-        void SetUniforms(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
+        void SetUniformBuffer(const std::string& name, Buffer* buffer);
+        void SetUniformBuffer(const std::string& name, const BufferAlloc& bufferAlloc);
+        void SetUniformBuffers(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
 
         // binding a dynamic uniform buffer, with offset and size for the target buffer
         // NOTE: size is for each individual uniform element in the buffer
-        void SetDynamic(const std::string& name, Buffer* buffer, size_t elemSize);
-        void SetDynamic(const std::string& name, const BufferAlloc& bufferAlloc);
+        void SetDynamicUniformBuffer(const std::string& name, Buffer* buffer, size_t elemSize);
+        void SetDynamicUniformBuffer(const std::string& name, const BufferAlloc& bufferAlloc);
 
         // binding a storage buffer, with offset and size for the target buffer
-        void SetStorage(const std::string& name, Buffer* buffer);
-        void SetStorage(const std::string& name, const BufferAlloc& bufferAlloc);
-        void SetStorages(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
+        void SetStorageBuffer(const std::string& name, Buffer* buffer);
+        void SetStorageBuffer(const std::string& name, const BufferAlloc& bufferAlloc);
+        void SetStorageBuffers(const std::string& name, const std::vector<BufferAlloc>& bufferAllocs);
 
         // binding a combined image + sampler
         void SetTexture(const std::string& name, Image* image, Sampler* sampler);

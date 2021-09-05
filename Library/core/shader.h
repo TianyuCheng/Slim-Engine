@@ -21,6 +21,8 @@ namespace slim {
         explicit Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage, const std::string &entry, const std::string &path);
         virtual ~Shader();
         VkPipelineShaderStageCreateInfo GetInfo() const;
+
+        void SetName(const std::string& name) const;
     private:
         Device* device = nullptr;
         std::string entry = "main";

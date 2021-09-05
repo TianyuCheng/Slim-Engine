@@ -254,7 +254,7 @@ void GLTFAssetManager::LoadMaterials(GLTFModel &result, const tinygltf::Model &m
         }
 
         // material factors
-        mat->SetUniform("MaterialFactors", factors);
+        mat->SetUniformBuffer("MaterialFactors", factors);
 
         result.materials.push_back(mat);
     }

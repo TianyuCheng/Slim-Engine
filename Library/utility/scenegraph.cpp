@@ -104,6 +104,13 @@ scene::Builder::Builder(Device* device) : device(device) {
 }
 
 void scene::Builder::Build() {
+    // count number of instances
+    numInstances = 0;
+    for (auto& node : nodes) {
+        numInstances += node->NumDraws();
+    }
+
+    // prepare common buffer and memory usage flags
     VkBufferUsageFlags bufferUsage = GetCommonBufferUsages();
     VmaMemoryUsage memoryUsage = GetCommonMemoryUsages();
 
@@ -118,6 +125,7 @@ void scene::Builder::Build() {
         }
     });
 
+    // build acceleration structure if needed to
     if (accelBuilder.get()) {
         // build blas
         for (auto& mesh : meshes) {
@@ -192,35 +200,36 @@ void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
 void scene::Builder::BuildTransformBuffer(CommandBuffer* commandBuffer,
                                           VkBufferUsageFlags bufferUsage,
                                           VmaMemoryUsage memoryUsage) {
-    uint64_t transformId = 0;
-    uint64_t numTransforms = 0;
-    for (auto& node : nodes) {
-        numTransforms += node->NumDraws();
-    }
-
-    uint64_t bufferSize = numTransforms * sizeof(VkAccelerationStructureInstanceKHR);
+    uint64_t bufferSize = numInstances * sizeof(VkAccelerationStructureInstanceKHR);
     transformBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
 
     std::vector<VkAccelerationStructureInstanceKHR> instances;
-    for (auto& node : nodes) {
-        for (auto& [mesh, _] : *node) {
-            accel::AccelStruct* as = mesh->blas->accel;
-            #ifndef NDEBUG
-            if (as == nullptr) {
-                throw std::runtime_error("node's geometry blas has not been built!");
-            }
-            #endif
-            instances.push_back(VkAccelerationStructureInstanceKHR { });
-            auto& instance = instances.back();
-            instance.transform = node->GetVkTransformMatrix();
-            instance.instanceCustomIndex = transformId++;
-            instance.accelerationStructureReference = device->GetDeviceAddress(as);
-            instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
-            instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
-            instance.mask = 0xff;
+    ForEach([&](scene::Node* node, Mesh* mesh, Material*, uint32_t instanceId) {
+        accel::AccelStruct* as = mesh->blas->accel;
+        #ifndef NDEBUG
+        if (as == nullptr) {
+            throw std::runtime_error("node's geometry blas has not been built!");
         }
-    }
+        #endif
+        instances.push_back(VkAccelerationStructureInstanceKHR { });
+        auto& instance = instances.back();
+        instance.transform = node->GetVkTransformMatrix();
+        instance.instanceCustomIndex = instanceId;
+        instance.accelerationStructureReference = device->GetDeviceAddress(as);
+        instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
+        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
+        instance.mask = 0xff;
+    });
 
     commandBuffer->CopyDataToBuffer(instances, transformBuffer);
-    accelBuilder->AddInstances(transformBuffer, 0, numTransforms);
+    accelBuilder->AddInstances(transformBuffer, 0, numInstances);
+}
+
+void scene::Builder::ForEach(std::function<void(scene::Node*, Mesh*, Material*, uint32_t)> callback) {
+    uint32_t instanceId = 0;
+    for (auto& node : nodes) {
+        for (auto& [mesh, material] : *node) {
+            callback(node, mesh, material, instanceId++);
+        }
+    }
 }

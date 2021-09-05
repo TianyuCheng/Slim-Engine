@@ -24,6 +24,7 @@ namespace slim::accel {
         explicit AccelStruct(Geometry* geometry);
         virtual ~AccelStruct();
 
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device;
         SmartPtr<Buffer> buffer;
@@ -32,7 +33,7 @@ namespace slim::accel {
 
     // ------------------------------------------------------------
 
-    class Instance : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
+    class Instance : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend class AccelStruct;
     public:
         explicit Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
@@ -53,7 +54,7 @@ namespace slim::accel {
 
     // ------------------------------------------------------------
 
-    class Geometry : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkAccelerationStructureKHR> {
+    class Geometry : public NotCopyable, public NotMovable, public ReferenceCountable {
         friend class AccelStruct;
     public:
         explicit Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);

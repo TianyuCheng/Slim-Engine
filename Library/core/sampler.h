@@ -40,6 +40,8 @@ namespace slim {
     public:
         explicit Sampler(Device *device, const SamplerDesc &desc);
         virtual ~Sampler();
+
+        void SetName(const std::string& name) const;
     private:
         Device* device = nullptr;
     };

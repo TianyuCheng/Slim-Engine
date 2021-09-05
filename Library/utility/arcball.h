@@ -14,15 +14,14 @@ namespace slim {
     // arcball control
     class Arcball : public Camera {
     public:
-        explicit Arcball();
-        explicit Arcball(const VkExtent2D &screen);
+        explicit Arcball(const std::string& name = "arcball");
         virtual ~Arcball() = default;
 
         void Reset();
 
+        void SetExtent(const VkExtent2D &screen);
         void SetDamping(float damping = 0.0f);
         void SetSensitivity(float sensitivity = 1.0f);
-        void SetExtent(const VkExtent2D &screen);
         bool Update(Input* input);
 
         const glm::mat4 GetModelMatrix(bool applyScaling = true) const {

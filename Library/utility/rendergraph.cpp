@@ -237,11 +237,13 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
         attachment.resource->Allocate(renderFrame);
     }
 
+    commandBuffer->BeginRegion(name);
     if (compute) {
         ExecuteCompute(commandBuffer);
     } else {
         ExecuteGraphics(commandBuffer);
     }
+    commandBuffer->EndRegion();
 
     // update reference counts for attachments
     for (auto& attachment : attachments) {

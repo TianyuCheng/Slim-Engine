@@ -50,11 +50,11 @@ int main() {
 
     // create the first material
     auto material1 = SlimPtr<Material>(device, technique);
-    material1->SetUniform("Color", glm::vec3(1.0f, 1.0f, 0.0f));
+    material1->SetUniformBuffer("Color", glm::vec3(1.0f, 1.0f, 0.0f));
 
     // create the second material
     auto material2 = SlimPtr<Material>(device, technique);
-    material2->SetUniform("Color", glm::vec3(0.0f, 1.0f, 1.0f));
+    material2->SetUniformBuffer("Color", glm::vec3(0.0f, 1.0f, 1.0f));
 
     // scene builder
     auto builder = SlimPtr<scene::Builder>(device);

@@ -52,8 +52,8 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
 
         // bind
         auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), drawable.material->Layout(techniqueIndex));
-        descriptor->SetUniform("Camera", cameraUniform);
-        descriptor->SetDynamic("Model", modelUniform, sizeof(ModelData));
+        descriptor->SetUniformBuffer("Camera", cameraUniform);
+        descriptor->SetDynamicUniformBuffer("Model", modelUniform, sizeof(ModelData));
         descriptor->SetDynamicOffset("Model", index * sizeof(ModelData));
         commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
 

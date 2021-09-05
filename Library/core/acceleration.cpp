@@ -52,6 +52,17 @@ accel::AccelStruct::~AccelStruct() {
     }
 }
 
+void accel::AccelStruct::SetName(const std::string& name) const {
+    if (device->IsDebuggerEnabled()) {
+        VkDebugMarkerObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR_EXT;
+        nameInfo.object = (uint64_t) handle;
+        nameInfo.pObjectName = name.c_str();
+        ErrorCheck(DeviceDispatch(vkDebugMarkerSetObjectNameEXT(*device, &nameInfo)), "set acceleration structure name");
+    }
+}
+
 accel::Instance::Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags) : device(device), createFlags(createFlags) {
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;

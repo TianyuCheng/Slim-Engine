@@ -14,6 +14,7 @@ namespace slim {
         explicit QueryPool(Device* device, VkQueryType queryType, uint32_t queryCount, VkQueryPoolCreateFlags flags);
         virtual ~QueryPool();
 
+        void SetName(const std::string& name) const;
     private:
         SmartPtr<Device> device;
     };

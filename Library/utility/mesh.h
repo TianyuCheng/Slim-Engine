@@ -109,6 +109,14 @@ namespace slim {
             aabb = box;
         }
 
+        void SetBlasGeometry(accel::Geometry* geometry) {
+            blas = geometry;
+        }
+
+        accel::Geometry* GetBlasGeometry() const {
+            return blas;
+        }
+
         BoundingBox GetBoundingBox(const Transform& transform) const {
             return transform.LocalToWorld() * aabb;
         }
@@ -125,8 +133,13 @@ namespace slim {
             return std::make_tuple(indexBuffer, indexOffset);
         }
 
-        // for raytracing
-        SmartPtr<accel::Geometry> blas = nullptr;
+        VkDeviceAddress GetVertexAddress(Device* device, uint32_t binding) const {
+            return device->GetDeviceAddress(vertexBuffer) + vertexOffsets[binding];
+        }
+
+        VkDeviceAddress GetIndexAddress(Device* device) const {
+            return device->GetDeviceAddress(indexBuffer) + indexOffset;
+        }
 
     private:
         // index data
@@ -143,6 +156,9 @@ namespace slim {
         VertexOffset vertexOffsets = {};
         SmartPtr<Buffer> vertexBuffer = nullptr; // for automatic destroy
         std::vector<VkBuffer> vertexBuffers = {};
+
+        // ray tracing data
+        SmartPtr<accel::Geometry> blas = nullptr;
 
         // bounding box
         BoundingBox aabb;

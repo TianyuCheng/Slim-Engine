@@ -13,7 +13,7 @@ namespace slim {
     // flycam control
     class Flycam : public Camera {
     public:
-        explicit Flycam(const std::string &name);
+        explicit Flycam(const std::string &name = "flycam");
         virtual ~Flycam();
 
         void SetExtent(const VkExtent2D &screen);

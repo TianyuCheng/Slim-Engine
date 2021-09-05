@@ -45,8 +45,8 @@ int main() {
 
         // prepare resources
         auto descriptor = SlimPtr<Descriptor>(renderFrame->GetDescriptorPool(), pipeline->Layout());
-        descriptor->SetStorage("InputBuffer", srcBuffer);
-        descriptor->SetStorage("OutputBuffer", dstBuffer);
+        descriptor->SetStorageBuffer("InputBuffer", srcBuffer);
+        descriptor->SetStorageBuffer("OutputBuffer", dstBuffer);
 
         // bind compute pipeline
         commandBuffer->BindPipeline(pipeline);

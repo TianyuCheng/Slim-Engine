@@ -114,7 +114,7 @@ int main() {
                     UBOView uboView;
                     uboView.proj = glm::perspective(1.05f, aspect, 0.1f, 20.0f);
                     uboView.view = glm::lookAt(glm::vec3(0.0, 1.0, 2.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-                    descriptor->SetUniform("UBOView", renderFrame->RequestUniformBuffer(uboView));
+                    descriptor->SetUniformBuffer("UBOView", renderFrame->RequestUniformBuffer(uboView));
                 }
 
                 uint32_t N = 10;
@@ -127,7 +127,7 @@ int main() {
                         glm::mat4 model = glm::translate(glm::mat4(1.0), glm::vec3(0.0, 0.0, -float(i)));
                         uboInstances.push_back({ model });
                     }
-                    descriptorDynmaic->SetDynamic("UBOInstance", renderFrame->RequestUniformBuffer(uboInstances), sizeof(UBOInstance));
+                    descriptorDynmaic->SetDynamicUniformBuffer("UBOInstance", renderFrame->RequestUniformBuffer(uboInstances), sizeof(UBOInstance));
                 }
 
                 // draw objects

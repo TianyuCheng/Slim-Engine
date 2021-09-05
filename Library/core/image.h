@@ -196,6 +196,8 @@ namespace slim {
         VkImageView AsStencilBuffer() const;
         VkImageView AsDepthStencilBuffer() const;
 
+        void SetName(const std::string& name) const;
+
         // NOTE: not intended for manual update
         std::vector<std::vector<VkImageLayout>> layouts = {};
 

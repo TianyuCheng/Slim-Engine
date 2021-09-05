@@ -34,7 +34,10 @@ namespace slim {
         ContextDesc& EnableSeparateDepthStencilLayout();
         ContextDesc& EnableDescriptorIndexing();
         ContextDesc& EnableNonSolidPolygonMode();
+        ContextDesc& EnableShaderInt64();
+        ContextDesc& EnableShaderFloat64();
         ContextDesc& EnableRayTracing();
+        ContextDesc& EnableBufferDeviceAddress();
 
         // allow finer-grain tuning by users
         VkPhysicalDeviceFeatures& GetDeviceFeatures() {
@@ -76,6 +79,7 @@ namespace slim {
         std::unordered_set<std::string> instanceExtensions = {};
         std::unordered_set<std::string> validationLayers = {};
         std::unordered_set<std::string> deviceExtensions = {};
+        std::unordered_set<std::string> debugExtensions = {};
     };
 
     class Context final : public NotCopyable, public NotMovable, public ReferenceCountable {

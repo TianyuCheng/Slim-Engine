@@ -14,20 +14,25 @@ namespace slim {
 
     class Material final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        explicit Material(Device *device, Technique *technique);
+        template <typename T>
+        explicit Material(const T& value) {
+            SetData(value);
+        }
+
+        explicit Material(Device* device, Technique* technique);
         virtual ~Material();
 
         Technique* GetTechnique() const { return technique; }
 
         void SetTexture(const std::string &name, Image *texture, Sampler *sampler);
-        void SetUniform(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
-        void SetStorage(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
+        void SetUniformBuffer(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
+        void SetStorageBuffer(const std::string &name, Buffer *buffer, size_t offset = 0, size_t size = 0);
 
         template <typename T>
-        void SetUniform(const std::string &name, const T &data) {
+        void SetUniformBuffer(const std::string &name, const T &data) {
             UniformBuffer* uniform = uniformBufferPool->Request(sizeof(T));
             uniform->SetData(data);
-            SetUniform(name, uniform, 0, 0);
+            SetUniformBuffer(name, uniform, 0, 0);
         }
 
         uint32_t QueueIndex(RenderQueue queue) const {
@@ -43,12 +48,22 @@ namespace slim {
                   RenderFrame *renderFrame,
                   RenderPass *renderPass) const;
 
+        template <typename T>
+        T& GetData() { return *reinterpret_cast<T*>(data.data()); }
+
+        template <typename T>
+        void SetData(const T& value) {
+            data.resize(sizeof(T));
+            std::memcpy(data.data(), &value, sizeof(T));
+        }
+
     private:
         SmartPtr<Device> device;
         SmartPtr<Technique> technique = nullptr;
         SmartPtr<DescriptorPool> descriptorPool = nullptr;
         SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool = nullptr;
         std::vector<SmartPtr<Descriptor>> descriptors;
+        std::vector<uint8_t> data;
     };
 
 } // end of namespace slim

@@ -509,3 +509,47 @@ CommandBuffer* CommandPool::RequestSecondaryCommandBuffer() {
     activeSecondaryCommandBuffers++;
     return secondaryCommandBuffers.back().get();
 }
+
+void CommandBuffer::SetName(const std::string& name) const {
+    if (device->IsDebuggerEnabled()) {
+        VkDebugMarkerObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT;
+        nameInfo.object = (uint64_t) handle;
+        nameInfo.pObjectName = name.c_str();
+        ErrorCheck(DeviceDispatch(vkDebugMarkerSetObjectNameEXT(*device, &nameInfo)), "set query pool name");
+    }
+}
+
+void CommandBuffer::BeginRegion(const std::string& name) const {
+    if (device->IsDebuggerEnabled()) {
+        VkDebugMarkerMarkerInfoEXT markerInfo = {};
+        markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
+        // Color to display this region with (if supported by debugger)
+        markerInfo.color[0] = 1.0f;
+        markerInfo.color[1] = 1.0f;
+        markerInfo.color[2] = 0.0f;
+        markerInfo.color[3] = 1.0f;
+        // Name of the region displayed by the debugging application
+        markerInfo.pMarkerName = name.c_str();
+        DeviceDispatch(vkCmdDebugMarkerBeginEXT(handle, &markerInfo));
+    }
+}
+
+void CommandBuffer::EndRegion() const {
+    if (device->IsDebuggerEnabled()) {
+        DeviceDispatch(vkCmdDebugMarkerEndEXT(handle));
+    }
+}
+
+void CommandBuffer::InsertMarker(const std::string& marker) const {
+    VkDebugMarkerMarkerInfoEXT markerInfo = {};
+    markerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_MARKER_MARKER_INFO_EXT;
+    markerInfo.pMarkerName = marker.c_str();
+    // Color to display this marker with (if supported by debugger)
+    markerInfo.color[0] = 1.0f;
+    markerInfo.color[1] = 1.0f;
+    markerInfo.color[2] = 0.0f;
+    markerInfo.color[3] = 1.0f;
+    DeviceDispatch(vkCmdDebugMarkerInsertEXT(handle, &markerInfo));
+}
