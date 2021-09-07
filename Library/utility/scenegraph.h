@@ -101,6 +101,7 @@ namespace slim::scene {
         void Build();
         void Clear();
 
+        Device* GetDevice() const { return device; }
         accel::Builder* GetAccelBuilder() const { return accelBuilder; }
 
         uint32_t GetNumInstances() const { return numInstances; }

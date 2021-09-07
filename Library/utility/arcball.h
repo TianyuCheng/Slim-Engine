@@ -17,17 +17,14 @@ namespace slim {
         explicit Arcball(const std::string& name = "arcball");
         virtual ~Arcball() = default;
 
-        void Reset();
-
         void SetExtent(const VkExtent2D &screen);
         void SetDamping(float damping = 0.0f);
         void SetSensitivity(float sensitivity = 1.0f);
-        bool Update(Input* input);
+        void LookAt(const glm::vec3& eye,
+                    const glm::vec3& center,
+                    const glm::vec3& updir);
 
-        const glm::mat4 GetModelMatrix(bool applyScaling = true) const {
-            return applyScaling ? (translation * rotation * scaling)
-                                : (translation * rotation);
-        }
+        bool Update(Input* input);
 
     private:
         bool ProcessRotation(const MouseEvent& mouse);
@@ -36,17 +33,22 @@ namespace slim {
 
     private:
         VkExtent2D screen;
+
+        // mouse history
         int prevX = 0, prevY = 0;
         int currX = 0, currY = 0;
-        float modelAngle = 0.0;
+
+        // rotation
+        glm::vec3 axis;
+        float angle = 0.0;
+
+        // movement
         float damping = 0.0;
         float sensitivity = 1.0f;
-        glm::vec3 axisInObjectCoord;
 
-        // model matrices
-        glm::mat4 rotation = glm::mat4(1.0);
-        glm::mat4 scaling = glm::mat4(1.0);
-        glm::mat4 translation = glm::mat4(1.0);
+        // view matrix
+        glm::quat rotation;
+        glm::vec3 translation;
     };
 
 } // end of SLIM_UTILITY_ARCBALL_H

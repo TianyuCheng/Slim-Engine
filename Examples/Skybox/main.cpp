@@ -159,6 +159,7 @@ int main() {
 
     auto input = SlimPtr<Input>(window);
     auto arcball = SlimPtr<Arcball>();
+    arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     auto ui = SlimPtr<DearImGui>(device, window);
 
@@ -201,15 +202,10 @@ int main() {
 
         // create a camera
         arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
-        arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
         // update
         arcball->SetExtent(window->GetExtent());
         arcball->Update(input);
-
-        // transform scene nodes
-        geometry->SetTransform(arcball->GetModelMatrix());
-        root->ApplyTransform();
 
         // sceneFilter result + sorting
         auto culling = SlimPtr<CPUCulling>();

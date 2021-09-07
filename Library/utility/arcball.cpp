@@ -1,5 +1,6 @@
 #include <iostream>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 #include "utility/arcball.h"
 
@@ -29,11 +30,16 @@ glm::vec3 GetArcballVector(const VkExtent2D &screen, int x, int y) {
 Arcball::Arcball(const std::string& name) : Camera(name) {
 }
 
-void Arcball::Reset() {
-    modelAngle = 0.0;
-    rotation = glm::mat4(1.0);
-    scaling = glm::mat4(1.0);
-    translation = glm::mat4(1.0);
+void Arcball::LookAt(const glm::vec3& eye,
+                     const glm::vec3& center,
+                     const glm::vec3& updir) {
+    Camera::LookAt(eye, center, updir);
+
+    // decompose components from view matrix
+    const glm::mat4& view = GetView();
+    glm::vec4 perspective;
+    glm::vec3 scale, skew;
+    glm::decompose(view, scale, rotation, translation, skew, perspective);
 }
 
 void Arcball::SetDamping(float value) {
@@ -58,6 +64,10 @@ bool Arcball::Update(Input* input) {
     changed |= ProcessRotation(mouse);
     changed |= ProcessScaling(scroll);
     changed |= ProcessTranslation(mouse);
+
+    if (changed) {
+        SetViewMatrix(glm::translate(glm::mat4(1.0), translation) * glm::toMat4(rotation));
+    }
 
     return changed;
 }
@@ -98,21 +108,17 @@ bool Arcball::ProcessRotation(const MouseEvent& mouse) {
         glm::vec3 va = GetArcballVector(screen, prevX, prevY);
         glm::vec3 vb = GetArcballVector(screen, currX, currY);
         // compute angle between 2 vectors on the arcball
-        float angle = std::acos(std::min(1.0f, glm::dot(va, vb))) * sensitivity;
+        angle = std::acos(std::min(1.0f, glm::dot(va, vb))) * sensitivity;
         // compute axis for rotation
-        glm::vec3 axisInCameraCoord = glm::cross(va, vb);
-        // compute axis in object coordinate
-        modelAngle = angle;
-        glm::mat3 worldToLocal = glm::inverse(rotation);
-        axisInObjectCoord = glm::mat3(worldToLocal) * axisInCameraCoord;
+        axis = glm::normalize(glm::cross(va, vb));
     }
 
     // apply rotation inertia for model
-    if (std::abs(modelAngle) >= 1e-5) {
+    if (std::abs(angle) >= 1e-5) {
         // update model matrix by axis angle
-        rotation = glm::rotate(rotation, modelAngle, axisInObjectCoord);
+        rotation = glm::rotate(rotation, angle, axis);
         // apply rotation angle damping
-        modelAngle *= damping;
+        angle *= damping;
         changed = true;
     }
 
@@ -124,19 +130,19 @@ bool Arcball::ProcessScaling(const ScrollEvent& scroll) {
         return false;
     }
 
-    // upscaling
+    // moving forward
     if (scroll.yOffset < 0) {
-        const float scale = 1.1;
-        scaling = glm::scale(scaling, glm::vec3(scale, scale, scale));
+        translation += glm::vec3(0.0, 0.0, 0.1);
         return true;
     }
 
-    // downscaling
+    // moving backward
     else {
-        const float scale = 0.9;
-        scaling = glm::scale(scaling, glm::vec3(scale, scale, scale));
+        translation -= glm::vec3(0.0, 0.0, 0.1);
         return true;
     }
+
+    return false;
 }
 
 bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
@@ -164,6 +170,8 @@ bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
         }
 
         if (mouse.state == MouseState::Dragging) {
+            glm::mat4 trans = glm::translate(glm::mat4(1.0), translation);
+
             // compute mouse position difference
             float diffX = posX - currX;
             float diffY = posY - currY;
@@ -171,14 +179,20 @@ bool Arcball::ProcessTranslation(const MouseEvent& mouse) {
             float vb = 0.0, vt = static_cast<float>(screen.height);
             glm::mat4 viewportTrans = glm::translate(glm::mat4(1.0), glm::vec3(diffX, -diffY, 0.0));    // mimic the target translation in window space
             glm::mat4 H = glm::scale(glm::mat4(1.0), glm::vec3((vr + vl) / 2.0, (vb + vt) / 2.0, 0.5)); // viewport matrix
-            glm::mat4 PV = GetProjection() * GetView();                                                 // projection * view
-            glm::mat4 HPV = H * PV;                                                                     // viewport * project * view
-            glm::mat4 VPH = glm::inverse(HPV);
+            glm::mat4 P = GetProjection();                                                              // projection
+            glm::mat4 HP = H * P;                                                                       // viewport * project
+            glm::mat4 PH = glm::inverse(HP);
 
-            // transform to window space, perform window space translation, then transform back to model space,
-            // then we get the difference in the model transform, since the rotation/scaling are the same,
+            // transform to window space, perform window space translation, then transform back to view space,
+            // then we get the difference in the view transform, since the rotation/scaling are "roughly" the same,
             // the only difference should be in the translation.
-            translation = VPH * viewportTrans * HPV * translation;
+            trans = PH * viewportTrans * HP * trans;
+
+            // decompose each component
+            glm::vec4 perspective;
+            glm::vec3 scale, skew;
+            glm::quat orientation;
+            glm::decompose(trans, scale, orientation, translation, skew, perspective);
 
             // update mouse positions
             prevX = posX; currX = posX;

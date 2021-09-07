@@ -84,6 +84,12 @@ add_subdirectory(Library)
 # ---------------------------------------------------------------
 find_program(SHADERCOMPILER glslc)
 
+set(SPV_TARGET_ENV "")
+if (WIN32)
+    # This is needed for ray tracing workloads
+    set(SPV_TARGET_ENV "--target-env=vulkan1.2")
+endif (WIN32)
+
 function(compile_glsl Target Directory)
     file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${Directory}/*.vert"
@@ -102,7 +108,7 @@ function(compile_glsl Target Directory)
         add_custom_command(
             OUTPUT  ${SPIRV}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/"
-            COMMAND ${SHADERCOMPILER} --target-env=vulkan1.2 ${GLSL} -g -o ${SPIRV}
+            COMMAND ${SHADERCOMPILER} ${SPV_TARGET_ENV} ${GLSL} -g -o ${SPIRV}
             DEPENDS ${GLSL}
             COMMENT "Building ${SPIRV}"
         )

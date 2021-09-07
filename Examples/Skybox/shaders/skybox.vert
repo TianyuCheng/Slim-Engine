@@ -15,7 +15,12 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 0) out vec3 outTexCoord;
 
 void main() {
-    // there is no need to multiply view matrix, because skybox movement is not desired.
-    gl_Position = camera.P * model.M * vec4(inPosition, 1.0);
+    // we still want to apply view matrix, but without movement
+    mat4 V = camera.V;
+    V[3][0] = 0.0;
+    V[3][1] = 0.0;
+    V[3][2] = 0.0;
+
+    gl_Position = camera.P * V * model.M * vec4(inPosition, 1.0);
     outTexCoord = inPosition;
 }

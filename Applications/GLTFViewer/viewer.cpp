@@ -26,30 +26,28 @@ void GLTFViewer::Run() {
         auto frame = window->AcquireNext();
 
         // update camera projection
-        arcball->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0);
+        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0);
 
-        // update input for arcball
-        arcball->SetExtent(window->GetExtent());
-        arcball->Update(input);
+        // update input for camera
+        camera->SetExtent(window->GetExtent());
+        camera->Update(input);
+        time->Update();
 
         CPUCulling sceneFilter;
         CPUCulling gizmoFilter;
 
         // update scene nodes
-        sceneFilter.Cull(skybox->scene, arcball);
+        sceneFilter.Cull(skybox->scene, camera);
         if (root) {
-            root->SetTransform(arcball->GetModelMatrix());
-            root->ApplyTransform();
-            sceneFilter.Cull(root, arcball);
+            sceneFilter.Cull(root, camera);
         }
         sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         sceneFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
         // add gizmo
-        gizmo->scene->SetTransform(arcball->GetModelMatrix(false));
         gizmo->scene->Scale(0.1, 0.1, 0.1);
         gizmo->scene->ApplyTransform();
-        gizmoFilter.Cull(gizmo->scene, arcball);
+        gizmoFilter.Cull(gizmo->scene, camera);
         gizmoFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         gizmoFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
@@ -70,7 +68,7 @@ void GLTFViewer::Run() {
             }
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(arcball, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(camera, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
             #if 1
@@ -80,7 +78,7 @@ void GLTFViewer::Run() {
             gizmoPass->SetDepthStencil(gizmoDepthBuffer, ClearValue(1.0f, 0));
             gizmoPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
-                renderer.Draw(arcball, gizmoFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
+                renderer.Draw(camera, gizmoFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
             #endif
         }
@@ -121,14 +119,15 @@ void GLTFViewer::InitWindow() {
 
 void GLTFViewer::InitInput() {
     input = SlimPtr<Input>(window);
+    time = SlimPtr<Time>();
 }
 
 void GLTFViewer::InitCamera() {
-    arcball = SlimPtr<Arcball>();
-    arcball->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-    arcball->SetDamping(0.95);
-    arcball->SetSensitivity(0.5);
-    arcball->SetExtent(window->GetExtent());
+    camera = SlimPtr<Arcball>();
+    camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    camera->SetDamping(0.95);
+    camera->SetSensitivity(0.5);
+    camera->SetExtent(window->GetExtent());
 }
 
 void GLTFViewer::InitGizmo() {
@@ -174,9 +173,9 @@ void GLTFViewer::LoadModel() {
     manager = SlimPtr<GLTFAssetManager>(device, builder);
 
     device->Execute([&](CommandBuffer* commandBuffer) {
-        model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
+        // model = manager->Load(commandBuffer, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"));
         // model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf");
-        // model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/WaterBottle/glTF/WaterBottle.gltf");
+        model = manager->Load(commandBuffer, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/WaterBottle/glTF/WaterBottle.gltf");
 
         // attaching lut + env to materials
         for (auto material: model.materials) {

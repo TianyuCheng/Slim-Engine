@@ -5,10 +5,11 @@
 #include <string>
 #include <chrono>
 #include "core/input.h"
+#include "utility/interface.h"
 
 namespace slim {
 
-    class Time {
+    class Time : public ReferenceCountable {
     public:
         explicit Time();
         virtual ~Time() = default;

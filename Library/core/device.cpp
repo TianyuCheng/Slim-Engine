@@ -145,6 +145,15 @@ void Device::InitLogicalDevice() {
     if (queueFamilyIndices.transfer.has_value()) {
         vkGetDeviceQueue(handle, queueFamilyIndices.transfer.value(), 0, &transferQueue);
     }
+
+    // check if debug extension is enabled
+    if (debugExtPresent) {
+        if (debugExtPresent && deviceTable.vkCmdDebugMarkerBeginEXT      == VK_NULL_HANDLE) debugExtPresent = false;
+        if (debugExtPresent && deviceTable.vkCmdDebugMarkerEndEXT        == VK_NULL_HANDLE) debugExtPresent = false;
+        if (debugExtPresent && deviceTable.vkCmdDebugMarkerInsertEXT     == VK_NULL_HANDLE) debugExtPresent = false;
+        if (debugExtPresent && deviceTable.vkDebugMarkerSetObjectNameEXT == VK_NULL_HANDLE) debugExtPresent = false;
+        if (debugExtPresent && deviceTable.vkDebugMarkerSetObjectTagEXT  == VK_NULL_HANDLE) debugExtPresent = false;
+    }
 }
 
 void Device::InitMemoryAllocator() {

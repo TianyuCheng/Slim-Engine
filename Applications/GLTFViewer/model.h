@@ -81,6 +81,7 @@ private:
     void ReadVertexJoints0(std::vector<GLTFVertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor);
     void ReadVertexWeights0(std::vector<GLTFVertex>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor);
     void ReadIndices(std::vector<uint32_t>& vertices, const tinygltf::Model& model, const tinygltf::Accessor& accessor);
+    void MakeTangents(std::vector<GLTFVertex>& vertices, const std::vector<uint32_t>& indices, bool verbose);
 
 private:
     SmartPtr<Device>                  device;

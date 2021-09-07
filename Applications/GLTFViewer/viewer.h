@@ -35,7 +35,8 @@ private:
     SmartPtr<Input>            input;
     SmartPtr<Gizmo>            gizmo;
     SmartPtr<Skybox>           skybox;
-    SmartPtr<Arcball>          arcball;
+    SmartPtr<Arcball>          camera;
+    SmartPtr<Time>             time;
     SmartPtr<GLTFAssetManager> manager;
 
     SmartPtr<scene::Builder>   builder;

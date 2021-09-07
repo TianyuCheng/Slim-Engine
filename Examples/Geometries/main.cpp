@@ -199,27 +199,25 @@ int main() {
         // update scene
         if (changed || node == nullptr) {
             // clear builder nodes
-            builder->Clear();
+            auto newBuilder = SlimPtr<scene::Builder>(device);
 
             switch (selectedGeometry) {
-                case PLANE:    node = CreateGeometry(builder, material, geometries.plane);    break;
-                case CUBE:     node = CreateGeometry(builder, material, geometries.cube);     break;
-                case SPHERE:   node = CreateGeometry(builder, material, geometries.sphere);   break;
-                case CONE:     node = CreateGeometry(builder, material, geometries.cone);     break;
-                case CYLINDER: node = CreateGeometry(builder, material, geometries.cylinder); break;
+                case PLANE:    node = CreateGeometry(newBuilder, material, geometries.plane);    break;
+                case CUBE:     node = CreateGeometry(newBuilder, material, geometries.cube);     break;
+                case SPHERE:   node = CreateGeometry(newBuilder, material, geometries.sphere);   break;
+                case CONE:     node = CreateGeometry(newBuilder, material, geometries.cone);     break;
+                case CYLINDER: node = CreateGeometry(newBuilder, material, geometries.cylinder); break;
             }
-            node->SetTransform(arcball->GetModelMatrix());
 
             // rebuild geometry vbo/ibo
             device->WaitIdle();
+            builder = newBuilder;
             builder->Build();
         }
 
         // controller
         arcball->SetExtent(window->GetExtent());
-        if (arcball->Update(input)) {
-            node->SetTransform(arcball->GetModelMatrix());
-        }
+        arcball->Update(input);
 
         // transform scene nodes
         node->ApplyTransform();

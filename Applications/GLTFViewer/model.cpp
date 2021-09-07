@@ -269,6 +269,7 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
             std::vector<uint32_t> indices;
 
             constexpr bool verbose = false;
+            bool hasTangent = false;
 
             for (const auto& kv : primitive.attributes) {
                 const auto& attrib = kv.first;
@@ -287,6 +288,7 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
                 else if (attrib == "TANGENT") {
                     if (verbose) std::cout << "[LoadModel] Loading vertex attrib: TANGENT" << std::endl;
                     ReadVertexTangent(vertices, model, accessor);
+                    hasTangent = true;
                 }
 
                 else if (attrib == "TEXCOORD_0") {
@@ -319,6 +321,11 @@ void GLTFAssetManager::LoadMeshes(GLTFModel &result, const tinygltf::Model& mode
             if (primitive.indices >= 0) {
                 if (verbose) std::cout << "[LoadModel] Loading index attrib" << std::endl;
                 ReadIndices(indices, model, model.accessors[primitive.indices]);
+            }
+
+            // tangent?
+            if (!hasTangent) {
+                MakeTangents(vertices, indices, verbose);
             }
 
             GLTFPrimitive prim;
@@ -713,5 +720,54 @@ void GLTFAssetManager::ReadIndices(std::vector<uint32_t>& indices, const tinyglt
             const uint32_t* p = (uint32_t*)(data);
             indices[i] = p[0];
         }
+    }
+}
+
+// https://stackoverflow.com/Questions/5255806/how-to-calculate-tangent-and-binormal
+void GLTFAssetManager::MakeTangents(std::vector<GLTFVertex>& vertices, const std::vector<uint32_t>& indices, bool verbose) {
+    uint32_t nIndices = indices.size();
+    uint32_t inconsistentUvs = 0;
+    for (uint32_t i : indices) {
+        vertices[i].tangent = glm::vec4(0.0);
+    }
+    for (uint32_t l = 0; l < nIndices; l++) {
+        uint32_t i = indices[l];
+        uint32_t j = indices[(l + 1) % nIndices];
+        uint32_t k = indices[(l + 2) % nIndices];
+        glm::vec3 n = vertices[i].normal;
+        glm::vec3 v1 = vertices[j].pos - vertices[i].pos, v2 = vertices[k].pos - vertices[i].pos;
+        glm::vec2 t1 = vertices[j].uv0 - vertices[i].uv0, t2 = vertices[k].uv0 - vertices[i].uv0;
+
+        // Is the texture flipped?
+        float uv2xArea = t1.x * t2.y - t1.y * t2.x;
+        if (std::abs(uv2xArea) < 0x1p-20) {
+            continue;  // Smaller than 1/2 pixel at 1024x1024
+        }
+
+        float flip = uv2xArea > 0 ? 1 : -1;
+        // 'flip' or '-flip'; depends on the handedness of the space.
+        if (vertices[i].tangent.w != 0 && vertices[i].tangent.w != -flip) {
+            ++inconsistentUvs;
+        }
+        vertices[i].tangent.w = -flip;
+
+        // Project triangle onto tangent plane
+        v1 -= n * dot(v1, n);
+        v2 -= n * dot(v2, n);
+        // Tangent is object space direction of texture coordinates
+        glm::vec3 s = glm::normalize((t2.y * v1 - t1.y * v2) * flip);
+
+        // Use angle between projected v1 and v2 as weight
+        float angle = std::acos(dot(v1, v2) / (length(v1) * length(v2)));
+        vertices[i].tangent += glm::vec4(s * angle, 0);
+
+        std::cout << "tangent: " << glm::to_string(vertices[i].tangent) << std::endl;
+    }
+    for (uint32_t i : indices) {
+        glm::vec4& t = vertices[i].tangent;
+        vertices[i].tangent = glm::vec4(normalize(glm::vec3(t.x, t.y, t.z)), t.w);
+    }
+    if (verbose) {
+        std::cerr << inconsistentUvs << " inconsistent UVs\n";
     }
 }

@@ -20,7 +20,7 @@ namespace slim {
         void SetWalkSpeed(float speed);
         void SetRotateSpeed(float speed);
 
-        void Update(Input *input, const Time &time);
+        void Update(Input *input, Time *time);
 
         // camera view matrix
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up) override;

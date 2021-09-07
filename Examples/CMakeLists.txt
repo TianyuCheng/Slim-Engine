@@ -10,4 +10,7 @@ add_subdirectory(DynamicUniform)
 add_subdirectory(DescriptorIndexing)
 add_subdirectory(Geometries)
 add_subdirectory(Skybox)
-add_subdirectory(RayTracing)
+
+if (WIN32)
+    add_subdirectory(RayTracing)
+endif (WIN32)
