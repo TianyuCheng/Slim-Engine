@@ -1,25 +1,51 @@
-/*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2021 NVIDIA CORPORATION
- * SPDX-License-Identifier: Apache-2.0
- */
-
-// This file is copied from NVIDIA's tutorial, with my personal modification.
+const float PI = 3.1415926;
+const float RAY_BIAS = 0.0001;
 
 struct HitPayload
 {
-    vec3 hitValue;
+    vec3 position;
+    vec3 direction;
+    vec3 normal;
+    vec3 color;
+    vec3 fraction;
+    bool terminate;
 };
+
+struct Vertex
+{
+  vec3 position;
+  vec3 normal;
+  vec2 texCoord;
+};
+
+struct Material {
+    vec4 baseColor;
+    vec4 emissiveColor;
+};
+
+uint step_rng(uint rngState) {
+    return rngState * 747796405 + 1;
+}
+
+float random_float(inout uint rngState) {
+    rngState = step_rng(rngState);
+    uint word = ((rngState >> ((rngState >> 28) + 4)) ^ rngState) * 277803737;
+    word = (word >> 22) ^ word;
+    return float(word) / 4294967295.0;
+}
+
+vec3 uniform_sample_hemisphere(float u1, float u2) {
+    float r = sqrt(1.0 - u1 * u1);
+    float phi = 2 * PI * u2;
+    vec3 dir = vec3(cos(phi) * r, sin(phi) * r, u1);
+    return dir;
+}
+
+vec3 cosine_sample_hemisphere(float u1, float u2) {
+	float r = sqrt(u1);
+	float theta = 2 * PI * u2;
+	float x = r * cos(theta);
+	float y = r * sin(theta);
+	vec3 dir = vec3(x, y, sqrt(max(0.0f, 1 - u1)));
+    return dir;
+}

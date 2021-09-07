@@ -28,5 +28,6 @@ layout(location = 0) rayPayloadInEXT HitPayload prd;
 
 void main()
 {
-    prd.hitValue = vec3(0.0, 0.5, 1.0); // use a special blue color for background
+    prd.color = vec3(0.0, 0.0, 0.0);
+    prd.terminate = true;
 }

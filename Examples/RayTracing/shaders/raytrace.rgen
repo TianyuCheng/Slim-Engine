@@ -1,24 +1,3 @@
-/*
- * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * SPDX-FileCopyrightText: Copyright (c) 2019-2021 NVIDIA CORPORATION
- * SPDX-License-Identifier: Apache-2.0
- */
-
-// This file is copied from NVIDIA's tutorial, with my personal modification.
-
 #version 460
 #extension GL_EXT_ray_tracing : require
 #extension GL_GOOGLE_include_directive : enable
@@ -38,6 +17,11 @@ layout(set = 1, binding = 0) uniform CameraProperties {
     mat4 projInverse;
 } cam;
 
+// push constant
+layout(push_constant) uniform FrameInfo {
+    uint frame;
+} frame;
+
 // ray payload
 layout(location = 0) rayPayloadEXT HitPayload prd;
 
@@ -47,25 +31,65 @@ void main() {
     vec2       d           = inUV * 2.0 - 1.0;
 
     vec4 origin    = cam.viewInverse * vec4(0, 0, 0, 1);
-    vec4 target    = cam.projInverse * vec4(d.x, d.y, 1, 1);
-    vec4 direction = cam.viewInverse * vec4(normalize(target.xyz), 0);
+    vec4 camera    = vec4(0.0, 0.0, 0.0, 1.0);
 
     uint  rayFlags = gl_RayFlagsOpaqueEXT;
     float tMin     = 0.001;
     float tMax     = 10000.0;
 
-    traceRayEXT(topLevelAS,     // acceleration structure
-            rayFlags,           // rayFlags
-            0xFF,               // cullMask
-            0,                  // sbtRecordOffset
-            0,                  // sbtRecordStride
-            0,                  // missIndex
-            origin.xyz,         // ray origin
-            tMin,               // ray min range
-            direction.xyz,      // ray direction
-            tMax,               // ray max range
-            0                   // payload (location = 0)
-            );
+    uint maxBounces = 8;
+    uint maxSamples = 128;
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(prd.hitValue, 1.0));
+    // Initialize prng state
+    uint rngState = gl_LaunchIDEXT.x * gl_LaunchIDEXT.y + frame.frame;
+
+    /* vec3 finalColor = imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).xyz; */
+    vec3 finalColor = vec3(0.0);
+
+    for (uint spp = 0; spp < maxSamples; spp++) {
+        // Tweaking camera slightly for different samples
+        float rn1 = random_float(rngState);
+        float rn2 = random_float(rngState);
+        vec4 target    = cam.projInverse * vec4(d.x + rn1 / 700.0, d.y + rn2 / 700.0, 0, 1);
+        vec4 direction = normalize(target - camera);
+
+        // Reset ray payload
+        prd.position = origin.xyz;
+        prd.direction = direction.xyz;
+        prd.color = vec3(0.0);
+        prd.fraction = vec3(1.0);
+        prd.terminate = false;
+
+        vec3 color = vec3(0.0);
+
+        // expand hit shader recursion to loop
+        for (uint bounce = 0; bounce < maxBounces; bounce++) {
+            traceRayEXT(topLevelAS,     // acceleration structure
+                    rayFlags,           // rayFlags
+                    0xFF,               // cullMask
+                    0,                  // sbtRecordOffset
+                    0,                  // sbtRecordStride
+                    0,                  // missIndex
+                    prd.position,       // ray origin
+                    tMin,               // ray min range
+                    prd.direction,      // ray direction
+                    tMax,               // ray max range
+                    0                   // payload (location = 0)
+                    );
+
+            color += prd.color;
+
+            // hitting the miss shader
+            if (prd.terminate) break;
+
+            // update ray origin and direction for the next bounce
+            float u = random_float(rngState);
+            float v = random_float(rngState);
+            prd.direction = cosine_sample_hemisphere(u, v);
+        }
+
+        finalColor += color / maxSamples;
+    }
+
+    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(finalColor, 1.0));
 }

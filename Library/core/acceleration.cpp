@@ -74,7 +74,7 @@ void accel::Instance::AddInstances(Buffer* instanceBuffer, uint64_t instanceOffs
     geometries.push_back(VkAccelerationStructureGeometryKHR { });
     auto& geometry = geometries.back();
     geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-    geometry.flags = 0;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // TODO: force opaque objcet for now
     geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(instanceBuffer);
@@ -127,7 +127,7 @@ void accel::Geometry::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t index
 
     // prepare geometry data
     geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-    geometry.flags = 0;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // TODO: force opaque objcet for now
     geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
     geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
     geometry.geometry.triangles.indexType = indexType;

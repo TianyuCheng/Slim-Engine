@@ -77,10 +77,10 @@ int main() {
     }
 
     // create materials
-    auto whiteMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
-    auto redMaterial   = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
-    auto greenMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 1.0) });
-    auto lightMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 0.0, 1.0, 1.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
+    auto whiteMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto redMaterial   = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto greenMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto lightMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 0.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
 
     // create scene
     auto sceneRoot = sceneBuilder->CreateNode("root");
@@ -107,26 +107,25 @@ int main() {
         ceilingNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
         ceilingNode->SetDraw(planeMesh, whiteMaterial);
 
-        backWallNode->Translate(0.0, 0.0, -0.5);
         backWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI / 2.0);
         backWallNode->SetDraw(planeMesh, whiteMaterial);
 
         leftWallNode->Translate(-0.5, 0.0, 0.0);
         leftWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
         leftWallNode->Rotate(glm::vec3(0.0, 0.0, 1.0), -M_PI / 2);
-        leftWallNode->SetDraw(planeMesh, greenMaterial);
+        leftWallNode->SetDraw(planeMesh, redMaterial);
 
         rightWallNode->Translate(0.5, 0.0, 0.0);
         rightWallNode->Rotate(glm::vec3(1.0, 0.0, 0.0), M_PI);
         rightWallNode->Rotate(glm::vec3(0.0, 0.0, 1.0), M_PI / 2);
-        rightWallNode->SetDraw(planeMesh, redMaterial);
+        rightWallNode->SetDraw(planeMesh, greenMaterial);
 
-        shortBoxNode->Translate(0.1, -0.25, 0.4);
+        shortBoxNode->Translate(0.1, -0.25, 0.5);
         shortBoxNode->Rotate(glm::vec3(0.0, 1.0, 0.0), M_PI / 4.0);
         shortBoxNode->Scale(0.5, 0.5, 0.5);
         shortBoxNode->SetDraw(cubeMesh, whiteMaterial);
 
-        tallBoxNode->Translate(-0.2, -0.15, 0.1);
+        tallBoxNode->Translate(-0.2, -0.15, 0.2);
         tallBoxNode->Rotate(glm::vec3(0.0, 1.0, 0.0), M_PI / 4.0);
         tallBoxNode->Scale(0.5, 1.0, 0.5);
         tallBoxNode->SetDraw(cubeMesh, whiteMaterial);
@@ -181,8 +180,9 @@ int main() {
             .SetRayGenShader(rayGenShader)
             .SetMissShader(rayMissShader)
             .SetClosestHitShader(closestShader)
-            .SetMaxRayRecursionDepth(4)
+            .SetMaxRayRecursionDepth(3)
             .SetPipelineLayout(PipelineLayoutDesc()
+                .AddPushConstant("Frame", 0, sizeof(uint32_t), VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                 .AddBinding("Accel",     0, 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
                 .AddBinding("Image",     0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                 .AddBinding("Camera",    1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
@@ -199,14 +199,29 @@ int main() {
 
     auto cameraUniformBuffer = SlimPtr<Buffer>(device, sizeof(CameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        commandBuffer->PrepareForTransferDst(rtImage);
+        VkClearColorValue clear = {};
+        clear.float32[0] = 0.0f;
+        clear.float32[1] = 0.0f;
+        clear.float32[2] = 0.0f;
+        clear.float32[3] = 0.0f;
+        VkImageSubresourceRange range = {};
+        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        range.baseMipLevel = 0;
+        range.levelCount = 1;
+        range.baseArrayLayer = 0;
+        range.layerCount = 1;
+        vkCmdClearColorImage(*commandBuffer, *rtImage, rtImage->layouts[0][0], &clear, 1, &range);
+    });
+
+    uint32_t frameId = 0;
     while (window->IsRunning()) {
         Window::PollEvents();
+        frameId++;
 
         // get current render frame
         auto frame = window->AcquireNext();
-
-        uint32_t width = frame->GetExtent().width;
-        uint32_t height = frame->GetExtent().height;
 
         // update camera perspective matrix based on frame aspect ratio
         camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0);
@@ -242,6 +257,7 @@ int main() {
                 descriptor->SetUniformBuffer("Camera", cameraUniformBuffer);
                 descriptor->SetStorageBuffer("Scenes", instanceBuffer);
                 commandBuffer->BindDescriptor(descriptor, rtPipeline->Type());
+                commandBuffer->PushConstants(rtPipeline->Layout(), "Frame", &frameId);
 
                 // ray trace
                 vkCmdTraceRaysKHR(*commandBuffer,
@@ -249,7 +265,7 @@ int main() {
                                   rtPipeline->GetMissRegion(),
                                   rtPipeline->GetHitRegion(),
                                   rtPipeline->GetCallableRegion(),
-                                  width, height, 1);
+                                  512, 512, 1);
             });
 
             auto colorPass = renderGraph.CreateRenderPass("color");
