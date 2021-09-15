@@ -5,21 +5,38 @@
 
 // material set
 layout(set = 1, binding = 0) uniform MaterialFactors {
-    vec4  baseColorFactor;
-    int   baseColorTexCoord;
+    vec4      baseColor;
+    vec4      emissive;
 
-    float metallicFactor;
-    float roughnessFactor;
-    int   metallicRoughnessTexCoord;
+    // metalness, roughness, occlusion, normal scale
+    float     metalness;
+    float     roughness;
+    float     occlusion;
+    float     normalScale;
 
-    vec3  emissiveFactor;
-    int   emissiveTexCoord;
+    // texture coord set
+    int       baseColorTexCoordSet;
+    int       emissiveTexCoordSet;
+    int       occlusionTexCoordSet;
+    int       normalTexCoordSet;
+    int       metallicRoughnessTexCoordSet;
 
-    float occlusionFactor;
-    int   occlusionTexCoord;
+    // texture info (reserved for descriptor indexing)
+    int       baseColorTexture;
+    int       emissiveTexture;
+    int       occlusionTexture;
+    int       normalTexture;
+    int       metallicRoughnessTexture;
 
-    float normalTexScale;
-    int   normalTexCoord;
+    // sampler info (reserved for descriptor indexing)
+    int       baseColorSampler;
+    int       emissiveSampler;
+    int       occlusionSampler;
+    int       normalSampler;
+    int       metallicRoughnessSampler;
+
+    // other information
+    int       alphaMode;
 } materialFactors;
 layout(set = 1, binding = 1) uniform sampler2D baseColorTexture;
 layout(set = 1, binding = 2) uniform sampler2D metallicRoughnessTexture;
@@ -122,50 +139,51 @@ void main() {
 
     // retrieve metallic roughness
     vec2 metallicRoughness;
-    metallicRoughness.x = materialFactors.metallicFactor;
-    metallicRoughness.y = materialFactors.roughnessFactor;
-    if (materialFactors.metallicRoughnessTexCoord == 0) {
+    metallicRoughness.x = materialFactors.metalness;
+    metallicRoughness.y = materialFactors.roughness;
+    if (materialFactors.metallicRoughnessTexCoordSet == 0) {
         metallicRoughness = texture(metallicRoughnessTexture, inUV0).xy;
-    } else if (materialFactors.metallicRoughnessTexCoord == 1) {
+    } else if (materialFactors.metallicRoughnessTexCoordSet == 1) {
         metallicRoughness = texture(metallicRoughnessTexture, inUV1).xy;
     }
     float metallic = metallicRoughness.x;
     float perceptualRoughness = metallicRoughness.y;
 
     // retrieve normal
-    if (materialFactors.normalTexCoord == 0) {
+    if (materialFactors.normalTexCoordSet == 0) {
         vec3 perturb = texture(normalTexture, inUV0).xyz * 2.0 - 1.0;
         mat3 tbn = ComputeTBN(inNormal, inPosition, inUV0);
-        n = normalize(n + tbn * perturb * materialFactors.normalTexScale);
-    } else if (materialFactors.normalTexCoord == 1) {
+        n = normalize(n + tbn * perturb * materialFactors.normalScale);
+    } else if (materialFactors.normalTexCoordSet == 1) {
         vec3 perturb = texture(normalTexture, inUV1).xyz * 2.0 - 1.0;
         mat3 tbn = ComputeTBN(inNormal, inPosition, inUV1);
-        n = normalize(n + tbn * perturb * materialFactors.normalTexScale);
+        n = normalize(n + tbn * perturb * materialFactors.normalScale);
     }
 
     // ambient occlusion
-    float occlusion = materialFactors.occlusionFactor;
-    if (materialFactors.occlusionTexCoord == 0) {
+    float occlusion = materialFactors.occlusion;
+    if (materialFactors.occlusionTexCoordSet == 0) {
         occlusion = texture(occlusionTexture, inUV0).x;
-    } else if (materialFactors.occlusionTexCoord == 1) {
+    } else if (materialFactors.occlusionTexCoordSet == 1) {
         occlusion = texture(occlusionTexture, inUV1).x;
     }
 
     // emissive
-    vec3 emissive = materialFactors.emissiveFactor;
-    if (materialFactors.emissiveTexCoord == 0) {
+    vec3 emissive = materialFactors.emissive.xyz;
+    if (materialFactors.emissiveTexCoordSet == 0) {
         emissive = texture(emissiveTexture, inUV0).xyz;
-    } else if (materialFactors.emissiveTexCoord == 1) {
+    } else if (materialFactors.emissiveTexCoordSet == 1) {
         emissive = texture(emissiveTexture, inUV1).xyz;
     }
 
     // base color
-    vec4 baseColor = materialFactors.baseColorFactor;
-    if (materialFactors.baseColorTexCoord == 0) {
+    vec4 baseColor = materialFactors.baseColor;
+    if (materialFactors.baseColorTexCoordSet == 0) {
         baseColor *= texture(baseColorTexture, inUV0);
-    } else if (materialFactors.baseColorTexCoord == 1) {
+    } else if (materialFactors.baseColorTexCoordSet == 1) {
         baseColor *= texture(baseColorTexture, inUV1);
     }
+    baseColor *= texture(baseColorTexture, inUV0);
 
     // for dielectrics, base color is treated as reflectance
     // for conductors, base color is f0

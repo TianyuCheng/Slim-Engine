@@ -2,12 +2,30 @@
 
 using namespace slim;
 
+Material::Material(Device *device) : device(device), technique(nullptr) {
+    // a material should not need too many descriptors,
+    // 32 should be large enough for most cases without
+    // needing to create additional descriptorPool
+    descriptorPool = SlimPtr<DescriptorPool>(device, 32);
+    uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(device);
+}
+
 Material::Material(Device *device, Technique *technique) : device(device), technique(technique) {
     // a material should not need too many descriptors,
     // 32 should be large enough for most cases without
     // needing to create additional descriptorPool
     descriptorPool = SlimPtr<DescriptorPool>(device, 32);
     uniformBufferPool = SlimPtr<BufferPool<UniformBuffer>>(device);
+
+    SetTechnique(technique);
+}
+
+Material::~Material() {
+
+}
+
+void Material::SetTechnique(Technique* technique) {
+    if (technique == nullptr) return;
 
     // need to initialize layout
     for (Technique::Pass &pass : *technique) {
@@ -18,10 +36,8 @@ Material::Material(Device *device, Technique *technique) : device(device), techn
     for (Technique::Pass &pass : *technique) {
         descriptors.push_back(SlimPtr<Descriptor>(descriptorPool, pass.desc.Layout()));
     }
-}
 
-Material::~Material() {
-
+    this->technique = technique;
 }
 
 void Material::SetTexture(const std::string &name, Image *texture, Sampler *sampler) {

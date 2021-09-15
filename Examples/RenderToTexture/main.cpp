@@ -13,6 +13,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -92,7 +93,7 @@ int main() {
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                         .SetRenderPass(info.renderPass)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                         )
                 );
 

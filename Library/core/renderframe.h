@@ -58,10 +58,12 @@ namespace slim {
         void                     Reset();
         void                     Invalidate();
         void                     Present(CommandBuffer *commandBuffer);
+        void                     Draw(CommandBuffer *commandBuffer);
         void                     SetBackBuffer(GPUImage *backBuffer);
-
         Fence*                   GetGraphicsFinishFence();
         Fence*                   GetComputeFinishFence();
+
+        bool                     Presentable() const { return swapchain != VK_NULL_HANDLE; }
 
     private:
         SmartPtr<Device>         device;

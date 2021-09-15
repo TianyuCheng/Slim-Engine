@@ -59,8 +59,10 @@ void Device::InitLogicalDevice() {
         }
     }
 
+    bool verbose = context->GetDescription().verbose;
+
     // list all device extensions
-    if (deviceExtensions.size()) {
+    if (verbose && deviceExtensions.size()) {
         std::cout << "[CreateDevice] with extensions: " << std::endl;
         for (auto &extension : deviceExtensions) {
             std::cout << "- " << extension << std::endl;
@@ -70,9 +72,13 @@ void Device::InitLogicalDevice() {
     // list all debug extensions
     if (debugExtensions.size()) {
         debugExtPresent = true;
-        std::cout << "[CreateDevice] with debug extensions: " << std::endl;
-        for (auto &extension : debugExtensions) {
-            std::cout << "- " << extension << std::endl;
+        if (verbose) {
+            std::cout << "[CreateDevice] with debug extensions: " << std::endl;
+        }
+        if (verbose) {
+            for (auto &extension : debugExtensions) {
+                std::cout << "- " << extension << std::endl;
+            }
         }
         auto unsatisfied = CheckDeviceExtensionSupport(physicalDevice, debugExtensions);
         if (!unsatisfied.empty()) {

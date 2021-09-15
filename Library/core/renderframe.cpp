@@ -108,6 +108,11 @@ void RenderFrame::Present(CommandBuffer *commandBuffer) {
     }
 }
 
+void RenderFrame::Draw(CommandBuffer *commandBuffer) {
+    commandBuffer->Signal(renderFinishesSemaphore);
+    commandBuffer->Submit();
+}
+
 Pipeline* RenderFrame::RequestPipeline(const ComputePipelineDesc &desc) {
     const std::string &name = desc.GetName();
     auto it = pipelines.find(name);

@@ -22,6 +22,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -114,11 +115,11 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddPushConstant("Material", 0, sizeof(int), VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding     ("Camera",   0, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding     ("Sampler",  0, 1,    VK_DESCRIPTOR_TYPE_SAMPLER,        VK_SHADER_STAGE_FRAGMENT_BIT)
-                            .AddBindingArray("Images",   1, 0, T, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) // bindless
-                            .AddBinding     ("Models",   2, 0,    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddPushConstant("Material", Range      { 0, 4 },    VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding     ("Camera",   SetBinding { 0, 0 },    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding     ("Sampler",  SetBinding { 0, 1 },    VK_DESCRIPTOR_TYPE_SAMPLER,        VK_SHADER_STAGE_FRAGMENT_BIT)
+                            .AddBindingArray("Images",   SetBinding { 1, 0 }, T, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,  VK_SHADER_STAGE_FRAGMENT_BIT, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT) // bindless
+                            .AddBinding     ("Models",   SetBinding { 2, 0 },    VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
                         )
                 );
 

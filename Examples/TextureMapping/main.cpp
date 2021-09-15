@@ -13,6 +13,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -98,8 +99,8 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                            .AddBinding("Albedo", 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                            .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                            .AddBinding("Albedo", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                         )
                 );
 

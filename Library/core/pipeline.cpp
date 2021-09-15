@@ -13,30 +13,38 @@ using namespace slim;
 // |_|   |_| .__/ \___|_|_|_| |_|\___|_____\__,_|\__, |\___/ \__,_|\__|____/ \___||___/\___|
 //         |_|                                   |___/
 
-PipelineLayoutDesc& PipelineLayoutDesc::AddPushConstant(const std::string &name, uint32_t offset, uint32_t size,
+PipelineLayoutDesc& PipelineLayoutDesc::AddPushConstant(const std::string &name,
+                                                        const Range& range,
                                                         VkShaderStageFlags stages) {
     pushConstantNames.push_back(name);
     pushConstantRange.push_back(VkPushConstantRange {
-        stages, offset, size
+        stages, range.offset, range.size
     });
     return *this;
 }
 
-PipelineLayoutDesc& PipelineLayoutDesc::AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                                   VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags) {
-    return AddBindingArray(name, set, binding, 1, descriptorType, stages, flags);
+PipelineLayoutDesc& PipelineLayoutDesc::AddBinding(const std::string &name,
+                                                   const SetBinding& binding,
+                                                   VkDescriptorType descriptorType,
+                                                   VkShaderStageFlags stages,
+                                                   VkDescriptorBindingFlags flags) {
+    return AddBindingArray(name, binding, 1, descriptorType, stages, flags);
 }
 
-PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                                        VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags) {
-    auto it = bindings.find(set);
+PipelineLayoutDesc& PipelineLayoutDesc::AddBindingArray(const std::string &name,
+                                                        const SetBinding& binding,
+                                                        uint32_t count,
+                                                        VkDescriptorType descriptorType,
+                                                        VkShaderStageFlags stages,
+                                                        VkDescriptorBindingFlags flags) {
+    auto it = bindings.find(binding.set);
     if (it == bindings.end()) {
-        bindings.insert(std::make_pair(set, std::vector<DescriptorSetLayoutBinding>()));
-        it = bindings.find(set);
+        bindings.insert(std::make_pair(binding.set, std::vector<DescriptorSetLayoutBinding>()));
+        it = bindings.find(binding.set);
     }
 
     it->second.push_back(DescriptorSetLayoutBinding {
-        name, set, binding, descriptorType, count, stages, flags,
+        name, binding.set, binding.binding, descriptorType, count, stages, flags,
     });
 
     return *this;

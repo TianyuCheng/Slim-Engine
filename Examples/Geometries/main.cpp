@@ -35,6 +35,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -78,8 +79,8 @@ int main() {
             .SetDepthTest(VK_COMPARE_OP_LESS)
             // .SetPolygonMode(VK_POLYGON_MODE_LINE)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
+                .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
 
     // create the first material
     auto material = SlimPtr<Material>(device, technique);

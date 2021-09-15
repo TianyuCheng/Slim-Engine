@@ -34,6 +34,7 @@
 #include "utility/arcball.h"
 #include "utility/flycam.h"
 #include "utility/time.h"
+#include "utility/gltf.h"
 
 // third party
 #include <imgui.h>

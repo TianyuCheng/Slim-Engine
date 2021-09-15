@@ -15,6 +15,11 @@ ContextDesc::ContextDesc() {
     debugExtensions.insert(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
 }
 
+ContextDesc& ContextDesc::Verbose(bool value) {
+    verbose = value;
+    return *this;
+}
+
 ContextDesc& ContextDesc::EnableValidation(bool value) {
     if (value) {
         PrepareForValidation();
@@ -181,19 +186,25 @@ void ContextDesc::PrepareForValidation() {
 
     // list all instance layers
     if (validationLayers.size()) {
-        std::cout << "[CreateInstance] with validation layers: " << std::endl;
-        for (auto &layer : validationLayers)
-            std::cout << "- " << layer << std::endl;
+        if (verbose) {
+            std::cout << "[CreateInstance] with validation layers: " << std::endl;
+            for (auto &layer : validationLayers)
+                std::cout << "- " << layer << std::endl;
+        }
     }
 
     // list all instance extensions
     if (instanceExtensions.size()) {
-        std::cout << "[CreateInstance] with instance extensions: " << std::endl;
+        if (verbose) {
+            std::cout << "[CreateInstance] with instance extensions: " << std::endl;
+        }
         std::vector<std::string> extensionsNotFound = {};
         for (auto &extension : instanceExtensions) {
             bool found = supportedInstanceExtensions.find(std::string(extension)) != supportedInstanceExtensions.end();
-            std::cout << "- " << extension << ": ";
-            std::cout << (found ? "FOUND" : "NOT FOUND") << std::endl;
+            if (verbose) {
+                std::cout << "- " << extension << ": ";
+                std::cout << (found ? "FOUND" : "NOT FOUND") << std::endl;
+            }
             if (!found) {
                 extensionsNotFound.push_back(std::string(extension));
             }

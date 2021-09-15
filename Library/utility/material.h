@@ -14,13 +14,11 @@ namespace slim {
 
     class Material final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
-        template <typename T>
-        explicit Material(const T& value) {
-            SetData(value);
-        }
-
+        explicit Material(Device* device);
         explicit Material(Device* device, Technique* technique);
         virtual ~Material();
+
+        void SetTechnique(Technique* technique);
 
         Technique* GetTechnique() const { return technique; }
 

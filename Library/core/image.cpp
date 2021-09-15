@@ -84,6 +84,7 @@ Image::Image(Device* device,
 
     VmaAllocationCreateInfo allocCreateInfo = {};
     allocCreateInfo.usage = memoryUsage;
+    allocCreateInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
 
     ErrorCheck(vmaCreateImage(allocator, &createInfo, &allocCreateInfo, &handle, &allocation, &allocInfo), "create image");
 

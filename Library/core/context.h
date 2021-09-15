@@ -24,6 +24,8 @@ namespace slim {
         explicit ContextDesc();
         virtual ~ContextDesc() = default;
 
+        ContextDesc& Verbose(bool value = true);
+
         // configure basic requirements
         ContextDesc& EnableValidation(bool value = true);
         ContextDesc& EnableGraphics(bool value = true);
@@ -61,6 +63,7 @@ namespace slim {
         bool graphics = false;
         bool compute = false;
         bool present = false;
+        bool verbose = false;
 
         // physical device features
         VkPhysicalDeviceFeatures2 features = {};

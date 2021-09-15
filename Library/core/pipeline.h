@@ -62,16 +62,41 @@ namespace slim {
         std::vector<DescriptorSetLayoutBinding> bindings;
     };
 
+    struct SetBinding {
+        uint32_t set;
+        uint32_t binding;
+    };
+
+    struct Range {
+        uint32_t offset;
+        uint32_t size;
+    };
+
     class PipelineLayoutDesc final {
         friend class PipelineLayout;
         friend class std::hash<PipelineLayoutDesc>;
     public:
-        PipelineLayoutDesc& AddPushConstant(const std::string &name, uint32_t offset, uint32_t size,
-                                            VkShaderStageFlags stages);
-        PipelineLayoutDesc& AddBinding(const std::string &name, uint32_t set, uint32_t binding,
-                                       VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags = 0);
-        PipelineLayoutDesc& AddBindingArray(const std::string &name, uint32_t set, uint32_t binding, uint32_t count,
-                                            VkDescriptorType descriptorType, VkShaderStageFlags stages, VkDescriptorBindingFlags flags = 0);
+
+        PipelineLayoutDesc& AddPushConstant(
+                const std::string &name,
+                const Range& range,
+                VkShaderStageFlags stages);
+
+        PipelineLayoutDesc& AddBinding(
+                const std::string &name,
+                const SetBinding& binding,
+                VkDescriptorType descriptorType,
+                VkShaderStageFlags stages,
+                VkDescriptorBindingFlags flags = 0);
+
+        PipelineLayoutDesc& AddBindingArray(
+                const std::string &name,
+                const SetBinding& binding,
+                uint32_t count,
+                VkDescriptorType descriptorType,
+                VkShaderStageFlags stages,
+                VkDescriptorBindingFlags flags = 0);
+
     private:
         mutable std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> bindings;
         std::vector<std::string> pushConstantNames;

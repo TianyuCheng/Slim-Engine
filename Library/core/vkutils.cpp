@@ -398,6 +398,7 @@ namespace slim {
                 subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
                 break;
             default:
+                std::cerr << "src layout: " << srcLayout << std::endl;
                 throw std::runtime_error("unimplemented image layout transition");
         }
 

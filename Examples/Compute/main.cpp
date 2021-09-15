@@ -8,6 +8,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -24,8 +25,8 @@ int main() {
             ComputePipelineDesc()
                 .SetComputeShader(shader)
                 .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddBinding("InputBuffer",  0, 0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("OutputBuffer", 0, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("InputBuffer",  SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("OutputBuffer", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
                 )
     );
 

@@ -67,9 +67,9 @@ struct Skybox : ReferenceCountable {
                 .SetDepthTest(VK_COMPARE_OP_ALWAYS, false)
                 .SetSampleCount(msaa)
                 .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                    .AddBinding("Skybox", 1, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                    .AddBinding("Model",  2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
+                    .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                    .AddBinding("Skybox", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                    .AddBinding("Model",  SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
 
 
         material = SlimPtr<Material>(commandBuffer->GetDevice(), technique);

@@ -60,9 +60,9 @@ struct Gizmo : ReferenceCountable {
                 .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                 .SetDepthTest(VK_COMPARE_OP_LESS_OR_EQUAL)
                 .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddBinding("Camera",           0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                    .AddBinding("Color",            1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
-                    .AddBinding("Model",            2, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                    .AddBinding("Camera",           SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                    .AddBinding("Color",            SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
+                    .AddBinding("Model",            SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
                 )
         );
 

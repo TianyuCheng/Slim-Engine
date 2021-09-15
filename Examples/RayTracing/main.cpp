@@ -30,6 +30,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -182,11 +183,11 @@ int main() {
             .SetClosestHitShader(closestShader)
             .SetMaxRayRecursionDepth(3)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddPushConstant("Frame", 0, sizeof(uint32_t), VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                .AddBinding("Accel",     0, 0, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                .AddBinding("Image",     0, 1, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                .AddBinding("Camera",    1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                .AddBinding("Scenes",    1, 1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                .AddPushConstant("Frame", Range      { 0, 4 }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                .AddBinding("Accel",      SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                .AddBinding("Image",      SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                .AddBinding("Camera",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                .AddBinding("Scenes",     SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
             ));
 
     // persistent resources

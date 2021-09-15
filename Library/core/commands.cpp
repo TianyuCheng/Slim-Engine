@@ -1,6 +1,7 @@
 #include "core/debug.h"
 #include "core/commands.h"
 #include "core/vkutils.h"
+#include "utility/stb.h"
 
 using namespace slim;
 
@@ -220,9 +221,10 @@ void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffse
     copy.dstSubresource.baseArrayLayer = dstBaseLayer;
     copy.dstSubresource.layerCount = dstLayerCount;
     copy.dstSubresource.mipLevel = dstMipLevel;
+    copy.extent = srcImage->GetExtent();
     DeviceDispatch(vkCmdCopyImage(handle,
                    *srcImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
-                   *dstImage, srcImage->layouts[srcBaseLayer][srcMipLevel],
+                   *dstImage, dstImage->layouts[srcBaseLayer][srcMipLevel],
                    1, &copy));
 }
 
@@ -348,7 +350,7 @@ void CommandBuffer::PrepareForMemoryMapping(Image *image) {
         image->layouts[0][0],
         VK_IMAGE_LAYOUT_GENERAL,
         VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_HOST_READ_BIT,
         0, image->createInfo.arrayLayers,
         0, image->createInfo.mipLevels);
 }
@@ -552,4 +554,55 @@ void CommandBuffer::InsertMarker(const std::string& marker) const {
     markerInfo.color[2] = 0.0f;
     markerInfo.color[3] = 1.0f;
     DeviceDispatch(vkCmdDebugMarkerInsertEXT(handle, &markerInfo));
+}
+
+void CommandBuffer::SaveImage(const std::string& name, Image* image, uint32_t arrayLayer, uint32_t mipLevel) {
+    const VkExtent3D& extent = image->GetExtent();
+    const VkFormat format = image->GetFormat();
+
+    if (extent.depth != 1) {
+        throw std::runtime_error("[SaveImage] cannot handle 3d image saving yet!");
+    }
+
+    if (arrayLayer >= image->Layers()) {
+        throw std::runtime_error("[SaveImage] target array layer >= max layers");
+    }
+
+    if (mipLevel >= image->MipLevels()) {
+        throw std::runtime_error("[SaveImage] target mip level >= mip levels");
+    }
+
+    bool hdr = false;
+    size_t size = 0;
+    size_t channels = 0;
+    switch (format) {
+        case VK_FORMAT_R32_SFLOAT:          size = sizeof(float);   channels = 1; hdr = true;  break;
+        case VK_FORMAT_R32G32_SFLOAT:       size = sizeof(float);   channels = 2; hdr = true;  break;
+        case VK_FORMAT_R32G32B32_SFLOAT:    size = sizeof(float);   channels = 3; hdr = true;  break;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: size = sizeof(float);   channels = 4; hdr = true;  break;
+
+        case VK_FORMAT_R8_UNORM:            size = sizeof(uint8_t); channels = 1; hdr = false; break;
+        case VK_FORMAT_R8G8_UNORM:          size = sizeof(uint8_t); channels = 2; hdr = false; break;
+        case VK_FORMAT_R8G8B8_UNORM:        size = sizeof(uint8_t); channels = 3; hdr = false; break;
+        case VK_FORMAT_R8G8B8A8_UNORM:      size = sizeof(uint8_t); channels = 4; hdr = false; break;
+
+        default: throw std::runtime_error("[SaveImage] unhandled image format for save!");
+    }
+
+    uint32_t w = std::max(1U, extent.width >> mipLevel);
+    uint32_t h = std::max(1U, extent.height >> mipLevel);
+
+    size_t bufsize = size * channels * w * h;
+    auto buf = SlimPtr<StagingBuffer>(device, bufsize);
+    stagingBuffers.emplace_back(buf);
+
+    VkOffset3D off = VkOffset3D { 0, 0, 0 };
+    VkExtent3D ext = VkExtent3D { w, h, 1 };
+    CopyImageToBuffer(image, off, ext, 0, 1, 0, VK_IMAGE_ASPECT_COLOR_BIT, buf, 0, 0, 0);
+
+    if (hdr) {
+        stbi_write_hdr(name.c_str(), w, h, 4, buf->GetData<float>());
+    } else {
+        stbi_write_png(name.c_str(), w, h, 4, buf->GetData<char>(), w * size * channels);
+    }
 }

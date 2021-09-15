@@ -95,6 +95,8 @@ namespace slim {
                        uint32_t dstBaseLayer, uint32_t dstLayerCount, uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask,
                        VkFilter filter);
 
+        void SaveImage(const std::string& name, Image* image, uint32_t arrayLayer = 0, uint32_t mipLevel = 0);
+
         void GenerateMipmaps(Image *image, VkFilter filter);
         void PrepareForShaderRead(Image *image);
         void PrepareForTransferSrc(Image *image);
@@ -143,7 +145,7 @@ namespace slim {
                                         const VkOffset3D &offset, const VkExtent3D &extent,
                                         uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel,
                                         VkImageAspectFlags aspectMask) {
-        CopyDataToImage(const_cast<T*>(data.data()), image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
+        CopyDataToImage(const_cast<T*>(data.data()), sizeof(T) * data.size(), image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
     }
 
     // --------------------------------------------------------------------------------------------------

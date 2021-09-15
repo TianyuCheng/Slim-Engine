@@ -1,6 +1,17 @@
 # # code formatter
 # # ---------------------------------------------------------------
+# # NOTE: Formatter is currently too much for this project.
+# # Consider a massive reformat when this project is mature.
 # add_subdirectory(Format.cmake)
+
+# stb
+# ---------------------------------------------------------------
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE stb/)
+
+# glm
+# ---------------------------------------------------------------
+add_subdirectory(glm)
 
 # glfw
 # ---------------------------------------------------------------
@@ -50,15 +61,6 @@ set_target_properties(imguizmo PROPERTIES CXX_STANDARD 17)
 target_link_libraries(imguizmo imgui)
 target_include_directories(imguizmo PUBLIC ${IMGUIZMO_INCLUDE_DIRS})
 
-# glm
-# ---------------------------------------------------------------
-add_subdirectory(glm)
-
-# stb
-# ---------------------------------------------------------------
-add_library(stb INTERFACE)
-target_include_directories(stb INTERFACE stb/)
-
 # tinyglf
 # ---------------------------------------------------------------
 set(TINYGLTF_BUILD_LOADER_EXAMPLE
@@ -82,6 +84,9 @@ set(TINYGLTF_INSTALL
 add_subdirectory(tinygltf)
 
 # add replacement for filesystem (header-only)
+# Visual Studio 2019 does not seem to work with standard filesystem
+# headers. Using a third-party filesystem library for now. We will
+# switch to standard library if that is compatible.
 # ----------------------------------------------------------------
 set(GHC_FILESYSTEM_BUILD_TESTING
     OFF
@@ -95,6 +100,8 @@ set(GHC_FILESYSTEM_WITH_INSTALL
 add_subdirectory(filesystem EXCLUDE_FROM_ALL)
 
 # volk metaloader
+# This library loads vulkan instance/device-specific functions
+# without the need to do dynamic dispatching.
 # ---------------------------------------------------------------
 set(VOLK_PULL_IN_VULKAN
     ON
@@ -105,6 +112,8 @@ set(VOLK_INSTALL
 add_subdirectory(volk)
 
 # vulkan memory allocator
+# This library manages the allocation and sub-allocation for
+# buffers and images, because Vulkan only allows for 4K allocations.
 # ---------------------------------------------------------------
 set(VMA_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/
@@ -112,3 +121,13 @@ set(VMA_INCLUDE_DIRS
 add_library(vma STATIC ${CMAKE_CURRENT_SOURCE_DIR}/VulkanMemoryAllocator/src/VmaUsage.cpp)
 set_target_properties(vma PROPERTIES CXX_STANDARD 14)
 target_link_libraries(vma PRIVATE volk volk_headers)
+
+# google test
+# ---------------------------------------------------------------
+set(BUILD_GMOCK
+    OFF
+    CACHE BOOL "build gtest only" FORCE)
+set(INSTALL_GTEST
+    OFF
+    CACHE BOOL "build gtest only" FORCE)
+add_subdirectory(googletest)

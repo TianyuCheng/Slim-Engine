@@ -12,6 +12,7 @@ int main() {
     // create a slim device
     auto context = SlimPtr<Context>(
         ContextDesc()
+            .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
             .EnableValidation(true)
@@ -55,9 +56,9 @@ int main() {
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_ALWAYS, false)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Skybox", 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
+                .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Skybox", SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
 
     auto techniqueReflect = SlimPtr<Technique>();
     techniqueReflect->AddPass(RenderQueue::Opaque,
@@ -73,9 +74,9 @@ int main() {
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Skybox", 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
+                .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Skybox", SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
 
     auto techniqueRefract = SlimPtr<Technique>();
     techniqueRefract->AddPass(RenderQueue::Opaque,
@@ -91,10 +92,10 @@ int main() {
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera", 0, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Model",  1, 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-                .AddBinding("Skybox", 2, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                .AddBinding("Refract", 2, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,        VK_SHADER_STAGE_FRAGMENT_BIT)));
+                .AddBinding("Camera",  SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Model",   SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Skybox",  SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                .AddBinding("Refract", SetBinding { 2, 1 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)));
 
     SmartPtr<Material> skyboxMaterial = nullptr;
     SmartPtr<Material> reflectMaterial = nullptr;

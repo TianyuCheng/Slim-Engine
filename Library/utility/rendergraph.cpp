@@ -648,7 +648,9 @@ void RenderGraph::Execute() {
             }
         }
         backBuffer->layouts[0][0] = layout;
-        lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
+        if (renderFrame->Presentable()) {
+            lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
+        }
         lastGraphicsCommandBuffer->End();
     }
 
@@ -686,7 +688,11 @@ void RenderGraph::Execute() {
                     "submit graphics commands");
     }
     if (lastGraphicsCommandBuffer) {
-        renderFrame->Present(lastGraphicsCommandBuffer);
+        if (renderFrame->Presentable()) {
+            renderFrame->Present(lastGraphicsCommandBuffer);
+        } else {
+            renderFrame->Draw(lastGraphicsCommandBuffer);
+        }
     }
 }
 

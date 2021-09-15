@@ -278,7 +278,7 @@ namespace slim {
     };
 
     using GPUImage = ImageBase<VMA_MEMORY_USAGE_GPU_ONLY>;
-    using CPUImage = ImageBase<VMA_MEMORY_USAGE_CPU_ONLY>;
+    using CPUImage = ImageBase<VMA_MEMORY_USAGE_CPU_ONLY, VK_IMAGE_TILING_LINEAR>;  // A known limitation on MoltenVK, HOST_COHEERENT image memory is not supported.
 
 } // end of namespace slim
 
