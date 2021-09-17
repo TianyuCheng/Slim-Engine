@@ -22,7 +22,7 @@ void ReadVertexPosition(std::vector<Vertex>& vertices, const tinygltf::Model& mo
     uint32_t stride = std::max(bufferView.byteStride, 3 * sizeof(float));
     for (uint32_t i = 0; i < accessor.count; i++, data += stride) {
         const float* p = (float*)(data);
-        vertices[i].pos = glm::vec3(p[0], p[1], p[2]);
+        vertices[i].position = glm::vec3(p[0], p[1], p[2]);
     }
 }
 
@@ -327,7 +327,7 @@ void MakeTangents(std::vector<Vertex>& vertices, const std::vector<uint32_t>& in
         uint32_t j = indices[(l + 1) % nIndices];
         uint32_t k = indices[(l + 2) % nIndices];
         glm::vec3 n = vertices[i].normal;
-        glm::vec3 v1 = vertices[j].pos - vertices[i].pos, v2 = vertices[k].pos - vertices[i].pos;
+        glm::vec3 v1 = vertices[j].position - vertices[i].position, v2 = vertices[k].position - vertices[i].position;
         glm::vec2 t1 = vertices[j].uv0 - vertices[i].uv0, t2 = vertices[k].uv0 - vertices[i].uv0;
 
         // Is the texture flipped?

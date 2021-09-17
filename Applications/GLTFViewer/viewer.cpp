@@ -161,7 +161,6 @@ void GLTFViewer::InitSampler() {
         SamplerDesc()
             .AddressMode(VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
     );
-
     diffuseSampler = SlimPtr<Sampler>(
         device,
         SamplerDesc()
@@ -184,15 +183,15 @@ void GLTFViewer::InitPBR() {
     auto pipelinePbrDesc =
         GraphicsPipelineDesc()
             .AddVertexBinding(0, sizeof(gltf::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                { 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(gltf::Vertex, pos)      },
-                { 1, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(gltf::Vertex, normal)   },
-                { 2, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(gltf::Vertex, tangent)  },
-                { 3, VK_FORMAT_R32G32_SFLOAT,       offsetof(gltf::Vertex, uv0)      },
-                { 4, VK_FORMAT_R32G32_SFLOAT,       offsetof(gltf::Vertex, uv1)      },
-                { 5, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(gltf::Vertex, color0)   },
-                { 6, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(gltf::Vertex, joints0)  },
-                { 7, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(gltf::Vertex, weights0) },
-             })
+                { 0, VK_FORMAT_R32G32B32_SFLOAT,    static_cast<uint32_t>(offsetof(gltf::Vertex, position)) },
+                { 1, VK_FORMAT_R32G32B32_SFLOAT,    static_cast<uint32_t>(offsetof(gltf::Vertex, normal  )) },
+                { 2, VK_FORMAT_R32G32B32A32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, tangent )) },
+                { 3, VK_FORMAT_R32G32_SFLOAT,       static_cast<uint32_t>(offsetof(gltf::Vertex, uv0     )) },
+                { 4, VK_FORMAT_R32G32_SFLOAT,       static_cast<uint32_t>(offsetof(gltf::Vertex, uv1     )) },
+                { 5, VK_FORMAT_R32G32B32A32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, color0  )) },
+                { 6, VK_FORMAT_R32G32B32A32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, joints0 )) },
+                { 7, VK_FORMAT_R32G32B32A32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, weights0)) },
+            })
             .SetVertexShader(vShaderPbr)
             .SetFragmentShader(fShaderPbr)
             .SetCullMode(VK_CULL_MODE_BACK_BIT)
