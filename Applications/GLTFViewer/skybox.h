@@ -58,7 +58,7 @@ struct Skybox : ReferenceCountable {
             GraphicsPipelineDesc()
                 .SetName("skybox")
                 .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                    { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GeometryData::Vertex, position) },
+                    { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(GeometryData::Vertex, position)) },
                  })
                 .SetVertexShader(vShader)
                 .SetFragmentShader(fShader)

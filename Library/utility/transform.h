@@ -1,7 +1,9 @@
 #ifndef SLIM_UTILITY_TRANSFORM_H
 #define SLIM_UTILITY_TRANSFORM_H
 
+#include <iostream>
 #include <glm/glm.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/quaternion.hpp>
 
 namespace slim {
@@ -34,6 +36,12 @@ namespace slim {
         void Rotate(const glm::vec3& axis, float radians);
         void Rotate(float x, float y, float z, float w);
         void Translate(float x, float y, float z);
+
+        friend std::ostream& operator<<(std::ostream& out, const Transform& transform) {
+            out << "localToWorld: " << glm::to_string(transform.localToWorld) << std::endl;
+            out << "worldToLocal: " << glm::to_string(transform.worldToLocal) << std::endl;
+            return out;
+        }
 
     private:
         // local transform

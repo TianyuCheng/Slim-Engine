@@ -23,7 +23,7 @@ namespace slim::accel {
         void EnableCompaction();
 
         void AddMesh(Mesh* mesh);
-        void AddInstances(Buffer* transformBuffer, uint64_t instanceOffset, uint64_t instanceCount);
+        void AddNode(scene::Node* node);
 
         void BuildTlas();
         void BuildBlas();
@@ -44,7 +44,11 @@ namespace slim::accel {
 
     private:
         SmartPtr<Device> device;
+
+        // configuration
         bool compaction = false;
+
+        // acceleration structure
         SmartPtr<Instance> tlas;
         std::vector<SmartPtr<Geometry>> blas;
     };

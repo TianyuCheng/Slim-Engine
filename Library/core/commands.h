@@ -95,15 +95,25 @@ namespace slim {
                        uint32_t dstBaseLayer, uint32_t dstLayerCount, uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask,
                        VkFilter filter);
 
+        void ClearColor(Image* image,
+                        const VkClearColorValue& clear,
+                        uint32_t baseLayer = 0, uint32_t layerCount = 0,
+                        uint32_t mipLevel = 0, uint32_t levelCount = 0);
+
+        void ClearDepthStencil(Image* image,
+                        const VkClearDepthStencilValue& clear,
+                        uint32_t baseLayer = 0, uint32_t layerCount = 0,
+                        uint32_t mipLevel = 0, uint32_t levelCount = 0);
+
         void SaveImage(const std::string& name, Image* image, uint32_t arrayLayer = 0, uint32_t mipLevel = 0);
 
         void GenerateMipmaps(Image *image, VkFilter filter);
-        void PrepareForShaderRead(Image *image);
-        void PrepareForTransferSrc(Image *image);
-        void PrepareForTransferDst(Image *image);
-        void PrepareForPresentSrc(Image *image);
-        void PrepareForMemoryMapping(Image *image);
-        void PrepareForStorage(Image *image);
+        void PrepareForShaderRead(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForTransferSrc(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForTransferDst(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForPresentSrc(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForMemoryMapping(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForStorage(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
 
         Device* GetDevice() const { return device; }
 

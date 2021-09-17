@@ -133,12 +133,10 @@ void scene::Builder::Build() {
         }
         accelBuilder->BuildBlas();
 
-        // build transform buffer (prepare for tlas)
-        device->Execute([&](CommandBuffer* commandBuffer) {
-            BuildTransformBuffer(commandBuffer, bufferUsage, memoryUsage);
-        });
-
         // build tlas
+        for (auto& node : nodes) {
+            accelBuilder->AddNode(node);
+        }
         accelBuilder->BuildTlas();
     }
 }
@@ -150,10 +148,6 @@ void scene::Builder::Clear() {
 
 void scene::Builder::EnableRayTracing() {
     accelBuilder = SlimPtr<accel::Builder>(device);
-}
-
-void scene::Builder::EnableASCompaction() {
-    accelBuilder->EnableCompaction();
 }
 
 VkBufferUsageFlags scene::Builder::GetCommonBufferUsages() const {
@@ -195,34 +189,6 @@ void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
         mesh->vertexOffsets.push_back(vertexBufferOffset);
         commandBuffer->CopyDataToBuffer(attrib, mesh->vertexBuffer, vertexBufferOffset);
     }
-}
-
-void scene::Builder::BuildTransformBuffer(CommandBuffer* commandBuffer,
-                                          VkBufferUsageFlags bufferUsage,
-                                          VmaMemoryUsage memoryUsage) {
-    uint64_t bufferSize = numInstances * sizeof(VkAccelerationStructureInstanceKHR);
-    transformBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
-
-    std::vector<VkAccelerationStructureInstanceKHR> instances;
-    ForEach([&](scene::Node* node, Mesh* mesh, Material*, uint32_t instanceId) {
-        accel::AccelStruct* as = mesh->blas->accel;
-        #ifndef NDEBUG
-        if (as == nullptr) {
-            throw std::runtime_error("node's geometry blas has not been built!");
-        }
-        #endif
-        instances.push_back(VkAccelerationStructureInstanceKHR { });
-        auto& instance = instances.back();
-        instance.transform = node->GetVkTransformMatrix();
-        instance.instanceCustomIndex = instanceId;
-        instance.accelerationStructureReference = device->GetDeviceAddress(as);
-        instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
-        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
-        instance.mask = 0xff;
-    });
-
-    commandBuffer->CopyDataToBuffer(instances, transformBuffer);
-    accelBuilder->AddInstances(transformBuffer, 0, numInstances);
 }
 
 void scene::Builder::ForEach(std::function<void(scene::Node*, Mesh*, Material*, uint32_t)> callback) {

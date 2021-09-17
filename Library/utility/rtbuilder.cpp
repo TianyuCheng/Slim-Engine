@@ -10,12 +10,12 @@ void accel::Builder::EnableCompaction() {
     compaction = true;
 }
 
-void accel::Builder::AddInstances(Buffer* transformBuffer, uint64_t instanceOffset, uint64_t instanceCount) {
+void accel::Builder::AddNode(scene::Node* node) {
     if (tlas.get() == nullptr) {
         VkAccelerationStructureCreateFlagsKHR createFlags = 0;
         tlas = new Instance(device, createFlags);
     }
-    tlas->AddInstances(transformBuffer, instanceOffset, instanceCount);
+    tlas->AddInstance(node);
 }
 
 void accel::Builder::AddMesh(Mesh* mesh) {

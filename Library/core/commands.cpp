@@ -76,7 +76,8 @@ void CommandBuffer::Submit() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &handle;
 
-    ErrorCheck(DeviceDispatch(vkQueueSubmit(queue, 1, &submitInfo, signalFence)), "submit command buffer");
+    // ErrorCheck(DeviceDispatch(vkQueueSubmit(queue, 1, &submitInfo, signalFence)), "submit command buffer");
+    DeviceDispatch(vkQueueSubmit(queue, 1, &submitInfo, signalFence));
 
     // clean up
     waitSemaphores.clear();
@@ -147,7 +148,7 @@ void CommandBuffer::CopyDataToImage(void *data, size_t size, Image *image,
                                     const VkOffset3D &offset, const VkExtent3D &extent,
                                     uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel,
                                     VkImageAspectFlags aspectMask) {
-    PrepareForTransferDst(image);
+    PrepareForTransferDst(image, baseLayer, layerCount, mipLevel, 1);
 
     stagingBuffers.emplace_back(new StagingBuffer(device, size));
     auto stagingBuffer = stagingBuffers.back().get();
@@ -166,7 +167,7 @@ void CommandBuffer::CopyBufferToBuffer(Buffer *srcBuffer, size_t srcOffset, Buff
 void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight,
                                       Image *dstImage, const VkOffset3D &offset, const VkExtent3D &extent,
                                       uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask) {
-    PrepareForTransferDst(dstImage);
+    PrepareForTransferDst(dstImage, baseLayer, layerCount, mipLevel, 1);
 
     VkBufferImageCopy copy = {};
     copy.bufferOffset = bufferOffset;
@@ -185,7 +186,7 @@ void CommandBuffer::CopyBufferToImage(Buffer *srcBuffer, size_t bufferOffset, si
 void CommandBuffer::CopyImageToBuffer(Image *srcImage, const VkOffset3D &offset, const VkExtent3D &extent,
                                       uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, VkImageAspectFlags aspectMask,
                                       Buffer *dstBuffer, size_t bufferOffset, size_t bufferRowLength, size_t bufferImageHeight) {
-    PrepareForTransferSrc(srcImage);
+    PrepareForTransferSrc(srcImage, baseLayer, layerCount, mipLevel, 1);
 
     VkBufferImageCopy copy = {};
     copy.bufferOffset = bufferOffset;
@@ -207,8 +208,8 @@ void CommandBuffer::CopyImageToImage(Image *srcImage, const VkOffset3D &srcOffse
                                      Image *dstImage, const VkOffset3D &dstOffset,
                                      uint32_t dstBaseLayer, uint32_t dstLayerCount,
                                      uint32_t dstMipLevel, VkImageAspectFlags dstAspectMask) {
-    PrepareForTransferSrc(srcImage);
-    PrepareForTransferDst(dstImage);
+    PrepareForTransferSrc(srcImage, srcBaseLayer, srcLayerCount, srcMipLevel, 1);
+    PrepareForTransferDst(dstImage, dstBaseLayer, dstLayerCount, dstMipLevel, 1);
 
     VkImageCopy copy = {};
     copy.srcOffset = srcOffset;
@@ -300,63 +301,73 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
     }
 }
 
-void CommandBuffer::PrepareForShaderRead(Image *image) {
+void CommandBuffer::PrepareForShaderRead(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
     PrepareLayoutTransition(handle, image,
-        image->layouts[0][0],
+        image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0, image->createInfo.arrayLayers,
-        0, image->createInfo.mipLevels);
+        baseLayer, layerCount,
+        mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForTransferSrc(Image *image) {
+void CommandBuffer::PrepareForTransferSrc(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
     PrepareLayoutTransition(handle, image,
-        image->layouts[0][0],
+        image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0, image->createInfo.arrayLayers,
-        0, image->createInfo.mipLevels);
+        baseLayer, layerCount,
+        mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForTransferDst(Image *image) {
+void CommandBuffer::PrepareForTransferDst(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
     PrepareLayoutTransition(handle, image,
-        image->layouts[0][0],
+        image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
-        0, image->createInfo.arrayLayers,
-        0, image->createInfo.mipLevels);
+        baseLayer, layerCount,
+        mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForPresentSrc(Image *image) {
+void CommandBuffer::PrepareForPresentSrc(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
     PrepareLayoutTransition(handle, image,
-        image->layouts[0][0],
+        image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        0, image->createInfo.arrayLayers,
-        0, image->createInfo.mipLevels);
+        baseLayer, layerCount,
+        mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForMemoryMapping(Image *image) {
+void CommandBuffer::PrepareForMemoryMapping(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
     PrepareLayoutTransition(handle, image,
-        image->layouts[0][0],
+        image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_GENERAL,
         VK_ACCESS_TRANSFER_WRITE_BIT,
         VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_HOST_READ_BIT,
-        0, image->createInfo.arrayLayers,
-        0, image->createInfo.mipLevels);
+        baseLayer, layerCount,
+        mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForStorage(Image *image) {
-    PrepareForMemoryMapping(image);
+void CommandBuffer::PrepareForStorage(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
+    PrepareForMemoryMapping(image, baseLayer, layerCount, mipLevel, levelCount);
 }
 
 void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
@@ -554,6 +565,40 @@ void CommandBuffer::InsertMarker(const std::string& marker) const {
     markerInfo.color[2] = 0.0f;
     markerInfo.color[3] = 1.0f;
     DeviceDispatch(vkCmdDebugMarkerInsertEXT(handle, &markerInfo));
+}
+
+void CommandBuffer::ClearColor(Image* image,
+                               const VkClearColorValue& clear,
+                               uint32_t baseLayer, uint32_t layerCount,
+                               uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
+    // clear image
+    PrepareForTransferDst(image, baseLayer, layerCount, mipLevel, levelCount);
+    VkImageSubresourceRange range = {};
+    range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    range.baseArrayLayer = baseLayer;
+    range.layerCount = layerCount;
+    range.baseMipLevel = baseLayer;
+    range.levelCount = levelCount;
+    DeviceDispatch(vkCmdClearColorImage(handle, *image, image->layouts[baseLayer][mipLevel], &clear, 1, &range));
+}
+
+void CommandBuffer::ClearDepthStencil(Image* image,
+                                      const VkClearDepthStencilValue& clear,
+                                      uint32_t baseLayer, uint32_t layerCount,
+                                      uint32_t mipLevel, uint32_t levelCount) {
+    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
+    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
+    PrepareForTransferDst(image, baseLayer, layerCount, mipLevel, levelCount);
+    // clear image
+    VkImageSubresourceRange range = {};
+    range.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    range.baseArrayLayer = baseLayer;
+    range.layerCount = layerCount;
+    range.baseMipLevel = baseLayer;
+    range.levelCount = levelCount;
+    DeviceDispatch(vkCmdClearDepthStencilImage(handle, *image, image->layouts[baseLayer][layerCount], &clear, 1, &range));
 }
 
 void CommandBuffer::SaveImage(const std::string& name, Image* image, uint32_t arrayLayer, uint32_t mipLevel) {

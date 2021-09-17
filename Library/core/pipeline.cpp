@@ -368,6 +368,11 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthTest(VkCompareOp compare, bo
     return *this;
 }
 
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthWrite(bool value) {
+    depthStencilStateCreateInfo.depthWriteEnable = value;
+    return *this;
+}
+
 GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthClamp(bool enable) {
     rasterizationStateCreateInfo.depthClampEnable = enable;
     return *this;

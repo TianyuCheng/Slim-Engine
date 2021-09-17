@@ -62,7 +62,7 @@ int main() {
     // create builder
     auto sceneBuilder = SlimPtr<scene::Builder>(device);
     sceneBuilder->EnableRayTracing();
-    sceneBuilder->EnableASCompaction();
+    sceneBuilder->GetAccelBuilder()->EnableCompaction();
 
     // create meshes
     auto cubeMesh = sceneBuilder->CreateMesh();
@@ -78,10 +78,10 @@ int main() {
     }
 
     // create materials
-    auto whiteMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto redMaterial   = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto greenMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto lightMaterial = SlimPtr<Material>(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 0.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
+    auto whiteMaterial = SlimPtr<Material>(device); whiteMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto redMaterial   = SlimPtr<Material>(device); redMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto greenMaterial = SlimPtr<Material>(device); greenMaterial->SetData(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
+    auto lightMaterial = SlimPtr<Material>(device); lightMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 0.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
 
     // create scene
     auto sceneRoot = sceneBuilder->CreateNode("root");
@@ -154,7 +154,7 @@ int main() {
         instance.instanceId = instanceId;
         instance.materialId = std::find(materials.begin(), materials.end(), material) - materials.begin();
         instance.modelMatrix = node->GetTransform().LocalToWorld();
-        instance.normalMatrix = glm::transpose(glm::inverse(instance.modelMatrix)); // glm::transpose(node->GetTransform().WorldToLocal());
+        instance.normalMatrix = glm::transpose(glm::inverse(instance.modelMatrix));
         instance.indexAddress = mesh->GetIndexAddress(device);
         instance.vertexAddress = mesh->GetVertexAddress(device, 0);
         instance.materialAddress = device->GetDeviceAddress(materialBuffer);
@@ -200,20 +200,14 @@ int main() {
 
     auto cameraUniformBuffer = SlimPtr<Buffer>(device, sizeof(CameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
+    // clear image
     device->Execute([&](CommandBuffer* commandBuffer) {
-        commandBuffer->PrepareForTransferDst(rtImage);
         VkClearColorValue clear = {};
         clear.float32[0] = 0.0f;
         clear.float32[1] = 0.0f;
         clear.float32[2] = 0.0f;
         clear.float32[3] = 0.0f;
-        VkImageSubresourceRange range = {};
-        range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        range.baseMipLevel = 0;
-        range.levelCount = 1;
-        range.baseArrayLayer = 0;
-        range.layerCount = 1;
-        vkCmdClearColorImage(*commandBuffer, *rtImage, rtImage->layouts[0][0], &clear, 1, &range);
+        commandBuffer->ClearColor(rtImage, clear);
     });
 
     uint32_t frameId = 0;
@@ -287,7 +281,7 @@ int main() {
                         .SetRenderPass(info.renderPass)
                         .SetDepthTest(VK_COMPARE_OP_LESS)
                         .SetPipelineLayout(PipelineLayoutDesc()
-                            .AddBinding("MainTex", 0, 0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
+                            .AddBinding("MainTex", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
 
                 commandBuffer->BindPipeline(pipeline);
 

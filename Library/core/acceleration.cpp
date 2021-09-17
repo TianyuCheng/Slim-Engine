@@ -1,5 +1,6 @@
 #include "core/commands.h"
 #include "core/acceleration.h"
+#include "utility/scenegraph.h"
 
 using namespace slim;
 
@@ -69,15 +70,65 @@ accel::Instance::Instance(Device* device, VkAccelerationStructureCreateFlagsKHR 
     sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 }
 
-void accel::Instance::AddInstances(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount) {
-    // prepare geometry data
+uint32_t accel::Instance::AddInstance(scene::Node* node) {
+    uint32_t offset =  instances.size();
+    if (!node->HasDraw()) {
+        return offset;
+    }
+    uint32_t instanceId = offset;
+    VkTransformMatrixKHR transform = node->GetVkTransformMatrix();
+    for (auto& [mesh, material] : *node) {
+        accel::AccelStruct* as = mesh->GetBlasGeometry()->accel;
+        #ifndef NDEBUG
+        if (as == nullptr) {
+            throw std::runtime_error("node's geometry blas has not been built!");
+        }
+        #endif
+        instances.push_back(VkAccelerationStructureInstanceKHR { });
+        auto& instance = instances.back();
+        instance.transform = transform;
+        instance.instanceCustomIndex = instanceId++;
+        instance.accelerationStructureReference = device->GetDeviceAddress(as);
+        instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
+        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
+        instance.mask = 0xff;
+        modified = true;
+    }
+    return offset;
+}
+
+void accel::Instance::PrepareInstanceBuffer() {
+    uint32_t instanceCount = instances.size();
+    uint32_t instanceOffset = 0;
+
+    if (!buffer.get()) {
+        uint64_t bufferSize = instanceCount * sizeof(VkAccelerationStructureInstanceKHR);
+        VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+                                       | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+        VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+        buffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
+    }
+
+    // update buffer data
+    if (modified) {
+        device->Execute([&](CommandBuffer* commandBuffer) {
+            commandBuffer->CopyDataToBuffer(instances, buffer);
+        });
+        modified = false;
+    }
+
+    // clear data
+    geometries.clear();
+    buildRanges.clear();
+
+    // update geometry
     geometries.push_back(VkAccelerationStructureGeometryKHR { });
     auto& geometry = geometries.back();
     geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // TODO: force opaque objcet for now
     geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-    geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(instanceBuffer);
+    geometry.geometry.instances.data.deviceAddress = device->GetDeviceAddress(buffer);
     geometry.geometry.instances.arrayOfPointers = VK_FALSE;
 
     // prepare geometry offsets
@@ -97,6 +148,8 @@ void accel::Instance::AddInstances(Buffer* instanceBuffer, uint64_t instanceOffs
 }
 
 void accel::Instance::Instance::Prepare() {
+    PrepareInstanceBuffer();
+
     VkAccelerationStructureBuildTypeKHR buildType = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
 
     buildInfo.geometryCount = geometries.size();

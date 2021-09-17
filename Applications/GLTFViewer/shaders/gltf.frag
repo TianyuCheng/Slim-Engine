@@ -183,7 +183,6 @@ void main() {
     } else if (materialFactors.baseColorTexCoordSet == 1) {
         baseColor *= texture(baseColorTexture, inUV1);
     }
-    baseColor *= texture(baseColorTexture, inUV0);
 
     // for dielectrics, base color is treated as reflectance
     // for conductors, base color is f0

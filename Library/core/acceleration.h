@@ -9,6 +9,11 @@
 #include "core/vkutils.h"
 #include "utility/interface.h"
 
+namespace slim::scene {
+    class Builder;
+    class Node;
+}
+
 namespace slim::accel {
 
     class AccelStruct;
@@ -37,11 +42,17 @@ namespace slim::accel {
         friend class AccelStruct;
     public:
         explicit Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
-        void AddInstances(Buffer* instanceBuffer, uint64_t instanceOffset, uint64_t instanceCount);
+        uint32_t AddInstance(scene::Node* node);
         void Prepare();
 
     private:
+        void PrepareInstanceBuffer();
+
+    private:
         SmartPtr<Device> device;
+        SmartPtr<Buffer> buffer;
+        std::vector<VkAccelerationStructureInstanceKHR> instances;
+        bool modified = false;
 
     public:
         SmartPtr<AccelStruct> accel;

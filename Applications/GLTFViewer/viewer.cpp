@@ -34,20 +34,23 @@ void GLTFViewer::Run() {
         camera->Update(input);
         time->Update();
 
+        CPUCulling skyboxFilter;
         CPUCulling sceneFilter;
         CPUCulling gizmoFilter;
 
         // update scene nodes
-        sceneFilter.Cull(skybox->scene, camera);
         if (root) {
             sceneFilter.Cull(root, camera);
         }
         sceneFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         sceneFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
 
+        // update skybox
+        skyboxFilter.Cull(skybox->scene, camera);
+        skyboxFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
+        skyboxFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
+
         // add gizmo
-        gizmo->scene->Scale(0.1, 0.1, 0.1);
-        gizmo->scene->ApplyTransform();
         gizmoFilter.Cull(gizmo->scene, camera);
         gizmoFilter.Sort(RenderQueue::Geometry,    RenderQueue::GeometryLast, SortingOrder::FrontToback);
         gizmoFilter.Sort(RenderQueue::Transparent, RenderQueue::Transparent,  SortingOrder::BackToFront);
@@ -69,6 +72,7 @@ void GLTFViewer::Run() {
             }
             colorPass->Execute([&](const RenderInfo &info) {
                 MeshRenderer renderer(info);
+                renderer.Draw(camera, skyboxFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
                 renderer.Draw(camera, sceneFilter.GetDrawables(RenderQueue::Geometry, RenderQueue::GeometryLast));
             });
 
@@ -133,6 +137,7 @@ void GLTFViewer::InitCamera() {
 void GLTFViewer::InitGizmo() {
     device->Execute([&](CommandBuffer* commandBuffer) {
         gizmo = SlimPtr<Gizmo>(commandBuffer, builder);
+        gizmo->scene->Scale(0.1, 0.1, 0.1);
         gizmo->scene->ApplyTransform();
     });
 }
@@ -249,6 +254,9 @@ void GLTFViewer::ProcessModel(gltf::Model* model) {
             case gltf::AlphaMode::Mask:   material->SetTechnique(techniqueMask);   break;
             case gltf::AlphaMode::Blend:  material->SetTechnique(techniqueBlend);  break;
         }
+
+        // material factors
+        material->SetUniformBuffer("MaterialFactors", data);
 
         // base color
         if (data.baseColorTexture >= 0 && data.baseColorSampler >= 0) {

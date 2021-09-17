@@ -96,7 +96,6 @@ namespace slim::scene {
         }
 
         void EnableRayTracing();
-        void EnableASCompaction();
 
         void Build();
         void Clear();
@@ -122,15 +121,10 @@ namespace slim::scene {
                               VkBufferUsageFlags bufferUsage,
                               VmaMemoryUsage memoryUsage);
 
-        void BuildTransformBuffer(CommandBuffer*,
-                                  VkBufferUsageFlags bufferUsage,
-                                  VmaMemoryUsage memoryUsage);
-
     private:
         SmartPtr<Device> device;
-        SmartPtr<Buffer> vertexBuffer;
         SmartPtr<Buffer> indexBuffer;
-        SmartPtr<Buffer> transformBuffer;
+        SmartPtr<Buffer> vertexBuffer;
         SmartPtr<accel::Builder> accelBuilder;
         uint32_t numInstances = 0;
     };
