@@ -1,6 +1,11 @@
 #ifndef SLIM_HPP
 #define SLIM_HPP
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 // core
 #include "core/vulkan.h"
 #include "core/context.h"

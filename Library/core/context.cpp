@@ -1,3 +1,8 @@
+#ifdef _MSC_VER
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #define VK_NO_PROTOTYPES
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

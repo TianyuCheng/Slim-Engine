@@ -11,7 +11,7 @@ struct Geometries {
 };
 
 template <typename T>
-scene::Node* CreateGeometry(scene::Builder* builder, Material* material, const T& geometry) {
+scene::Node* CreateGeometry(scene::Builder* builder, scene::Material* material, const T& geometry) {
     GeometryData data = geometry.Create();
 
     auto mesh = builder->CreateMesh();
@@ -68,9 +68,9 @@ int main() {
         GraphicsPipelineDesc()
             .SetName("textured")
             .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GeometryData::Vertex, position) },
-                { 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GeometryData::Vertex, normal)   },
-                { 2, VK_FORMAT_R32G32_SFLOAT,    offsetof(GeometryData::Vertex, texcoord) },
+                { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(GeometryData::Vertex, position)) },
+                { 1, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(GeometryData::Vertex, normal)  ) },
+                { 2, VK_FORMAT_R32G32_SFLOAT,    static_cast<uint32_t>(offsetof(GeometryData::Vertex, texcoord)) },
              })
             .SetVertexShader(vShader)
             .SetFragmentShader(fShader)
@@ -83,7 +83,7 @@ int main() {
                 .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
 
     // create the first material
-    auto material = SlimPtr<Material>(device, technique);
+    auto material = SlimPtr<scene::Material>(device, technique);
 
     // create scene with meshes
     auto builder = SlimPtr<scene::Builder>(device);

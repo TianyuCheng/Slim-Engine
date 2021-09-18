@@ -97,12 +97,12 @@ int main() {
                 .AddBinding("Skybox",  SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                 .AddBinding("Refract", SetBinding { 2, 1 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)));
 
-    SmartPtr<Material> skyboxMaterial = nullptr;
-    SmartPtr<Material> reflectMaterial = nullptr;
-    SmartPtr<Material> refractMaterial = nullptr;
+    SmartPtr<scene::Material> skyboxMaterial = nullptr;
+    SmartPtr<scene::Material> reflectMaterial = nullptr;
+    SmartPtr<scene::Material> refractMaterial = nullptr;
 
-    SmartPtr<Mesh> skyboxMesh = nullptr;
-    SmartPtr<Mesh> geomMesh = nullptr;
+    SmartPtr<scene::Mesh> skyboxMesh = nullptr;
+    SmartPtr<scene::Mesh> geomMesh = nullptr;
     SmartPtr<GPUImage> cubemap = nullptr;
     SmartPtr<Sampler> sampler = nullptr;
     SmartPtr<scene::Builder> builder = nullptr;
@@ -119,19 +119,19 @@ int main() {
                 ToAssetPath("Skyboxes/NiagaraFalls/posz.jpg"),
                 ToAssetPath("Skyboxes/NiagaraFalls/negz.jpg"));
 
+        builder = SlimPtr<scene::Builder>(device);
+
         sampler = SlimPtr<Sampler>(device, SamplerDesc());
 
-        skyboxMaterial = SlimPtr<Material>(device, techniqueSkybox);
+        skyboxMaterial = builder->CreateMaterial(techniqueSkybox);
         skyboxMaterial->SetTexture("Skybox", cubemap, sampler);
 
-        reflectMaterial = SlimPtr<Material>(device, techniqueReflect);
+        reflectMaterial = builder->CreateMaterial(techniqueReflect);
         reflectMaterial->SetTexture("Skybox", cubemap, sampler);
 
-        refractMaterial = SlimPtr<Material>(device, techniqueRefract);
+        refractMaterial = builder->CreateMaterial(techniqueRefract);
         refractMaterial->SetTexture("Skybox", cubemap, sampler);
         refractMaterial->SetUniformBuffer("Refract", refract.iota);
-
-        builder = SlimPtr<scene::Builder>(device);
 
         auto skyboxData = Cube { };
         skyboxData.ccw = false;

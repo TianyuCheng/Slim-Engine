@@ -88,8 +88,8 @@ int main() {
                     GraphicsPipelineDesc()
                         .SetName("colorPass")
                         .AddVertexBinding(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                            { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position) },
-                            { 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, texcoord)    },
+                            { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(Vertex, position)) },
+                            { 1, VK_FORMAT_R32G32_SFLOAT,    static_cast<uint32_t>(offsetof(Vertex, texcoord)) },
                          })
                         .SetVertexShader(vShader)
                         .SetFragmentShader(fShader)

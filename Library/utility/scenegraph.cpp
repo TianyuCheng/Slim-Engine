@@ -104,12 +104,6 @@ scene::Builder::Builder(Device* device) : device(device) {
 }
 
 void scene::Builder::Build() {
-    // count number of instances
-    numInstances = 0;
-    for (auto& node : nodes) {
-        numInstances += node->NumDraws();
-    }
-
     // prepare common buffer and memory usage flags
     VkBufferUsageFlags bufferUsage = GetCommonBufferUsages();
     VmaMemoryUsage memoryUsage = GetCommonMemoryUsages();
@@ -188,14 +182,5 @@ void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
         mesh->vertexBuffers.push_back(*mesh->vertexBuffer);
         mesh->vertexOffsets.push_back(vertexBufferOffset);
         commandBuffer->CopyDataToBuffer(attrib, mesh->vertexBuffer, vertexBufferOffset);
-    }
-}
-
-void scene::Builder::ForEach(std::function<void(scene::Node*, Mesh*, Material*, uint32_t)> callback) {
-    uint32_t instanceId = 0;
-    for (auto& node : nodes) {
-        for (auto& [mesh, material] : *node) {
-            callback(node, mesh, material, instanceId++);
-        }
     }
 }

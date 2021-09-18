@@ -130,4 +130,7 @@ set(BUILD_GMOCK
 set(INSTALL_GTEST
     OFF
     CACHE BOOL "build gtest only" FORCE)
+set(gtest_force_shared_crt
+    ON
+    CACHE BOOL "force shared crt" FORCE)
 add_subdirectory(googletest)

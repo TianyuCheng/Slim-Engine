@@ -1,3 +1,8 @@
+#ifdef _MSC_VER
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #include "imgui.h"
 #include "core/input.h"
 

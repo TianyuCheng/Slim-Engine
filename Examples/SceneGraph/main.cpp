@@ -37,7 +37,7 @@ int main() {
         GraphicsPipelineDesc()
             .SetName("textured")
             .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                { 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(GeometryData::Vertex, position) },
+                { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(GeometryData::Vertex, position)) },
              })
             .SetVertexShader(vShader)
             .SetFragmentShader(fShader)
@@ -49,16 +49,16 @@ int main() {
                 .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
                 .AddBinding("Color",  SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)));
 
+    // scene builder
+    auto builder = SlimPtr<scene::Builder>(device);
+
     // create the first material
-    auto material1 = SlimPtr<Material>(device, technique);
+    auto material1 = builder->CreateMaterial(technique);
     material1->SetUniformBuffer("Color", glm::vec3(1.0f, 1.0f, 0.0f));
 
     // create the second material
-    auto material2 = SlimPtr<Material>(device, technique);
+    auto material2 = builder->CreateMaterial(technique);
     material2->SetUniformBuffer("Color", glm::vec3(0.0f, 1.0f, 1.0f));
-
-    // scene builder
-    auto builder = SlimPtr<scene::Builder>(device);
 
     // cube mesh
     auto cubeMesh = builder->CreateMesh();

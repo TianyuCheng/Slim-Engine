@@ -1,6 +1,7 @@
 #include "utility/material.h"
 
 using namespace slim;
+using namespace slim::scene;
 
 Material::Material(Device *device) : device(device), technique(nullptr) {
     // a material should not need too many descriptors,
@@ -108,4 +109,30 @@ void Material::Bind(uint32_t index,
     // bind descriptor
     VkPipelineBindPoint bindPoint = technique->Type(index);
     commandBuffer->BindDescriptor(descriptors[index], bindPoint);
+}
+
+bool Material::HasID() const {
+    return materialId >= 0;
+}
+
+uint32_t Material::GetID() const {
+    #ifndef NDEBUG
+    if (materialId < 0) {
+        throw std::runtime_error("[Material::GetID] This material does not have a valid material id.");
+    }
+    #endif
+    return static_cast<uint32_t>(materialId);
+}
+
+void Material::SetID(uint32_t id) {
+    materialId = static_cast<int32_t>(id);
+    #ifndef NDEBUG
+    if (materialId < 0) {
+        throw std::runtime_error("[Material::SetID] This material is assigned an invalid material id.");
+    }
+    #endif
+}
+
+void Material::ResetID() {
+    materialId = -1;
 }

@@ -25,7 +25,7 @@ void MeshRenderer::Draw(Camera *camera, const View<Drawable>& drawables) {
     };
 
     std::vector<ModelData> modelData;
-    std::vector<Material*> materials;
+    std::vector<scene::Material*> materials;
 
     // prepare model transforms
     for (const Drawable& drawable : drawables) {

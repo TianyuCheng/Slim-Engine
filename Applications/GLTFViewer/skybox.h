@@ -9,19 +9,19 @@ using namespace slim;
 struct Skybox : ReferenceCountable {
     // scene
     SmartPtr<scene::Builder> builder;
-    SmartPtr<scene::Node> scene;
-    SmartPtr<Mesh> mesh;
+    SmartPtr<scene::Node>    scene;
+    SmartPtr<scene::Mesh>    mesh;
 
     // material
-    SmartPtr<Shader> vShader;
-    SmartPtr<Shader> fShader;
-    SmartPtr<Technique> technique;
-    SmartPtr<Material> material;
+    SmartPtr<Shader>          vShader;
+    SmartPtr<Shader>          fShader;
+    SmartPtr<Technique>       technique;
+    SmartPtr<scene::Material> material;
 
     // resources
     SmartPtr<GPUImage> skybox;
     SmartPtr<GPUImage> irradiance;
-    SmartPtr<Sampler> sampler;
+    SmartPtr<Sampler>  sampler;
 
     Skybox(CommandBuffer* commandBuffer, scene::Builder* builder) : builder(builder) {
         InitCubemap(commandBuffer);
@@ -72,7 +72,7 @@ struct Skybox : ReferenceCountable {
                     .AddBinding("Model",  SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)));
 
 
-        material = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
+        material = builder->CreateMaterial(technique);
         material->SetTexture("Skybox", skybox, sampler);
     }
 

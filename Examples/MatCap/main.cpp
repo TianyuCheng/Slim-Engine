@@ -2,6 +2,7 @@
 
 using namespace slim;
 
+// https://github.com/nidorx/matcaps
 int main() {
     slim::Initialize();
 
@@ -46,7 +47,7 @@ int main() {
             .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
             .SetDepthTest(VK_COMPARE_OP_LESS)
             .SetPipelineLayout(PipelineLayoutDesc()
-                .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
+                .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
                 .AddBinding("Model",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
                 .AddBinding("MatCap", SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)));
 
@@ -82,6 +83,11 @@ int main() {
     updateMatCap(matcapCrystal);
 
     auto ui = SlimPtr<DearImGui>(device, window);
+    auto input = SlimPtr<Input>(window);
+
+    // camera
+    auto camera = SlimPtr<Arcball>("camera");
+    camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // render
     while (window->IsRunning()) {
@@ -90,9 +96,9 @@ int main() {
         // query image from swapchain
         auto frame = window->AcquireNext();
 
-        // create a camera
-        auto camera = SlimPtr<Camera>("camera");
-        camera->LookAt(glm::vec3(0.0, 0.0, 3.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        // controller
+        camera->SetExtent(window->GetExtent());
+        camera->Update(input);
         camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 20.0f);
 
         // sceneFilter result + sorting
@@ -139,6 +145,7 @@ int main() {
             });
         }
         renderGraph.Execute();
+        input->Reset();
     }
 
     device->WaitIdle();

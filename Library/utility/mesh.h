@@ -9,12 +9,10 @@
 #include "utility/transform.h"
 #include "utility/boundingbox.h"
 
-namespace slim {
+namespace slim::scene {
 
-    namespace scene {
-        class Node;
-        class Builder;
-    };
+    class Node;
+    class Builder;
 
     using DrawCommand = VkDrawIndirectCommand;
     using DrawIndexed = VkDrawIndexedIndirectCommand;
@@ -27,8 +25,8 @@ namespace slim {
     // mesh
     // lowest level building blocks
     class Mesh : public NotCopyable, public NotMovable, public ReferenceCountable {
-        friend class scene::Node;
-        friend class scene::Builder;
+        friend class Node;
+        friend class Builder;
     public:
 
         template <typename VertexType>

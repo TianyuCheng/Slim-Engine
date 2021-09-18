@@ -6,11 +6,8 @@
 #include "core/commands.h"
 #include "core/acceleration.h"
 
-namespace slim {
-    class Mesh;
-}
-
 namespace slim::scene {
+    class Mesh;
     class Node;
 }
 
@@ -22,7 +19,7 @@ namespace slim::accel {
 
         void EnableCompaction();
 
-        void AddMesh(Mesh* mesh);
+        void AddMesh(scene::Mesh* mesh);
         void AddNode(scene::Node* node);
 
         void BuildTlas();

@@ -67,6 +67,15 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
     - This is an example showcasing how to setup a skybox, and implement reflect/refract materials.
 	- ![Screenshot](./Examples/Skybox/screenshot.png)
 
+* MatCap
+    - This is a simple demo for MatCap. MatCap is a great technique for extremely cheap cost. However, the lighting must be static because the lighting is baked into the MatCap texture.
+    - Details from: [MatCap](https://github.com/nidorx/matcaps)
+	- ![Screenshot](./Examples/MatCap/screenshot.png)
+
+* Ray Tracing
+    - This is an example for basic ray tracing setup, showcasing how to use slim's raytracing builder.
+	- ![Screenshot](./Examples/RayTracing/screenshot.png)
+
 Applications
 ------------
 

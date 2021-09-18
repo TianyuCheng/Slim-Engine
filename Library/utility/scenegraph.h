@@ -95,6 +95,15 @@ namespace slim::scene {
             return mesh;
         }
 
+        // create material
+        template <typename...Args>
+        Material* CreateMaterial(Args...args) {
+            Material* material = new Material(device, args...);
+            material->SetID(materials.size());
+            materials.push_back(material);
+            return material;
+        }
+
         void EnableRayTracing();
 
         void Build();
@@ -103,11 +112,40 @@ namespace slim::scene {
         Device* GetDevice() const { return device; }
         accel::Builder* GetAccelBuilder() const { return accelBuilder; }
 
-        uint32_t GetNumInstances() const { return numInstances; }
-        void ForEach(std::function<void(Node*, Mesh*, Material*, uint32_t)> callback);
+        template <typename T>
+        void ForEachNode(std::vector<T>& data, std::function<void(T&, Node*)> callback) {
+            data.resize(nodes.size());
+            uint32_t index = 0;
+            for (auto& node : nodes) {
+                callback(data[index++], node);
+            }
+        }
+
+        template <typename T>
+        void ForEachMaterial(std::vector<T>& data, std::function<void(T&, Material*)> callback) {
+            data.resize(materials.size());
+            for (auto& material : materials) {
+                callback(data[material->GetID()], material);
+            }
+        }
+
+        template <typename T>
+        void ForEachInstance(std::vector<T>& data, std::function<void(T&, Node*, Mesh*, Material*, uint32_t)> callback) {
+            uint32_t instanceId = 0;
+            for (auto& node : nodes) {
+                for (auto& [mesh, material] : *node) {
+                    if (data.size() <= instanceId) {
+                        data.resize(instanceId + 1);
+                    }
+                    callback(data[instanceId], node, mesh, material, instanceId);
+                    instanceId++;
+                }
+            }
+        }
 
         std::vector<SmartPtr<Node>> nodes;
         std::vector<SmartPtr<Mesh>> meshes;
+        std::vector<SmartPtr<Material>> materials;
 
     private:
         VkBufferUsageFlags GetCommonBufferUsages() const;
@@ -126,7 +164,6 @@ namespace slim::scene {
         SmartPtr<Buffer> indexBuffer;
         SmartPtr<Buffer> vertexBuffer;
         SmartPtr<accel::Builder> accelBuilder;
-        uint32_t numInstances = 0;
     };
 
 } // end of slim namespace

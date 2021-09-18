@@ -1,6 +1,11 @@
 #ifndef SLIM_CORE_VKUTILS_H
 #define SLIM_CORE_VKUTILS_H
 
+#ifdef _MSC_VER
+#define NOMINMAX
+#include <windows.h>
+#endif
+
 #include <vector>
 #include <iostream>
 #include <optional>

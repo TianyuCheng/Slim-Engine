@@ -18,7 +18,7 @@ void accel::Builder::AddNode(scene::Node* node) {
     tlas->AddInstance(node);
 }
 
-void accel::Builder::AddMesh(Mesh* mesh) {
+void accel::Builder::AddMesh(scene::Mesh* mesh) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Geometry* geometry = new Geometry(device, createFlags);
 

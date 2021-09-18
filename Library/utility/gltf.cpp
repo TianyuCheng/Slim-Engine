@@ -421,11 +421,11 @@ void LoadImages(Device* device, Model &result, const tinygltf::Model& model, con
     });
 }
 
-void LoadMaterials(Device* device, Model &result, const tinygltf::Model &model) {
+void LoadMaterials(Model &result, const tinygltf::Model &model, scene::Builder* builder) {
     for (const auto& material : model.materials) {
 
         // create new material
-        SmartPtr<Material> mat = SlimPtr<Material>(device);
+        auto* mat = builder->CreateMaterial();
 
         MaterialData factors = {};
 
@@ -721,7 +721,7 @@ void Model::Load(scene::Builder* builder, const std::string& path, bool verbose)
     LoadImages(device, result, model, base);
 
     if (verbose) std::cout << "[LoadModel] Loading materials" << std::endl;
-    LoadMaterials(device, result, model);
+    LoadMaterials(result, model, builder);
 
     if (verbose) std::cout << "[LoadModel] Loading meshes" << std::endl;
     LoadMeshes(result, model, builder, verbose);

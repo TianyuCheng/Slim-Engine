@@ -1,5 +1,6 @@
 #include <sstream>
 #include <iostream>
+#include <algorithm>
 #include "core/vkutils.h"
 #include "core/image.h"
 #include "utility/color.h"

@@ -1,6 +1,6 @@
 #include "utility/mesh.h"
 
-using namespace slim;
+using namespace slim::scene;
 
 VkAabbPositionsKHR Mesh::GetAabbPositions() const {
     const glm::vec3& min = aabb.Min();

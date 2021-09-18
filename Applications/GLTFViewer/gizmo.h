@@ -8,17 +8,17 @@ using namespace slim;
 struct Gizmo : ReferenceCountable {
     // scene
     SmartPtr<scene::Builder> builder;
-    SmartPtr<scene::Node> scene;
-    SmartPtr<Mesh> cylinderMesh;
-    SmartPtr<Mesh> coneMesh;
+    SmartPtr<scene::Node>    scene;
+    SmartPtr<scene::Mesh>    cylinderMesh;
+    SmartPtr<scene::Mesh>    coneMesh;
 
     // material
-    SmartPtr<Shader> vShader;
-    SmartPtr<Shader> fShader;
-    SmartPtr<Technique> technique;
-    SmartPtr<Material> red;
-    SmartPtr<Material> green;
-    SmartPtr<Material> blue;
+    SmartPtr<Shader>          vShader;
+    SmartPtr<Shader>          fShader;
+    SmartPtr<Technique>       technique;
+    SmartPtr<scene::Material> red;
+    SmartPtr<scene::Material> green;
+    SmartPtr<scene::Material> blue;
 
     Gizmo(CommandBuffer* commandBuffer, scene::Builder* builder) : builder(builder) {
         InitMesh();
@@ -51,8 +51,8 @@ struct Gizmo : ReferenceCountable {
             GraphicsPipelineDesc()
                 .SetName("Gizmo")
                 .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                    { 0, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(GeometryData::Vertex, position)      },
-                    { 1, VK_FORMAT_R32G32B32_SFLOAT,    offsetof(GeometryData::Vertex, normal)        },
+                    { 0, VK_FORMAT_R32G32B32_SFLOAT,    static_cast<uint32_t>(offsetof(GeometryData::Vertex, position))      },
+                    { 1, VK_FORMAT_R32G32B32_SFLOAT,    static_cast<uint32_t>(offsetof(GeometryData::Vertex, normal)  )      },
                  })
                 .SetVertexShader(vShader)
                 .SetFragmentShader(fShader)
@@ -66,13 +66,13 @@ struct Gizmo : ReferenceCountable {
                 )
         );
 
-        red = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
+        red = builder->CreateMaterial(technique);
         red->SetUniformBuffer("Color", glm::vec3(1.0, 0.0, 0.0));
 
-        green = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
+        green = builder->CreateMaterial(technique);
         green->SetUniformBuffer("Color", glm::vec3(0.0, 1.0, 0.0));
 
-        blue = SlimPtr<Material>(commandBuffer->GetDevice(), technique);
+        blue = builder->CreateMaterial(technique);
         blue->SetUniformBuffer("Color", glm::vec3(0.0, 0.0, 1.0));
     }
 

@@ -78,10 +78,29 @@ int main() {
     }
 
     // create materials
-    auto whiteMaterial = SlimPtr<Material>(device); whiteMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto redMaterial   = SlimPtr<Material>(device); redMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 0.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto greenMaterial = SlimPtr<Material>(device); greenMaterial->SetData(RayTracingMaterial { glm::vec4(0.0, 1.0, 0.0, 1.0), glm::vec4(0.0, 0.0, 0.0, 0.0) });
-    auto lightMaterial = SlimPtr<Material>(device); lightMaterial->SetData(RayTracingMaterial { glm::vec4(1.0, 1.0, 1.0, 0.0), glm::vec4(1.0, 1.0, 1.0, 1.0) });
+    auto whiteMaterial = sceneBuilder->CreateMaterial();
+    auto redMaterial   = sceneBuilder->CreateMaterial();
+    auto greenMaterial = sceneBuilder->CreateMaterial();
+    auto lightMaterial = sceneBuilder->CreateMaterial();
+
+    {
+        whiteMaterial->SetData(RayTracingMaterial {
+            glm::vec4(1.0, 1.0, 1.0, 1.0),
+            glm::vec4(0.0, 0.0, 0.0, 0.0),
+        });
+        redMaterial->SetData(RayTracingMaterial {
+            glm::vec4(1.0, 0.0, 0.0, 1.0),
+            glm::vec4(0.0, 0.0, 0.0, 0.0),
+        });
+        greenMaterial->SetData(RayTracingMaterial {
+            glm::vec4(0.0, 1.0, 0.0, 1.0),
+            glm::vec4(0.0, 0.0, 0.0, 0.0)
+        });
+        lightMaterial->SetData(RayTracingMaterial {
+            glm::vec4(1.0, 1.0, 1.0, 0.0),
+            glm::vec4(1.0, 1.0, 1.0, 1.0)
+        });
+    }
 
     // create scene
     auto sceneRoot = sceneBuilder->CreateNode("root");
@@ -134,37 +153,35 @@ int main() {
     sceneRoot->ApplyTransform();
     sceneBuilder->Build();
 
-    std::vector<Material*> materials = {
-        whiteMaterial,
-        redMaterial,
-        greenMaterial,
-        lightMaterial,
-    };
-    auto materialCount = materials.size();
-    auto instanceCount = sceneBuilder->GetNumInstances();
-    auto materialBuffer = SlimPtr<Buffer>(device, materialCount * sizeof(RayTracingMaterial), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    auto instanceBuffer = SlimPtr<Buffer>(device, instanceCount * sizeof(RayTracingInstance), VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    std::vector<RayTracingMaterial> materialsData;
-    for (auto* material : materials) {
-        materialsData.push_back(material->GetData<RayTracingMaterial>());
-    }
-    std::vector<RayTracingInstance> instancesData(instanceCount);
-    sceneBuilder->ForEach([&](auto* node, auto* mesh, auto* material, uint32_t instanceId) {
-        auto& instance = instancesData[instanceId];
-        instance.instanceId = instanceId;
-        instance.materialId = std::find(materials.begin(), materials.end(), material) - materials.begin();
-        instance.modelMatrix = node->GetTransform().LocalToWorld();
-        instance.normalMatrix = glm::transpose(glm::inverse(instance.modelMatrix));
-        instance.indexAddress = mesh->GetIndexAddress(device);
-        instance.vertexAddress = mesh->GetVertexAddress(device, 0);
-        instance.materialAddress = device->GetDeviceAddress(materialBuffer);
-    });
-    device->Execute([&](CommandBuffer* commandBuffer) {
-        commandBuffer->CopyDataToBuffer(materialsData, materialBuffer);
-        commandBuffer->CopyDataToBuffer(instancesData, instanceBuffer);
-    });
+    // prepare material buffer
+    std::vector<RayTracingMaterial> materials;
+    sceneBuilder->ForEachMaterial<RayTracingMaterial>(materials,
+        [&](RayTracingMaterial& m, scene::Material* material) {
+            m = material->GetData<RayTracingMaterial>();
+        });
+    auto materialBuffer = SlimPtr<RayTracingStorageBuffer>(device, materials.size() * sizeof(RayTracingMaterial));
     materialBuffer->SetName("material buffer");
+
+    // prepare instance buffer
+    std::vector<RayTracingInstance> instances;
+    sceneBuilder->ForEachInstance<RayTracingInstance>(instances,
+        [&](RayTracingInstance& i, scene::Node* node, scene::Mesh* mesh, scene::Material* material, uint32_t instanceId) {
+            i.instanceId = instanceId;
+            i.materialId = material->GetID();
+            i.modelMatrix = node->GetTransform().LocalToWorld();
+            i.normalMatrix = glm::transpose(glm::inverse(i.modelMatrix));
+            i.indexAddress = mesh->GetIndexAddress(device);
+            i.vertexAddress = mesh->GetVertexAddress(device, 0);
+            i.materialAddress = device->GetDeviceAddress(materialBuffer);
+        });
+    auto instanceBuffer = SlimPtr<RayTracingStorageBuffer>(device, instances.size() * sizeof(RayTracingInstance));
     instanceBuffer->SetName("instance buffer");
+
+    // copy to material and instance buffer
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        commandBuffer->CopyDataToBuffer(materials, materialBuffer);
+        commandBuffer->CopyDataToBuffer(instances, instanceBuffer);
+    });
 
     // shaders
     auto rayGenShader = SlimPtr<spirv::RayGenShader>(device, "main", "shaders/raytrace.rgen.spv");

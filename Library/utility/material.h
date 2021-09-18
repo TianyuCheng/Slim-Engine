@@ -10,7 +10,7 @@
 #include "utility/technique.h"
 #include "utility/interface.h"
 
-namespace slim {
+namespace slim::scene {
 
     class Material final : public NotCopyable, public NotMovable, public ReferenceCountable {
     public:
@@ -55,6 +55,12 @@ namespace slim {
             std::memcpy(data.data(), &value, sizeof(T));
         }
 
+        // ID management
+        bool HasID() const;
+        void SetID(uint32_t id);
+        void ResetID();
+        uint32_t GetID() const;
+
     private:
         SmartPtr<Device> device;
         SmartPtr<Technique> technique = nullptr;
@@ -62,6 +68,7 @@ namespace slim {
         SmartPtr<BufferPool<UniformBuffer>> uniformBufferPool = nullptr;
         std::vector<SmartPtr<Descriptor>> descriptors;
         std::vector<uint8_t> data;
+        int32_t materialId = -1;
     };
 
 } // end of namespace slim

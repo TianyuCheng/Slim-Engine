@@ -63,8 +63,8 @@ namespace slim::gltf {
     struct Primitive {
         VkPrimitiveTopology topology;
         BoundingBox         boundingBox;
-        SmartPtr<Mesh>      mesh;
-        SmartPtr<Material>  material;
+        SmartPtr<scene::Mesh>      mesh;
+        SmartPtr<scene::Material>  material;
     };
 
     struct MeshData {
@@ -77,12 +77,12 @@ namespace slim::gltf {
     };
 
     struct Model : public ReferenceCountable {
-        std::vector<Scene>                 scenes;
-        std::vector<MeshData>              meshes;
-        std::vector<SmartPtr<scene::Node>> nodes;
-        std::vector<SmartPtr<Material>>    materials;
-        std::vector<SmartPtr<Sampler>>     samplers;
-        std::vector<SmartPtr<GPUImage>>    images;
+        std::vector<Scene>                     scenes;
+        std::vector<MeshData>                  meshes;
+        std::vector<SmartPtr<scene::Node>>     nodes;
+        std::vector<SmartPtr<scene::Material>> materials;
+        std::vector<SmartPtr<Sampler>>         samplers;
+        std::vector<SmartPtr<GPUImage>>        images;
 
         void Load(scene::Builder* builder, const std::string& path, bool verbose = false);
 
