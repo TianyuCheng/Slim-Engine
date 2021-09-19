@@ -282,10 +282,13 @@ void GraphicsPipelineDesc::InitRasterizationState() {
 
 void GraphicsPipelineDesc::InitColorBlendState() {
     // initialize a default color blend attachment state
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+    colorBlendAttachments.push_back(VkPipelineColorBlendAttachmentState { });
+    auto& colorBlendAttachment = colorBlendAttachments.back();
     colorBlendAttachment.blendEnable = VK_FALSE;
-    colorBlendAttachments.push_back(colorBlendAttachment);
+    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT
+                                        | VK_COLOR_COMPONENT_G_BIT
+                                        | VK_COLOR_COMPONENT_B_BIT
+                                        | VK_COLOR_COMPONENT_A_BIT;
     // ----------------------------------------------------------------------------------------
     colorBlendStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlendStateCreateInfo.logicOpEnable = VK_FALSE;
@@ -401,6 +404,18 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetBlendState(int index, const VkPip
         colorBlendAttachments.resize(index + 1);
     }
     colorBlendAttachments[index] = blendState;
+    return *this;
+}
+
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetDefaultBlendState(int index) {
+    if (colorBlendAttachments.size() <= index) {
+        colorBlendAttachments.resize(index + 1);
+    }
+    colorBlendAttachments[index].blendEnable = VK_FALSE;
+    colorBlendAttachments[index].colorWriteMask = VK_COLOR_COMPONENT_R_BIT
+                                                | VK_COLOR_COMPONENT_G_BIT
+                                                | VK_COLOR_COMPONENT_B_BIT
+                                                | VK_COLOR_COMPONENT_A_BIT;
     return *this;
 }
 

@@ -26,6 +26,7 @@ namespace slim {
     class Image;
     class Context;
     class DearImGui;
+    class FPS;
 
     // WindowDesc should hold the data for all configurations needed for window.
     // When window is initialized, nothing should be changeable (except for resolution)
@@ -39,11 +40,13 @@ namespace slim {
         WindowDesc& SetMaxFramesInFlight(uint32_t value);
         WindowDesc& SetMaxSetsPerPool(uint32_t value);
         WindowDesc& SetTitle(const std::string &title);
+        WindowDesc& EnableFPS(bool value = true);
 
     private:
         bool        fullscreen = false;
         bool        resizable = false;
         bool        alphaComposite = false;
+        bool        enableFPS = false;
         uint32_t    width = 960;
         uint32_t    height = 720;
         uint32_t    maxFramesInFlight = 3;
@@ -96,6 +99,8 @@ namespace slim {
         uint32_t                           maxFramesInFlight   = 1;
         std::vector<SmartPtr<Fence>>       inflightFences      = {};
         std::vector<SmartPtr<RenderFrame>> renderFrames        = {};
+
+        FPS*                               fps;
     };
 
 } // end of namespace slim

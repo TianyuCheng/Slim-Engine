@@ -12,7 +12,7 @@ int main() {
             .Verbose(true)
             .EnableCompute(true)
             .EnableGraphics(true)
-            .EnableValidation(true)
+            .EnableValidation(false)
             .EnableGLFW(true)
     );
 
@@ -26,6 +26,7 @@ int main() {
             .SetResolution(640, 480)
             .SetResizable(true)
             .SetTitle("Deferred")
+            .EnableFPS(true)
     );
 
     // ui and input control
@@ -39,6 +40,7 @@ int main() {
 
     // camera
     auto camera = SlimPtr<Flycam>("camera");
+    camera->SetWalkSpeed(20.0f);
     camera->LookAt(glm::vec3(3.0, 135.0, 0.0), glm::vec3(0.0, 135.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // render
@@ -53,6 +55,9 @@ int main() {
         camera->Update(input, time);
         camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 2000.0);
 
+        // fairies
+        fairies.UpdateInstances(time);
+
         // time
         time->Update();
 
@@ -60,10 +65,18 @@ int main() {
         RenderGraph renderGraph(frame);
         {
             auto colorBuffer = renderGraph.CreateResource(frame->GetBackBuffer());
+            auto maskBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
             auto albedoBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
             auto normalBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
             auto positionBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             auto depthStencil = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
+
+            // drawing a mask for deferred rendering
+            auto maskPass = renderGraph.CreateRenderPass("mask");
+            maskPass->SetColor(maskBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+            maskPass->Execute([&](const RenderInfo& info) {
+                fairies.DrawMask(info, camera);
+            });
 
             auto deferredPass = renderGraph.CreateRenderPass("deferred");
             {
@@ -93,14 +106,24 @@ int main() {
                 });
             }
 
+            // drawing fairies for debugging
+            auto fairyPass = renderGraph.CreateRenderPass("fairies");
+            fairyPass->SetColor(colorBuffer);
+            fairyPass->SetDepthStencil(depthStencil);
+            fairyPass->Execute([&](const RenderInfo& info) {
+                fairies.DrawFairy(info, camera);
+            });
+
             // draw ui
             auto uiPass = renderGraph.CreateRenderPass("ui");
             uiPass->SetColor(colorBuffer);
+            uiPass->SetTexture(maskBuffer);
             uiPass->SetTexture(albedoBuffer);
             uiPass->SetTexture(normalBuffer);
             uiPass->SetTexture(positionBuffer);
             uiPass->SetTexture(depthStencil);
             uiPass->Execute([&](const RenderInfo &info) {
+                ImTextureID mask = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), maskBuffer->GetImage()->AsTexture());
                 ImTextureID albedo = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), albedoBuffer->GetImage()->AsTexture());
                 ImTextureID normal = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), normalBuffer->GetImage()->AsTexture());
                 ImTextureID position = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), positionBuffer->GetImage()->AsTexture());
@@ -114,6 +137,7 @@ int main() {
                     {
                         ImVec2 region = ImGui::GetContentRegionAvail();
                         ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
+                        ImGui::Image(mask, size);
                         ImGui::Image(albedo, size);
                         ImGui::Image(normal, size);
                         ImGui::Image(position, size);

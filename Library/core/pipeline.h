@@ -214,6 +214,7 @@ namespace slim {
                                            float depthBiasClamp, bool dynamic = false);
         GraphicsPipelineDesc& SetStencilTest(const VkStencilOpState& front, const VkStencilOpState& back);
         GraphicsPipelineDesc& SetBlendState(int index, const VkPipelineColorBlendAttachmentState& blendState);
+        GraphicsPipelineDesc& SetDefaultBlendState(int index);
         GraphicsPipelineDesc& AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate, const std::vector<VertexAttrib> &attribs);
         GraphicsPipelineDesc& SetVertexShader(Shader* shader);
         GraphicsPipelineDesc& SetFragmentShader(Shader* shader);

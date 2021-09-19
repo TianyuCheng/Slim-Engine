@@ -23,17 +23,19 @@ namespace slim {
         std::chrono::time_point<std::chrono::high_resolution_clock> clock;
     };
 
-    class FPS {
+    class FPS : public ReferenceCountable {
     public:
         explicit FPS();
         virtual ~FPS() = default;
         double GetValue() const { return value; }
         void Update();
+        bool Reportable() const { return reportable; };
 
     private:
         std::chrono::time_point<std::chrono::system_clock> time;
         int frames = 0;
         double value = 0.0;
+        bool reportable = false;
     };
 
 }; // end of slim namespace

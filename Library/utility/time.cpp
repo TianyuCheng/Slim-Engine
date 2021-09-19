@@ -29,6 +29,8 @@ FPS::FPS() {
 }
 
 void FPS::Update() {
+    reportable = false;
+
     frames++;
     auto curr = std::chrono::system_clock::now();
     std::chrono::duration<double> diff = curr - time;
@@ -36,5 +38,6 @@ void FPS::Update() {
         time = curr;
         value = frames / diff.count();
         frames = 0;
+        reportable = true;
     }
 }

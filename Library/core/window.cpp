@@ -1,6 +1,8 @@
+#include <sstream>
 #include "core/debug.h"
 #include "core/window.h"
 #include "core/vkutils.h"
+#include "utility/time.h"
 
 using namespace slim;
 
@@ -40,6 +42,11 @@ WindowDesc& WindowDesc::SetTitle(const std::string &value) {
     return *this;
 }
 
+WindowDesc& WindowDesc::EnableFPS(bool value) {
+    enableFPS = value;
+    return *this;
+}
+
 Window::Window(Device *device, const WindowDesc &desc) : desc(desc), device(device) {
     // for Vulkan, use GLFW_NO_API
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -60,6 +67,10 @@ Window::Window(Device *device, const WindowDesc &desc) : desc(desc), device(devi
     InitRenderFrames();
 
     windowExtent = VkExtent2D { desc.width, desc.height };
+
+    if (desc.enableFPS) {
+        fps = new FPS();
+    }
 }
 
 Window::~Window() {
@@ -85,6 +96,11 @@ Window::~Window() {
     if (handle) {
         glfwDestroyWindow(handle);
         handle = nullptr;
+    }
+
+    if (fps) {
+        delete fps;
+        fps = nullptr;
     }
 }
 
@@ -166,6 +182,15 @@ void Window::InitRenderFrames() {
 }
 
 RenderFrame* Window::AcquireNext() {
+    if (fps) {
+        fps->Update();
+        if (fps->Reportable()) {
+            std::stringstream ss;
+            ss << desc.title << " (FPS: " << fps->GetValue() << ")";
+            glfwSetWindowTitle(handle, ss.str().c_str());
+        }
+    }
+
     RenderFrame *frame = renderFrames.at(currentFrame).get();
     VkFence fence = VK_NULL_HANDLE;
 
