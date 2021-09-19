@@ -583,8 +583,8 @@ void RenderGraph::UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, 
                 switch (meta.type) {
                     case ResourceType::ColorAttachment:
                     case ResourceType::ColorResolveAttachment:
-                        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                        break;
+                    case ResourceType::InputAttachment:
+                    case ResourceType::PreserveAttachment:
                     case ResourceType::DepthAttachment:
                     case ResourceType::StencilAttachment:
                     case ResourceType::DepthStencilAttachment:

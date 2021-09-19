@@ -5,9 +5,9 @@
 
 using namespace slim;
 
-using key_t = std::tuple<uint32_t, uint32_t>;
+using pass_key_t = std::tuple<uint32_t, uint32_t>;
 struct key_hash {
-    std::size_t operator()(const key_t& k) const {
+    std::size_t operator()(const pass_key_t& k) const {
         return std::get<0>(k) ^ std::get<1>(k);
     }
 };

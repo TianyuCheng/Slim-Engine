@@ -399,7 +399,7 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetStencilTest(const VkStencilOpStat
     return *this;
 }
 
-GraphicsPipelineDesc& GraphicsPipelineDesc::SetBlendState(int index, const VkPipelineColorBlendAttachmentState& blendState) {
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetBlendState(uint32_t index, const VkPipelineColorBlendAttachmentState& blendState) {
     if (colorBlendAttachments.size() <= index) {
         colorBlendAttachments.resize(index + 1);
     }
@@ -407,7 +407,7 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetBlendState(int index, const VkPip
     return *this;
 }
 
-GraphicsPipelineDesc& GraphicsPipelineDesc::SetDefaultBlendState(int index) {
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetDefaultBlendState(uint32_t index) {
     if (colorBlendAttachments.size() <= index) {
         colorBlendAttachments.resize(index + 1);
     }
