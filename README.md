@@ -13,9 +13,31 @@ Architecture
         - actual resource allocation and deallocation based on reference counting
         - automatic resource layout transition (attachments are transitioned by render passes already by Vulkan, textures layouts are transitioned by RenderGraph)
         - async compute, which is a must-have feature if we are going for complete GPU driven pipeline (however, I have not validated the correctness of this feature)
-    - Things I have not implemnted
-        - interface for preserve attachments. I have not really used preserve attachments in the existing examples. I will have them implemented when I need it.
-        - interface for multi-subpass render passes (useful for tile-based architecture). This feature is differently exposed across different APIs (DX12, Metal). I need to think about how to expose it.
+        - multi-subpass render passes support for tile-based architecture. Subpass dependencies are automatically calculated, and only tested in simple examples.
+
+* Material System
+    - **Slim Engine** implements an experimental material system based on an industrial design - Render Queue.
+    - The idea was directly taken from [Unity](https://docs.unity3d.com/ScriptReference/Rendering.RenderQueue.html), but the details are not.
+    - The material system consists of multiple components:
+        * graphics pipeline
+        * technique
+        * material
+    - A technique contains multiple graphics pipelines, with each pipeline assigned a render queue value.
+    - A material operates on top of a technique, and also manages descriptor resources.
+    - This material system could be integrated with the scene graph.
+
+* Scene Graph
+    - **Slim Engine** implements a primitive scene graph, which consists of
+        * node
+        * mesh
+        * material
+    - Nodes makes up the hierarchy of the scene graph.
+    - A node could contain multiple pairs of mesh and materials, or it could also be simply for transform hierarchy.
+    - **Slim Engine** provides a scene builder for managing the ownership of all nodes, meshes and materials used in the scene.
+    - The same scene builder also provides supports for building bottom-level acceleration structure (BLAS) and top-level accleration structure (TLAS), used in Ray Tracing.
+    - Things I have not implemented:
+        - The current scene graph is only a tree, not a real graph, need to extend the design to support a node being added multiple times.
+        - I have not implemented any support for instancing. Currently the instancing requires user code manually.
 
 Examples
 --------
@@ -66,6 +88,11 @@ Examples are located in `Examples/` directory. Here's a list of the examples.
 * Skybox
     - This is an example showcasing how to setup a skybox, and implement reflect/refract materials.
 	- ![Screenshot](./Examples/Skybox/screenshot.png)
+
+* Deferred Rendering
+    - This is an example showcasing how to use Vulkan's multi-subpass render passes.
+    - A simple and unoptimized implementation for deferred rendering is provided as a demo.
+	- ![Screenshot](./Examples/Deferred/screenshot.png)
 
 * MatCap
     - This is a simple demo for MatCap. MatCap is a great technique for extremely cheap cost. However, the lighting must be static because the lighting is baked into the MatCap texture.
