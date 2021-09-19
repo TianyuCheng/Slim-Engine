@@ -389,6 +389,21 @@ GraphicsPipelineDesc& GraphicsPipelineDesc::SetDepthBias(float depthBiasConstant
     return *this;
 }
 
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetStencilTest(const VkStencilOpState& front, const VkStencilOpState& back) {
+    depthStencilStateCreateInfo.stencilTestEnable = VK_TRUE;
+    depthStencilStateCreateInfo.front = front;
+    depthStencilStateCreateInfo.back = back;
+    return *this;
+}
+
+GraphicsPipelineDesc& GraphicsPipelineDesc::SetBlendState(int index, const VkPipelineColorBlendAttachmentState& blendState) {
+    if (colorBlendAttachments.size() <= index) {
+        colorBlendAttachments.resize(index + 1);
+    }
+    colorBlendAttachments[index] = blendState;
+    return *this;
+}
+
 GraphicsPipelineDesc& GraphicsPipelineDesc::AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate,
                                                              const std::vector<VertexAttrib> &attribs) {
     inputBindings.push_back(VkVertexInputBindingDescription {
@@ -575,7 +590,7 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetMaxRayRecursionDepth(int dept
 // |_|   |_| .__/ \___|_|_|_| |_|\___|
 //         |_|
 
-Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
+Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc, uint32_t subpass) : device(device), bindPoint(VK_PIPELINE_BIND_POINT_GRAPHICS) {
     #ifndef NDEBUG
     assert(desc.name.length() > 0 && "PipelineDesc must have a name!");
     assert(desc.renderPass && "PipelineDesc must have a valid renderPass!");
@@ -627,7 +642,7 @@ Pipeline::Pipeline(Device *device, GraphicsPipelineDesc &desc) : device(device),
     desc.handle.pVertexInputState = &vertexInputStateCreateInfo;
     desc.handle.pViewportState = &viewportStateCreateInfo;
     desc.handle.renderPass = *desc.renderPass;
-    desc.handle.subpass = 0;
+    desc.handle.subpass = subpass;
     desc.handle.stageCount = shaderCreateInfos.size();
     desc.handle.pStages = shaderCreateInfos.data();
     desc.handle.pNext = VK_NULL_HANDLE;

@@ -40,6 +40,9 @@ namespace slim {
         void SetTexture(const std::string& name, Image* image, Sampler* sampler);
         void SetTextures(const std::string& name, const std::vector<Image*>& images, const std::vector<Sampler*>& samplers);
 
+        // binding an input attachment
+        void SetInputAttachment(const std::string& name, Image* image);
+
         // binding image uniform
         void SetSampledImage(const std::string& name, Image* image);
         void SetSampledImages(const std::string& name, const std::vector<Image*>& images);

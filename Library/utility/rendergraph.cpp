@@ -46,6 +46,19 @@ void RenderGraph::Subpass::SetColorResolve(RenderGraph::Resource *resource) {
     usedAsColorResolveAttachment.push_back(attachmentId);
 }
 
+void RenderGraph::Subpass::SetPreserve(RenderGraph::Resource *resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::PreserveAttachment });
+    resource->readers.push_back(parent);
+    resource->writers.push_back(parent);
+    usedAsPreserveAttachment.push_back(attachmentId);
+}
+
+void RenderGraph::Subpass::SetInput(RenderGraph::Resource* resource) {
+    uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::InputAttachment });
+    resource->readers.push_back(parent);
+    usedAsInputAttachment.push_back(attachmentId);
+}
+
 void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment });
     resource->writers.push_back(parent);
@@ -124,6 +137,11 @@ RenderGraph::Subpass* RenderGraph::Pass::CreateSubpass() {
 void RenderGraph::Pass::SetColorResolve(RenderGraph::Resource *resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetColorResolve(resource);
+}
+
+void RenderGraph::Pass::SetPreserve(RenderGraph::Resource *resource) {
+    assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
+    defaultSubpass->SetPreserve(resource);
 }
 
 void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource) {
@@ -334,6 +352,14 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                 attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
                 framebufferDesc.AddAttachment(attachment.resource->image->AsDepthStencilBuffer());
                 break;
+            case ResourceType::PreserveAttachment:
+                // preserve attachment does not need to be specified in the framebuffer creation
+                // attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
+                break;
+            case ResourceType::InputAttachment:
+                // input attachment does not need to be specified in the framebuffer creation
+                // attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
+                break;
         }
         if (attachment.clearValue.has_value()) {
             clearValues.push_back(attachment.clearValue.value());
@@ -345,12 +371,15 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
 
     // texture layout transition
     for (auto &texture : textures) {
+        VkPipelineStageFlags srcStageMask = IsDepthStencil(texture->format)
+                                          ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                                          : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         // transit dst image layout
         PrepareLayoutTransition(*commandBuffer, texture->image,
             texture->layout,
             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+            srcStageMask,
+            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, // missing the information which stage texture is used
             0, texture->image->Layers(),
             0, texture->image->MipLevels());
     }
@@ -397,6 +426,13 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
             VkImageLayout initialLayout = attachments[attachment].resource->layout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddDepthStencilAttachment(attachmentId, initialLayout, finalLayout);
+            attachments[attachment].resource->layout = finalLayout;
+        }
+        for (uint32_t attachment : subpass->usedAsInputAttachment) {
+            uint32_t attachmentId = attachmentIds[attachment];
+            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout finalLayout = attachments[attachment].resource->layout;
+            subpassDesc.AddInputAttachment(attachmentId, initialLayout, finalLayout);
             attachments[attachment].resource->layout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsPreserveAttachment) {

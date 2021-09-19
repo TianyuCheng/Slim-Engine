@@ -71,6 +71,36 @@ std::tuple<uint32_t, uint32_t> Descriptor::GetBinding(const std::string &name) {
     return std::make_tuple(set, binding);
 }
 
+void Descriptor::SetInputAttachment(const std::string& name, Image* image) {
+    auto [set, binding, flags] = FindDescriptorSet(name);
+
+    imageInfos.push_back(std::vector<VkDescriptorImageInfo> { });
+    auto& infos = imageInfos.back();
+    infos.push_back(VkDescriptorImageInfo { });
+    auto& info = infos.back();
+
+    info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    info.imageView = IsDepthStencil(image->GetFormat())
+                   ? image->AsDepthStencilBuffer()
+                   : image->AsTexture();
+    info.sampler = VK_NULL_HANDLE;
+
+    VkWriteDescriptorSet update = {};
+    update.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    update.pNext = nullptr;
+    update.descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+    update.dstSet = VK_NULL_HANDLE;
+    update.dstBinding = binding;
+    update.dstArrayElement = 0;
+    update.descriptorCount = infos.size();
+    update.pImageInfo = infos.data();
+    update.pBufferInfo = nullptr;
+    update.pTexelBufferView = nullptr;
+
+    writes.push_back(update);
+    writeDescriptorSets.push_back(set);
+}
+
 void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *sampler) {
     SetTextures(name, { image }, { sampler });
 }

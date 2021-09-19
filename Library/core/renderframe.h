@@ -39,7 +39,7 @@ namespace slim {
         DescriptorPool*          GetDescriptorPool() const;
 
         Pipeline*                RequestPipeline(const ComputePipelineDesc &desc);
-        Pipeline*                RequestPipeline(const GraphicsPipelineDesc &desc);
+        Pipeline*                RequestPipeline(const GraphicsPipelineDesc &desc, uint32_t subpass = 0);
         Pipeline*                RequestPipeline(const RayTracingPipelineDesc &desc);
         RenderPass*              RequestRenderPass(const RenderPassDesc &renderPassDesc);
         Framebuffer*             RequestFramebuffer(const FramebufferDesc &framebufferDesc);

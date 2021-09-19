@@ -11,6 +11,7 @@ add_subdirectory(DescriptorIndexing)
 add_subdirectory(Geometries)
 add_subdirectory(Skybox)
 add_subdirectory(MatCap)
+add_subdirectory(Deferred)
 
 if (WIN32)
     add_subdirectory(RayTracing)

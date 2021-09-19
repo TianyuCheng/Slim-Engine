@@ -3,7 +3,8 @@
 
 using namespace slim;
 
-scene::Node::Node() : name(), parent(nullptr) {
+scene::Node::Node(Node* parent) : name(), parent(parent) {
+    MoveTo(parent);
 }
 
 scene::Node::Node(const std::string& name, Node* parent)

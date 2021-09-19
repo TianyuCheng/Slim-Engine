@@ -212,6 +212,8 @@ namespace slim {
         GraphicsPipelineDesc& SetDepthBias(float depthBiasConstantFactor,
                                            float depthBiasSlopeFactor,
                                            float depthBiasClamp, bool dynamic = false);
+        GraphicsPipelineDesc& SetStencilTest(const VkStencilOpState& front, const VkStencilOpState& back);
+        GraphicsPipelineDesc& SetBlendState(int index, const VkPipelineColorBlendAttachmentState& blendState);
         GraphicsPipelineDesc& AddVertexBinding(uint32_t binding, uint32_t stride, VkVertexInputRate inputRate, const std::vector<VertexAttrib> &attribs);
         GraphicsPipelineDesc& SetVertexShader(Shader* shader);
         GraphicsPipelineDesc& SetFragmentShader(Shader* shader);
@@ -295,7 +297,7 @@ namespace slim {
 
     class Pipeline final : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkPipeline> {
     public:
-        explicit Pipeline(Device *device, GraphicsPipelineDesc &);
+        explicit Pipeline(Device *device, GraphicsPipelineDesc &, uint32_t subpass = 0);
         explicit Pipeline(Device *device, ComputePipelineDesc &);
         explicit Pipeline(Device *device, RayTracingPipelineDesc &);
         virtual ~Pipeline();

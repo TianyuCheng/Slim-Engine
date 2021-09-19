@@ -72,6 +72,8 @@ namespace slim {
             DepthAttachment,
             StencilAttachment,
             DepthStencilAttachment,
+            PreserveAttachment,
+            InputAttachment,
         };
 
         struct ResourceMetadata {
@@ -87,22 +89,34 @@ namespace slim {
         public:
             explicit Subpass(Pass* parent);
 
+            // color resolve attachment
             void SetColorResolve(RenderGraph::Resource *resource);
 
+            // preserved attachmented
+            void SetPreserve(RenderGraph::Resource* resource);
+
+            // input attachment
+            void SetInput(RenderGraph::Resource* resource);
+
+            // color attachment
             void SetColor(RenderGraph::Resource *resource);
             void SetColor(RenderGraph::Resource *resource, const ClearValue &clear);
 
+            // separate depth
             void SetDepth(RenderGraph::Resource *resource);
             void SetDepth(RenderGraph::Resource *resource, const ClearValue &clear);
 
+            // separate stencil
             void SetStencil(RenderGraph::Resource *resource);
             void SetStencil(RenderGraph::Resource *resource, const ClearValue &clear);
 
+            // combined depth stencil
             void SetDepthStencil(RenderGraph::Resource *resource);
             void SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear);
 
-            void SetTexture(RenderGraph::Resource *resource);
-            void SetStorage(RenderGraph::Resource *resource);
+            // non-attachments
+            void SetTexture(RenderGraph::Resource *resource);   // texture image
+            void SetStorage(RenderGraph::Resource *resource);   // storage image
 
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
@@ -117,6 +131,7 @@ namespace slim {
             std::vector<uint32_t> usedAsStencilAttachment = {};
             std::vector<uint32_t> usedAsDepthStencilAttachment = {};
             std::vector<uint32_t> usedAsPreserveAttachment = {};
+            std::vector<uint32_t> usedAsInputAttachment = {};
             std::vector<uint32_t> usedAsTexture = {};
             std::vector<uint32_t> usedAsStorage = {};
         };
@@ -131,22 +146,34 @@ namespace slim {
 
             Subpass* CreateSubpass();
 
+            // color resolve attachment
             void SetColorResolve(RenderGraph::Resource* resource);
 
+            // preserved attachment
+            void SetPreserve(RenderGraph::Resource* resource);
+
+            // input attachment
+            void SetInput(RenderGraph::Resource* resource);
+
+            // color attachment
             void SetColor(RenderGraph::Resource* resource);
             void SetColor(RenderGraph::Resource* resource, const ClearValue& clear);
 
+            // separate depth
             void SetDepth(RenderGraph::Resource* resource);
             void SetDepth(RenderGraph::Resource* resource, const ClearValue& clear);
 
+            // separate stencil
             void SetStencil(RenderGraph::Resource* resource);
             void SetStencil(RenderGraph::Resource* resource, const ClearValue& clear);
 
+            // combined depth stencil
             void SetDepthStencil(RenderGraph::Resource* resource);
             void SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear);
 
-            void SetTexture(RenderGraph::Resource* resource);
-            void SetStorage(RenderGraph::Resource *resource);
+            // non-attachments
+            void SetTexture(RenderGraph::Resource* resource);   // texture image
+            void SetStorage(RenderGraph::Resource *resource);   // storage image
 
             void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
 

@@ -20,7 +20,7 @@ namespace slim::scene {
 
     public:
 
-        explicit Node();
+        explicit Node(Node* parent = nullptr);
         explicit Node(const std::string& name, Node* parent = nullptr);
 
         void AddChild(Node* child);

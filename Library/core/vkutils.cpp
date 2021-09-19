@@ -388,13 +388,21 @@ namespace slim {
                 srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
                 subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 break;
+            // combined depth stencil
             case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
             case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL:
             case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
+            case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+                srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+                subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+                break;
+            // separate depth only
+            case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
                 srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
                 break;
-            case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
+            // separate stencil only
+            case VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL:
                 srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 subresourceRange.aspectMask = VK_IMAGE_ASPECT_STENCIL_BIT;
                 break;

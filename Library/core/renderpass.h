@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <deque>
+#include <algorithm>
 #include <unordered_set>
 #include <unordered_map>
 
@@ -40,6 +42,7 @@ namespace slim {
         SubpassDesc& AddStencilAttachment(uint32_t attachment, VkImageLayout inLayout, VkImageLayout outLayout);
         SubpassDesc& AddDepthStencilAttachment(uint32_t attachment, VkImageLayout inLayout, VkImageLayout outLayout);
         SubpassDesc& AddResolveAttachment(uint32_t attachment, VkImageLayout inLayout, VkImageLayout outLayout);
+        SubpassDesc& AddInputAttachment(uint32_t attachment, VkImageLayout inLayout, VkImageLayout outLayout);
         SubpassDesc& AddPreserveAttachment(uint32_t attachment);
 
     private:
@@ -90,6 +93,10 @@ namespace slim {
     public:
         RenderPass(Device *device, const RenderPassDesc &desc);
         virtual ~RenderPass();
+
+    private:
+        void ResolveSingleSubpassDependencies(const RenderPassDesc& desc, std::vector<VkSubpassDependency>& dependencies);
+        void ResolveMultiSubpassDependencies(const RenderPassDesc& desc, std::vector<VkSubpassDependency>& dependencies);
 
     private:
         SmartPtr<Device> device;

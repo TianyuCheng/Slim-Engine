@@ -123,11 +123,11 @@ Pipeline* RenderFrame::RequestPipeline(const ComputePipelineDesc &desc) {
     return it->second;
 }
 
-Pipeline* RenderFrame::RequestPipeline(const GraphicsPipelineDesc &desc) {
+Pipeline* RenderFrame::RequestPipeline(const GraphicsPipelineDesc &desc, uint32_t subpass) {
     const std::string &name = desc.GetName();
     auto it = pipelines.find(name);
     if (it == pipelines.end()) {
-        pipelines.insert(std::make_pair(name, SlimPtr<Pipeline>(device, desc)));
+        pipelines.insert(std::make_pair(name, SlimPtr<Pipeline>(device, desc, subpass)));
         it = pipelines.find(name);
     }
     return it->second;
