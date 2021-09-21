@@ -742,9 +742,8 @@ Pipeline::Pipeline(Device *device, RayTracingPipelineDesc &desc) : device(device
     // create sbt buffer
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
                                    | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
-    // sbtBuffer = SlimPtr<Buffer>(device, sbtSize, bufferUsage, VMA_MEMORY_USAGE_CPU_TO_GPU);
     sbtBuffer = SlimPtr<Buffer>(device, sbtSize, bufferUsage, VMA_MEMORY_USAGE_CPU_ONLY);
-    uint8_t* sbtData = sbtBuffer->GetData<uint8_t>();
+    auto* sbtData = sbtBuffer->GetData<uint8_t>();
     for (uint32_t i = 0; i < groupCount; i++) {
         memcpy(sbtData + i * groupSizeAligned,
                shaderHandleStorage.data() + i * groupHandleSize,

@@ -375,6 +375,9 @@ namespace slim {
             case VK_IMAGE_LAYOUT_PREINITIALIZED:
                 srcAccessMask = 0;
                 break;
+            case VK_IMAGE_LAYOUT_GENERAL:
+                srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+                break;
             case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
                 srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 break;

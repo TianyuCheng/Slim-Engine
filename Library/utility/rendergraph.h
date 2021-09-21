@@ -44,6 +44,15 @@ namespace slim {
             virtual ~Resource() = default;
             Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
             Image* GetImage() const { return image; }
+
+            void UseAsColorBuffer()        { usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;         }
+            void UseAsDepthBuffer()        { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsStencilBuffer()      { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsDepthStencilBuffer() { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsInputAttachment()    { usages |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;         }
+            void UseAsStorage()            { usages |= VK_IMAGE_USAGE_STORAGE_BIT;                  }
+            void UseAsTexture()            { usages |= VK_IMAGE_USAGE_SAMPLED_BIT;                  }
+
         private:
             void Allocate(RenderFrame* renderFrame);
             void Deallocate();
@@ -54,6 +63,7 @@ namespace slim {
             uint32_t mipLevels = 1;
             VkSampleCountFlagBits samples;
             VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+            VkImageUsageFlags usages = 0;
 
             Transient<GPUImage> image;
             std::vector<Pass*> readers = {};
@@ -186,6 +196,9 @@ namespace slim {
             uint32_t AddTexture(Resource* resource);
             uint32_t AddStorage(Resource* resource);
 
+            void TransitTextureLayout(Resource* resource);
+            void TransitStorageLayout(Resource* resource);
+
         private:
             std::string name;
             RenderGraph *graph;
@@ -235,8 +248,7 @@ namespace slim {
     private:
         void                   CompilePass(Pass *pass);
         void                   CompileResource(Resource *resource);
-        void                   UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, Resource* resource) const;
-        bool                   HasComputePassDependency(Pass* pass) const;
+        std::unordered_set<Pass*> FindPassDependencies(Pass* pass);
 
     private:
         SmartPtr<RenderFrame> renderFrame;

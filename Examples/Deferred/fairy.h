@@ -200,12 +200,8 @@ public:
         instanceBuffer = SlimPtr<Buffer>(device, infos.size() * sizeof(FairyInfo),
                                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_GPU_ONLY);
-    }
 
-    void UpdateInstances(Time* time) {
-        for (uint32_t i = 0; i < instanceCount; i++) {
-            infos[i].position.y = heights[i] + std::sin(time->Elapsed() + infos[i].position.x + infos[i].position.z) * 50.0f;
-        }
+        // one time update
         device->Execute([&](CommandBuffer* commandBuffer) {
             commandBuffer->CopyDataToBuffer(infos, instanceBuffer);
         });

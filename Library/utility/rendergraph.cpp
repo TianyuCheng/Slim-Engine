@@ -4,6 +4,8 @@
 #include "core/vkutils.h"
 #include "utility/rendergraph.h"
 
+#define SLIM_DEBUG_RENDERGRAPH 0
+
 using namespace slim;
 
 RenderGraph::Resource::Resource(GPUImage* image)
@@ -19,17 +21,8 @@ RenderGraph::Resource::Resource(VkFormat format, VkExtent2D extent, VkSampleCoun
 }
 
 void RenderGraph::Resource::Allocate(RenderFrame* renderFrame) {
-    VkImageUsageFlags usage = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT
-                            | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-    if (IsDepthStencil(format)) {
-        usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    } else {
-        usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    }
-
     if (!image.get()) {
-        image = renderFrame->RequestGPUImage(format, extent, mipLevels, 1, samples, usage);
+        image = renderFrame->RequestGPUImage(format, extent, mipLevels, 1, samples, usages);
     }
 }
 
@@ -44,6 +37,7 @@ void RenderGraph::Subpass::SetColorResolve(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorResolveAttachment });
     resource->writers.push_back(parent);
     usedAsColorResolveAttachment.push_back(attachmentId);
+    resource->UseAsColorBuffer();
 }
 
 void RenderGraph::Subpass::SetPreserve(RenderGraph::Resource *resource) {
@@ -57,66 +51,79 @@ void RenderGraph::Subpass::SetInput(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::InputAttachment });
     resource->readers.push_back(parent);
     usedAsInputAttachment.push_back(attachmentId);
+    resource->UseAsInputAttachment();
 }
 
 void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment });
     resource->writers.push_back(parent);
     usedAsColorAttachment.push_back(attachmentId);
+    resource->UseAsColorBuffer();
 }
 
 void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource, const ClearValue &clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment, clear });
     resource->writers.push_back(parent);
     usedAsColorAttachment.push_back(attachmentId);
+    resource->UseAsColorBuffer();
 }
 
 void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment });
     resource->writers.push_back(parent);
     usedAsDepthAttachment.push_back(attachmentId);
+    resource->UseAsDepthBuffer();
 }
 
 void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource, const ClearValue &clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment, clear });
     resource->writers.push_back(parent);
     usedAsDepthAttachment.push_back(attachmentId);
+    resource->UseAsDepthBuffer();
 }
 
 void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment });
     resource->writers.push_back(parent);
     usedAsStencilAttachment.push_back(attachmentId);
+    resource->UseAsStencilBuffer();
 }
 
 void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment, clear });
     resource->writers.push_back(parent);
     usedAsStencilAttachment.push_back(attachmentId);
+    resource->UseAsStencilBuffer();
 }
 
 void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment });
     resource->writers.push_back(parent);
     usedAsDepthStencilAttachment.push_back(attachmentId);
+    resource->UseAsDepthStencilBuffer();
 }
 
 void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment, clear });
     resource->writers.push_back(parent);
     usedAsDepthStencilAttachment.push_back(attachmentId);
+    resource->UseAsDepthStencilBuffer();
 }
 
 void RenderGraph::Subpass::SetTexture(RenderGraph::Resource *resource) {
     uint32_t textureId = parent->AddTexture(resource);
     resource->readers.push_back(parent);
     usedAsTexture.push_back(textureId);
+    resource->UseAsTexture();
 }
 
 void RenderGraph::Subpass::SetStorage(RenderGraph::Resource *resource) {
     uint32_t textureId = parent->AddStorage(resource);
+    // a storage resource could both be read and written
+    resource->readers.push_back(parent);
     resource->writers.push_back(parent);
     usedAsStorage.push_back(textureId);
+    resource->UseAsStorage();
 }
 
 void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo &renderInfo)> callback) {
@@ -284,19 +291,55 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     }
 }
 
+void RenderGraph::Pass::TransitTextureLayout(RenderGraph::Resource* resource) {
+    resource->image->layouts[0][0] = resource->layout;
+    resource->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    VkImageLayout srcLayout = resource->image->layouts[0][0];
+    VkImageLayout dstLayout = resource->layout;
+    VkPipelineStageFlags srcStageMask = IsDepthStencil(resource->format)
+                                      ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                                      : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage texture is used
+
+    // transit dst image layout
+    PrepareLayoutTransition(*commandBuffer,
+        resource->image,
+        srcLayout, dstLayout,
+        srcStageMask, dstStageMask,
+        0, resource->image->Layers(),
+        0, resource->image->MipLevels());
+}
+
+void RenderGraph::Pass::TransitStorageLayout(RenderGraph::Resource* resource) {
+    resource->image->layouts[0][0] = resource->layout;
+    resource->layout = VK_IMAGE_LAYOUT_GENERAL;
+    VkImageLayout srcLayout = resource->image->layouts[0][0];
+    VkImageLayout dstLayout = resource->layout;
+    VkPipelineStageFlags srcStageMask = IsDepthStencil(resource->format)
+                                      ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                                      : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage storage is used
+
+    // transit dst image layout
+    PrepareLayoutTransition(*commandBuffer,
+        resource->image,
+        srcLayout, dstLayout,
+        srcStageMask, dstStageMask,
+        0, resource->image->Layers(),
+        0, resource->image->MipLevels());
+}
+
 void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     assert(useDefaultSubpass && "ComputePass only support the default subpass");
 
     // texture layout transition
-    for (auto &textureId : defaultSubpass->usedAsTexture) {
-        textures[textureId]->image->layouts[0][0] = textures[textureId]->layout;
-        commandBuffer->PrepareForShaderRead(textures[textureId]->image);
+    for (auto &id : defaultSubpass->usedAsTexture) {
+        TransitTextureLayout(textures[id]);
     }
 
     // storage layout transition
-    for (auto &storageId : defaultSubpass->usedAsStorage) {
-        storages[storageId]->image->layouts[0][0] = storages[storageId]->layout;
-        commandBuffer->PrepareForStorage(storages[storageId]->image);
+    for (auto &id : defaultSubpass->usedAsStorage) {
+        TransitStorageLayout(storages[id]);
     }
 
     // TODO: add other types of resources which needs layout transition
@@ -370,18 +413,13 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     }
 
     // texture layout transition
-    for (auto &texture : textures) {
-        VkPipelineStageFlags srcStageMask = IsDepthStencil(texture->format)
-                                          ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
-                                          : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        // transit dst image layout
-        PrepareLayoutTransition(*commandBuffer, texture->image,
-            texture->layout,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            srcStageMask,
-            VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, // missing the information which stage texture is used
-            0, texture->image->Layers(),
-            0, texture->image->MipLevels());
+    for (auto &id : defaultSubpass->usedAsTexture) {
+        TransitTextureLayout(textures[id]);
+    }
+
+    // storage layout transition
+    for (auto &id : defaultSubpass->usedAsStorage) {
+        TransitStorageLayout(storages[id]);
     }
 
     // update render pass subpasses
@@ -574,43 +612,23 @@ void RenderGraph::CompilePass(Pass *pass) {
     timeline.push_back(pass);
 }
 
-void RenderGraph::UpdateCommandBufferDependencies(CommandBuffer* commandBuffer, Resource* resource) const {
-    for (const auto& writerPass : resource->writers) {
-        if (!writerPass->commandBuffer) continue;
+std::unordered_set<RenderGraph::Pass*> RenderGraph::FindPassDependencies(Pass* pass) {
+    std::unordered_set<RenderGraph::Pass*> dependencies;
 
-        for (const auto& meta : writerPass->attachments) {
-            if (meta.resource == resource) {
-                switch (meta.type) {
-                    case ResourceType::ColorAttachment:
-                    case ResourceType::ColorResolveAttachment:
-                    case ResourceType::InputAttachment:
-                    case ResourceType::PreserveAttachment:
-                    case ResourceType::DepthAttachment:
-                    case ResourceType::StencilAttachment:
-                    case ResourceType::DepthStencilAttachment:
-                        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-                        break;
-                }
-                return;
-            }
-        }
+    // textures
+    for (const auto& texture : pass->textures)
+        for (const auto& writerPass : texture->writers)
+            dependencies.insert(writerPass);
 
-        // for all other types
-        commandBuffer->Wait(writerPass->signalSemaphore, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-        return;
-    }
-}
+    // storages
+    for (const auto& storage : pass->storages)
+        for (const auto& writerPass : storage->writers)
+            dependencies.insert(writerPass);
 
-bool RenderGraph::HasComputePassDependency(Pass* pass) const {
-    // input
-    for (const auto& texture : pass->textures) {
-        for (const auto& writerPass : texture->writers) {
-            if (writerPass->compute) {
-                return true;
-            }
-        }
-    }
-    return false;
+    // remove self dependency
+    dependencies.erase(pass);
+
+    return dependencies;
 }
 
 void RenderGraph::Execute() {
@@ -620,57 +638,120 @@ void RenderGraph::Execute() {
     // For dependency synchronization, any draw pass that needs input from compute pass
     // would require separate command buffer;
 
-    // remember last graphics command buffer
     CommandBuffer* lastGraphicsCommandBuffer = nullptr;
-    Semaphore* lastGraphicsSemaphore = nullptr;
+    std::vector<CommandBuffer*> uniqueCommandBuffers = {};
+
+    #if SLIM_DEBUG_RENDERGRAPH
+    for (Pass *pass : timeline) {
+        auto dependencies = FindPassDependencies(pass);
+        std::cout << "Pass [" << pass->name << "] depends on" << std::endl;
+        for (auto& dep : dependencies) {
+            std::cout << " - " << dep->name << std::endl;
+        }
+    }
+    #endif
 
     for (Pass *pass : timeline) {
         // don't execute a pass if it is executed
         // theoretically it should have been taken care of by Compile step
-        if (pass->visited) continue;
-        if (!pass->retained) continue;
+        #ifndef NDEBUG
+        assert(!pass->visited);
+        assert(pass->retained);
+        #endif
 
-        CommandBuffer* commandBuffer = nullptr;
+        // assume all dependencies should have been processed
+        auto dependencies = FindPassDependencies(pass);
 
-        // create new command buffer for each pass
+        // figure out semaphores to wait for
+        std::unordered_set<Semaphore*> waitSemaphores = {};
+        for (const auto& dep : dependencies) {
+            #ifndef NDEBUG
+            if (dep->signalSemaphore.get() == nullptr) {
+                std::cerr << "Pass[" << pass->name << "] detects a dependency from pass["
+                          << dep->name << "], but the dependency pass has a null signal semaphore"
+                          << std::endl;
+                throw std::runtime_error("[RenderGraph] internal error");
+            }
+            #endif
+            waitSemaphores.insert(dep->signalSemaphore);
+        }
+
         if (pass->compute) {
+            // all compute passes use separate command buffer
             pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
             pass->signalSemaphore = renderFrame->RequestSemaphore();
-            pass->commandBuffer->Signal(pass->signalSemaphore); // all compute passes need to signal, otherwise it should be culled
+            pass->commandBuffer->Signal(pass->signalSemaphore);
+            for (auto& semaphore : waitSemaphores) {
+                pass->commandBuffer->Wait(semaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+            }
             pass->commandBuffer->Begin();
-            commandBuffer = pass->commandBuffer;
-            // execute the pass
-            pass->Execute(pass->commandBuffer);
+            uniqueCommandBuffers.push_back(pass->commandBuffer);
         } else {
-            if (HasComputePassDependency(pass)) {
-                // request new command buffer
-                pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
-                pass->signalSemaphore = renderFrame->RequestSemaphore();
-                // update dependencies between command buffer
-                if (lastGraphicsCommandBuffer && lastGraphicsSemaphore) {
-                    lastGraphicsCommandBuffer->Signal(lastGraphicsSemaphore);                               // signal from previous graphics command buffer
-                    pass->commandBuffer->Wait(lastGraphicsSemaphore, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);   // wait from current graphics command buffer
+            bool newCommandBuffer = true;
+
+            // special case:
+            // when there is exactly one dependency, and the dependency is also a render pass,
+            // use the same command buffer as the last one
+            if (dependencies.size() == 1) {
+                auto& dep = *dependencies.begin();
+                if (!dep->compute) {
+                    newCommandBuffer = false;
+                    pass->commandBuffer = dep->commandBuffer;
+                    pass->signalSemaphore = dep->signalSemaphore;
                 }
-                // update current command buffer handles
+            }
+
+            // create a new command buffer
+            if (newCommandBuffer) {
+                pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
+                pass->signalSemaphore = renderFrame->RequestSemaphore();
+                pass->commandBuffer->Signal(pass->signalSemaphore);
+                for (auto& semaphore : waitSemaphores) {
+                    pass->commandBuffer->Wait(semaphore, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
+                }
+                pass->commandBuffer->Begin();
                 lastGraphicsCommandBuffer = pass->commandBuffer;
-                lastGraphicsSemaphore = pass->signalSemaphore;
-                lastGraphicsCommandBuffer->Begin();
+                uniqueCommandBuffers.push_back(pass->commandBuffer);
             }
-            if (!lastGraphicsCommandBuffer) {
-                lastGraphicsCommandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
-                lastGraphicsSemaphore = renderFrame->RequestSemaphore();
-                lastGraphicsCommandBuffer->Begin();
-            }
-            // execute the pass
-            pass->Execute(lastGraphicsCommandBuffer);
         }
+
+        // execute the pass
+        pass->Execute(pass->commandBuffer);
         pass->visited = true;
 
-        // resolving command buffer dependencies
-        for (const auto& resource : pass->textures) {
-            UpdateCommandBufferDependencies(pass->commandBuffer, resource);
+        // debug info
+        #if SLIM_DEBUG_RENDERGRAPH
+        std::cout << "Pass: " << pass->name << std::endl;
+        std::cout << "Command Buffer: " << *pass->commandBuffer << std::endl;
+        std::cout << "Signal Semaphore: " << *pass->signalSemaphore << std::endl;
+        std::cout << "Dependencies: " << std::endl;
+        for (const auto& dep : dependencies) {
+            std::cout << "- " << dep->name << std::endl;
+        }
+        std::cout << "--------------------------------" << std::endl;
+        #endif
+    }
+
+    #if SLIM_DEBUG_RENDERGRAPH
+    if (lastGraphicsCommandBuffer) {
+        std::cout << "* last graphics command buffer: " << *lastGraphicsCommandBuffer << std::endl;
+    }
+
+    for (Pass *pass : timeline) {
+        if (pass->commandBuffer != lastGraphicsCommandBuffer) {
+            auto info = pass->commandBuffer->GetSubmitInfo();
+            std::cout << "Pass Submit Info [Name] = " << pass->name << std::endl;
+            std::cout << "Wait Semaphore Count: " << info.waitSemaphoreCount << std::endl;
+            for (uint32_t i = 0; i < info.waitSemaphoreCount; i++) {
+                std::cout << " - " << info.pWaitSemaphores[i] << std::endl;
+            }
+            std::cout << "Signal Semaphore Count: " << info.signalSemaphoreCount << std::endl;
+            for (uint32_t i = 0; i < info.signalSemaphoreCount; i++) {
+                std::cout << " - " << info.pSignalSemaphores[i] << std::endl;
+            }
         }
     }
+    #endif
 
     // adding a layout transition
     if (lastGraphicsCommandBuffer) {
@@ -687,42 +768,21 @@ void RenderGraph::Execute() {
         if (renderFrame->Presentable()) {
             lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
         }
-        lastGraphicsCommandBuffer->End();
     }
 
     // stop command buffer recording for all
-    for (Pass *pass : timeline) {
-        if (pass->commandBuffer && pass->commandBuffer != lastGraphicsCommandBuffer) {
-            pass->commandBuffer->End();
+    for (auto& commandBuffer : uniqueCommandBuffers) {
+        commandBuffer->End();
+    }
+
+    // submit all command buffers (except for the last)
+    for (auto& commandBuffer : uniqueCommandBuffers) {
+        if (commandBuffer != lastGraphicsCommandBuffer) {
+            commandBuffer->Submit();
         }
     }
 
-    // submit all command buffers
-    std::vector<VkSubmitInfo> computeSubmits = {};
-    std::vector<VkSubmitInfo> graphicsSubmits = {};
-    for (Pass *pass : timeline) {
-        if (pass->commandBuffer && pass->commandBuffer.get() != lastGraphicsCommandBuffer) {
-            if (pass->compute) {
-                computeSubmits.push_back(pass->commandBuffer->GetSubmitInfo());
-            } else {
-                graphicsSubmits.push_back(pass->commandBuffer->GetSubmitInfo());
-            }
-        }
-    }
-
-    Device* device = renderFrame->GetDevice();
-    if (computeSubmits.size()) {
-        ErrorCheck(DeviceDispatch(vkQueueSubmit(device->GetComputeQueue(),
-                                 computeSubmits.size(), computeSubmits.data(),
-                                 *renderFrame->GetComputeFinishFence())),
-                    "submit compute commands");
-    }
-    if (graphicsSubmits.size()) {
-        ErrorCheck(DeviceDispatch(vkQueueSubmit(device->GetGraphicsQueue(),
-                                 graphicsSubmits.size(), graphicsSubmits.data(),
-                                 *renderFrame->GetGraphicsFinishFence())),
-                    "submit graphics commands");
-    }
+    // submit the last graphics command buffer for presentation
     if (lastGraphicsCommandBuffer) {
         if (renderFrame->Presentable()) {
             renderFrame->Present(lastGraphicsCommandBuffer);

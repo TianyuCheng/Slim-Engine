@@ -100,7 +100,7 @@ namespace slim {
         std::vector<SmartPtr<Fence>>       inflightFences      = {};
         std::vector<SmartPtr<RenderFrame>> renderFrames        = {};
 
-        FPS*                               fps;
+        FPS*                               fps                 = nullptr;
     };
 
 } // end of namespace slim

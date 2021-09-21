@@ -14,5 +14,6 @@ add_subdirectory(MatCap)
 add_subdirectory(Deferred)
 
 if (WIN32)
+    add_subdirectory(Hybrid)
     add_subdirectory(RayTracing)
 endif (WIN32)

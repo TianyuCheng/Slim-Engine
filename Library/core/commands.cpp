@@ -353,23 +353,6 @@ void CommandBuffer::PrepareForPresentSrc(Image *image, uint32_t baseLayer, uint3
         mipLevel, levelCount);
 }
 
-void CommandBuffer::PrepareForMemoryMapping(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
-    if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
-    if (levelCount == 0) levelCount = image->createInfo.mipLevels;
-    // transit dst image layout
-    PrepareLayoutTransition(handle, image,
-        image->layouts[baseLayer][mipLevel],
-        VK_IMAGE_LAYOUT_GENERAL,
-        VK_ACCESS_TRANSFER_WRITE_BIT,
-        VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_HOST_READ_BIT,
-        baseLayer, layerCount,
-        mipLevel, levelCount);
-}
-
-void CommandBuffer::PrepareForStorage(Image *image, uint32_t baseLayer, uint32_t layerCount, uint32_t mipLevel, uint32_t levelCount) {
-    PrepareForMemoryMapping(image, baseLayer, layerCount, mipLevel, levelCount);
-}
-
 void CommandBuffer::Dispatch(uint32_t x, uint32_t y, uint32_t z) {
     DeviceDispatch(vkCmdDispatch(handle, x, y, z));
 }
