@@ -1,5 +1,5 @@
-compile_glsl(hybrid_glsl_shaders shaders/)
-add_executable(hybrid
+compile_glsl(surfelgi_glsl_shaders shaders/)
+add_executable(surfelgi
     main.cpp
     scene.h
     light.h
@@ -16,5 +16,5 @@ add_executable(hybrid
     overlay.h
     overlay.cpp
 )
-target_link_libraries(hybrid PRIVATE slim)
-add_dependencies(hybrid hybrid_glsl_shaders)
+target_link_libraries(surfelgi PRIVATE slim)
+add_dependencies(surfelgi surfelgi_glsl_shaders)

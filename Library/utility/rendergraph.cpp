@@ -117,12 +117,12 @@ void RenderGraph::Subpass::SetTexture(RenderGraph::Resource *resource) {
     resource->UseAsTexture();
 }
 
-void RenderGraph::Subpass::SetStorage(RenderGraph::Resource *resource) {
-    uint32_t textureId = parent->AddStorage(resource);
+void RenderGraph::Subpass::SetStorage(RenderGraph::Resource *resource, uint32_t usage) {
+    uint32_t storageId = parent->AddStorage(resource);
     // a storage resource could both be read and written
-    resource->readers.push_back(parent);
-    resource->writers.push_back(parent);
-    usedAsStorage.push_back(textureId);
+    if (usage & STORAGE_IMAGE_READ_BIT)  resource->readers.push_back(parent);
+    if (usage & STORAGE_IMAGE_WRITE_BIT) resource->writers.push_back(parent);
+    usedAsStorage.push_back(storageId);
     resource->UseAsStorage();
 }
 
@@ -195,8 +195,8 @@ void RenderGraph::Pass::SetTexture(RenderGraph::Resource *resource) {
     defaultSubpass->SetTexture(resource);
 }
 
-void RenderGraph::Pass::SetStorage(RenderGraph::Resource *resource) {
-    defaultSubpass->SetStorage(resource);
+void RenderGraph::Pass::SetStorage(RenderGraph::Resource *resource, uint32_t usage) {
+    defaultSubpass->SetStorage(resource, usage);
 }
 
 uint32_t RenderGraph::Pass::AddAttachment(const RenderGraph::ResourceMetadata& metadata) {
@@ -798,4 +798,13 @@ void RenderGraph::Visualize() {
     for (auto pass : timeline) {
         ImGui::Text("Execute Pass: %s\n", pass->name.c_str());
     }
+}
+
+void RenderGraph::Print() {
+    if (!compiled) Compile();
+
+    for (auto pass : timeline) {
+        std::cout << "Execute Pass: " << pass->name << std::endl;
+    }
+    std::cout << "---------------" << std::endl;
 }

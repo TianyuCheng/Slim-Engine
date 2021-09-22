@@ -108,8 +108,8 @@ void Descriptor::SetTexture(const std::string &name, Image *image, Sampler *samp
 void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> &images, const std::vector<Sampler*> &samplers) {
     auto [set, binding, flags] = FindDescriptorSet(name);
 
-    #ifdef NDEBUG
-    if (descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER && imageNum != samplerNum) {
+    #ifndef NDEBUG
+    if (images.size() != samplers.size()) {
         throw std::runtime_error("The number of images and samplers must match for combined image+sampler");
     }
     #endif

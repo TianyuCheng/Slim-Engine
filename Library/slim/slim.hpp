@@ -40,6 +40,7 @@
 #include "utility/flycam.h"
 #include "utility/time.h"
 #include "utility/gltf.h"
+#include "utility/bundle.h"
 
 // third party
 #include <imgui.h>

@@ -33,7 +33,7 @@ int main() {
         WindowDesc()
             .SetResolution(640, 480)
             .SetResizable(true)
-            .SetTitle("Hybrid")
+            .SetTitle("SurfelGI")
             .EnableFPS(true)
     );
 

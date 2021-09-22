@@ -50,7 +50,7 @@ void Fence::Reset() const {
 }
 
 void Fence::Wait(uint64_t timeout) const {
-    ErrorCheck(vkWaitForFences(*device, 1, &handle, VK_TRUE, timeout), "wait for fence");
+    ErrorCheck(DeviceDispatch(vkWaitForFences(*device, 1, &handle, VK_TRUE, timeout)), "wait for fence");
 }
 
 Event::Event(Device *device, bool deviceOnly) : device(device)  {

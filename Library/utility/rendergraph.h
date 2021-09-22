@@ -92,6 +92,14 @@ namespace slim {
             std::optional<VkClearValue> clearValue = std::nullopt;
         };
 
+        enum StorageImageUsage {
+            STORAGE_IMAGE_READ_BIT = 1,
+            STORAGE_IMAGE_WRITE_BIT = 2,
+            STORAGE_IMAGE_READ_WRITE = STORAGE_IMAGE_READ_BIT | STORAGE_IMAGE_WRITE_BIT,
+            STORAGE_IMAGE_READ_ONLY = STORAGE_IMAGE_READ_BIT,
+            STORAGE_IMAGE_WRITE_ONLY = STORAGE_IMAGE_WRITE_BIT,
+        };
+
         // -------------------------------------------------------------------------------
 
         class Subpass : public ReferenceCountable {
@@ -125,8 +133,8 @@ namespace slim {
             void SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear);
 
             // non-attachments
-            void SetTexture(RenderGraph::Resource *resource);   // texture image
-            void SetStorage(RenderGraph::Resource *resource);   // storage image
+            void SetTexture(RenderGraph::Resource *resource); // texture image, read-only
+            void SetStorage(RenderGraph::Resource *resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE); // storage image
 
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
@@ -183,7 +191,7 @@ namespace slim {
 
             // non-attachments
             void SetTexture(RenderGraph::Resource* resource);   // texture image
-            void SetStorage(RenderGraph::Resource *resource);   // storage image
+            void SetStorage(RenderGraph::Resource *resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE);   // storage image
 
             void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
 
@@ -240,6 +248,7 @@ namespace slim {
         void                   Compile();
         void                   Execute();
         void                   Visualize();
+        void                   Print();
 
         RenderPass*            GetRenderPass() const;
         RenderFrame*           GetRenderFrame() const;
