@@ -5,10 +5,13 @@
 
 using namespace slim;
 
+class MainScene;
+
 struct GBuffer {
     RenderGraph::Resource* albedoBuffer;
     RenderGraph::Resource* normalBuffer;
     RenderGraph::Resource* positionBuffer;
+    RenderGraph::Resource* objectBuffer;
     RenderGraph::Resource* depthBuffer;
 };
 
@@ -16,6 +19,6 @@ void AddGBufferPass(RenderGraph& renderGraph,
                     ResourceBundle& bundle,
                     Camera* camera,
                     GBuffer* gbuffer,
-                    scene::Node* scene);
+                    MainScene* scene);
 
 #endif // SLIM_EXAMPLE_GBUFFER_H

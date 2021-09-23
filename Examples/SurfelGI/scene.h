@@ -1,77 +1,41 @@
 #include <slim/slim.hpp>
+#include "config.h"
 #include "light.h"
 
 using namespace slim;
 
+struct ObjectProperties {
+    uint32_t instanceID;
+    uint32_t baseColorTextureID;
+    uint32_t baseColorSamplerID;
+};
+
 class MainScene {
 public:
-    MainScene(Device* device) : device(device) {
-        PrepareTechnique();
-        PrepareScene();
+    MainScene(Device* device);
+
+    scene::Node* GetRootNode() const {
+        return model.GetScene(0);
     }
 
-    void PrepareTechnique() {
-        // create vertex and fragment shaders
-        vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/gbuffer.vert.spv");
-        fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/gbuffer.frag.spv");
-
-        // create technique
-        technique = SlimPtr<Technique>();
-        technique->AddPass(RenderQueue::Opaque,
-            GraphicsPipelineDesc()
-                .SetName("gbuffer")
-                .AddVertexBinding(0, sizeof(gltf::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
-                    { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, position)) },
-                    { 1, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(gltf::Vertex, normal  )) },
-                    { 2, VK_FORMAT_R32G32_SFLOAT,    static_cast<uint32_t>(offsetof(gltf::Vertex, uv0     )) },
-                 })
-                .SetVertexShader(vShader)
-                .SetFragmentShader(fShader)
-                .SetCullMode(VK_CULL_MODE_BACK_BIT)
-                .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
-                .SetDepthTest(VK_COMPARE_OP_LESS)
-                .SetDefaultBlendState(0)
-                .SetDefaultBlendState(1)
-                .SetDefaultBlendState(2)
-                .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddBinding("Camera",    SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_VERTEX_BIT)
-                    .AddBinding("Model",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, VK_SHADER_STAGE_VERTEX_BIT)
-                    .AddBinding("MainTex",   SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-                ));
+    accel::AccelStruct* GetTlas() const {
+        return builder->GetAccelBuilder()->GetTlas();
     }
 
-    void PrepareScene() {
-        // model loading
-        builder = SlimPtr<scene::Builder>(device);
+private:
+    void PrepareScene();
+    void PrepareTransformBuffer();
 
-        // enable ray tracing builder and acceleration structure compaction
-        builder->EnableRayTracing();
-        builder->GetAccelBuilder()->EnableCompaction();
-
-        // load model
-        model.Load(builder, ToAssetPath("Scenes/Sponza/glTF/Sponza.gltf"));
-
-        // update materials
-        for (auto& material : model.materials) {
-            material->SetTechnique(technique);
-
-            // we only need base color texture
-            const gltf::MaterialData& data = material->GetData<gltf::MaterialData>();
-            material->SetTexture("MainTex", model.images[data.baseColorTexture], model.samplers[data.baseColorSampler]);
-        }
-
-        // create scene
-        builder->Build();
-    }
-
+private:
     SmartPtr<Device>                  device;
 
-    // rasterizer
-    SmartPtr<Technique>               technique;
-    SmartPtr<spirv::VertexShader>     vShader;
-    SmartPtr<spirv::FragmentShader>   fShader;
-
+public:
     // scene/models
     SmartPtr<scene::Builder>          builder;
     gltf::Model                       model;
+
+    // other scene data
+    SmartPtr<Buffer>                  transformBuffer;
+    std::vector<Image*>               images;
+    std::vector<Sampler*>             samplers;
 };

@@ -12,10 +12,17 @@
 
 using namespace slim;
 
+template <typename T>
+void AddToFeatures(VkPhysicalDeviceFeatures2* features, T* object) {
+    object->pNext = features->pNext;
+    features->pNext = object;
+}
+
 ContextDesc::ContextDesc() {
     // initialize physical device features
-    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features.pNext = nullptr;
+    features.reset(new VkPhysicalDeviceFeatures2{ });
+    features->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    features->pNext = nullptr;
     // debug extensions
     debugExtensions.insert(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
 }
@@ -54,18 +61,19 @@ ContextDesc& ContextDesc::EnableGLFW(bool value) {
 }
 
 ContextDesc& ContextDesc::EnableNonSolidPolygonMode() {
-    features.features.fillModeNonSolid = VK_TRUE;
+    features->features.fillModeNonSolid = VK_TRUE;
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
     // enable separate depth stencil layout
-    deviceFeatures.separateDepthStencilLayout.reset(new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures { });
-    deviceFeatures.separateDepthStencilLayout->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
-    deviceFeatures.separateDepthStencilLayout->separateDepthStencilLayouts = VK_TRUE;
-    // connect to features
-    deviceFeatures.separateDepthStencilLayout->pNext = features.pNext;
-    features.pNext = deviceFeatures.separateDepthStencilLayout.get();
+    if (!deviceFeatures.separateDepthStencilLayout.get()) {
+        deviceFeatures.separateDepthStencilLayout.reset(new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures { });
+        deviceFeatures.separateDepthStencilLayout->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SEPARATE_DEPTH_STENCIL_LAYOUTS_FEATURES;
+        deviceFeatures.separateDepthStencilLayout->separateDepthStencilLayouts = VK_TRUE;
+        deviceFeatures.separateDepthStencilLayout->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.separateDepthStencilLayout.get());
+    }
     return *this;
 }
 
@@ -78,22 +86,20 @@ ContextDesc& ContextDesc::EnableDescriptorIndexing() {
     deviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
     // add physical device features
-    deviceFeatures.descriptorIndexing.reset(new VkPhysicalDeviceDescriptorIndexingFeatures { });
-    deviceFeatures.descriptorIndexing->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-    deviceFeatures.descriptorIndexing->shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-    deviceFeatures.descriptorIndexing->runtimeDescriptorArray = VK_TRUE;
-    deviceFeatures.descriptorIndexing->descriptorBindingVariableDescriptorCount = VK_TRUE;
-    deviceFeatures.descriptorIndexing->descriptorBindingPartiallyBound = VK_TRUE;
-
-    // connect to features
-    deviceFeatures.descriptorIndexing->pNext = features.pNext;
-    features.pNext = deviceFeatures.descriptorIndexing.get();
+    if (!deviceFeatures.descriptorIndexing.get()) {
+        deviceFeatures.descriptorIndexing.reset(new VkPhysicalDeviceDescriptorIndexingFeatures { });
+        deviceFeatures.descriptorIndexing->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+        deviceFeatures.descriptorIndexing->shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+        deviceFeatures.descriptorIndexing->runtimeDescriptorArray = VK_TRUE;
+        deviceFeatures.descriptorIndexing->descriptorBindingVariableDescriptorCount = VK_TRUE;
+        deviceFeatures.descriptorIndexing->descriptorBindingPartiallyBound = VK_TRUE;
+        deviceFeatures.descriptorIndexing->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.descriptorIndexing.get());
+    }
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableRayTracing() {
-    EnableDescriptorIndexing(); // descriptor indexing is essential for ray tracing
-
     // adding required device extensions
     deviceExtensions.insert(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
@@ -103,32 +109,43 @@ ContextDesc& ContextDesc::EnableRayTracing() {
     deviceExtensions.insert(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
 
     // adding acceleration structure feature
-    deviceFeatures.accelerationStructure.reset(new VkPhysicalDeviceAccelerationStructureFeaturesKHR { });
-    deviceFeatures.accelerationStructure->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-    deviceFeatures.accelerationStructure->accelerationStructure = VK_TRUE;
+    if (!deviceFeatures.accelerationStructure.get()) {
+        deviceFeatures.accelerationStructure.reset(new VkPhysicalDeviceAccelerationStructureFeaturesKHR { });
+        deviceFeatures.accelerationStructure->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+        deviceFeatures.accelerationStructure->accelerationStructure = VK_TRUE;
+        deviceFeatures.accelerationStructure->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.accelerationStructure.get());
+    }
 
     // adding ray tracing pipeline features
-    deviceFeatures.rayTracingPipeline.reset(new VkPhysicalDeviceRayTracingPipelineFeaturesKHR { });
-    deviceFeatures.rayTracingPipeline->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-    deviceFeatures.rayTracingPipeline->rayTracingPipeline = VK_TRUE;
-    deviceFeatures.rayTracingPipeline->rayTraversalPrimitiveCulling = VK_TRUE;
+    if (!deviceFeatures.rayTracingPipeline.get()) {
+        deviceFeatures.rayTracingPipeline.reset(new VkPhysicalDeviceRayTracingPipelineFeaturesKHR { });
+        deviceFeatures.rayTracingPipeline->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+        deviceFeatures.rayTracingPipeline->rayTracingPipeline = VK_TRUE;
+        deviceFeatures.rayTracingPipeline->rayTraversalPrimitiveCulling = VK_TRUE;
+        deviceFeatures.rayTracingPipeline->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.rayTracingPipeline.get());
+    }
 
     #if 0 // This requires RTX GPU
     // adding ray query pipeline features
-    deviceFeatures.rayQuery.reset(new VkPhysicalDeviceRayQueryFeaturesKHR {});
-    deviceFeatures.rayQuery->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-    deviceFeatures.rayQuery->rayQuery = VK_TRUE;
+    if (!deviceFeatures.rayQuery.get()) {
+        deviceFeatures.rayQuery.reset(new VkPhysicalDeviceRayQueryFeaturesKHR {});
+        deviceFeatures.rayQuery->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+        deviceFeatures.rayQuery->rayQuery = VK_TRUE;
+        deviceFeatures.rayQuery->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.rayQuery.get());
+    }
     #endif
 
-    deviceFeatures.hostQueryReset.reset(new VkPhysicalDeviceHostQueryResetFeatures { });
-    deviceFeatures.hostQueryReset->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES;
-    deviceFeatures.hostQueryReset->hostQueryReset = VK_TRUE;
-
-    // connect to features
-    deviceFeatures.accelerationStructure->pNext = deviceFeatures.rayTracingPipeline.get();
-    deviceFeatures.rayTracingPipeline->pNext = deviceFeatures.hostQueryReset.get();
-    deviceFeatures.hostQueryReset->pNext = features.pNext;
-    features.pNext = deviceFeatures.accelerationStructure.get();
+    // adding host query reset features
+    if (!deviceFeatures.hostQueryReset.get()) {
+        deviceFeatures.hostQueryReset.reset(new VkPhysicalDeviceHostQueryResetFeatures { });
+        deviceFeatures.hostQueryReset->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES;
+        deviceFeatures.hostQueryReset->hostQueryReset = VK_TRUE;
+        deviceFeatures.hostQueryReset->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.hostQueryReset.get());
+    }
 
     return *this;
 }
@@ -138,24 +155,23 @@ ContextDesc& ContextDesc::EnableBufferDeviceAddress() {
     deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 
     // adding buffer device address features
-    deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
-    deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-    deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
-
-    // connect to features
-    deviceFeatures.bufferDeviceAddress->pNext = features.pNext;
-    features.pNext = deviceFeatures.bufferDeviceAddress.get();
+    if (!deviceFeatures.bufferDeviceAddress.get()) {
+        deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
+        deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+        deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
+        AddToFeatures(features.get(), deviceFeatures.bufferDeviceAddress.get());
+    }
 
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableShaderInt64() {
-    features.features.shaderInt64 = VK_TRUE;
+    features->features.shaderInt64 = VK_TRUE;
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableShaderFloat64() {
-    features.features.shaderFloat64 = VK_TRUE;
+    features->features.shaderFloat64 = VK_TRUE;
     return *this;
 }
 
@@ -234,6 +250,21 @@ Context::Context(const ContextDesc& desc) : desc(desc) {
     InitDebuggerMessener(desc);
     InitSurface(desc);
     InitPhysicalDevice(desc);
+
+    // debug
+    #if 0
+    struct FeatureStruct {
+        VkStructureType sType;
+        void* pNext;
+    };
+    void* pNext = nullptr;
+    pNext = this->desc.features->pNext;
+    while (pNext) {
+        auto* feature = (FeatureStruct*)pNext;
+        std::cout << "sType: " << feature->sType << std::endl;
+        pNext = feature->pNext;
+    }
+    #endif
 }
 
 Context::~Context() {

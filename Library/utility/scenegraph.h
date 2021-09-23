@@ -143,6 +143,16 @@ namespace slim::scene {
             }
         }
 
+        void ForEachInstance(std::function<void(Node*, Mesh*, Material*, uint32_t)> callback) {
+            uint32_t instanceId = 0;
+            for (auto& node : nodes) {
+                for (auto& [mesh, material] : *node) {
+                    callback(node, mesh, material, instanceId);
+                    instanceId++;
+                }
+            }
+        }
+
         std::vector<SmartPtr<Node>> nodes;
         std::vector<SmartPtr<Mesh>> meshes;
         std::vector<SmartPtr<Material>> materials;

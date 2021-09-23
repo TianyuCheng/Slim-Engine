@@ -24,12 +24,9 @@ void main() {
     vec3 L = -normalize(dirLight.direction.xyz);
     vec3 diffuse = albedo * max(0.0, dot(N, L));
 
-    // hack an ambient
-    vec3 ambient = albedo * 0.1;
-
     // apply shadow
-    float shadow = normal_shadow.w > 0.0 ? 1.0 : 0.2;
+    float shadow = normal_shadow.w > 0.0 ? 1.0 : 0.0;
 
     // final contribution
-    outColor = vec4(ambient + diffuse * shadow, 1.0);
+    outColor = vec4(diffuse * shadow, 1.0);
 }

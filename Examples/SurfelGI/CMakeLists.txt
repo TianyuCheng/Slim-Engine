@@ -1,8 +1,11 @@
 compile_glsl(surfelgi_glsl_shaders shaders/)
 add_executable(surfelgi
     main.cpp
-    scene.h
     light.h
+    config.h
+
+    scene.h
+    scene.cpp
 
     gbuffer.h
     gbuffer.cpp
@@ -15,6 +18,9 @@ add_executable(surfelgi
 
     overlay.h
     overlay.cpp
+
+    surfel.h
+    surfel.cpp
 )
 target_link_libraries(surfelgi PRIVATE slim)
 add_dependencies(surfelgi surfelgi_glsl_shaders)

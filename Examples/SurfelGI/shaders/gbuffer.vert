@@ -1,15 +1,20 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+layout(push_constant) uniform Object {
+    uint instanceID;
+    uint baseColorTextureID;
+    uint baseColorSamplerID;
+} object;
+
 layout(set = 0, binding = 0) uniform Camera {
     mat4 V;
     mat4 P;
 } camera;
 
-layout(set = 1, binding = 0) uniform Model {
-    mat4 M;
-    mat4 N;
-} model;
+layout(set = 0, binding = 1) buffer Transforms {
+    mat4 M[];
+} transforms;
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -20,9 +25,11 @@ layout(location = 1) out vec3 outWorldPos;
 layout(location = 2) out vec2 outUV;
 
 void main() {
-    vec4 worldPos = model.M * vec4(inPosition, 1.0);
-    gl_Position = camera.P * camera.V * worldPos;
-    outWorldPos = worldPos.xyz;
-    outWorldNormal = vec3(model.M * vec4(inNormal, 0.0));
-    outUV = inUV;
+    mat4 M = transforms.M[object.instanceID];
+    vec4 pos = M * vec4(inPosition, 1.0);
+    gl_Position = camera.P * camera.V * pos;
+
+    outWorldNormal = vec3(M * vec4(inNormal, 0.0));
+    outWorldPos    = pos.xyz;
+    outUV          = inUV;
 }

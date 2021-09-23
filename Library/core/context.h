@@ -43,7 +43,7 @@ namespace slim {
 
         // allow finer-grain tuning by users
         VkPhysicalDeviceFeatures& GetDeviceFeatures() {
-            return features.features;
+            return features->features;
         }
         VkPhysicalDeviceDescriptorIndexingFeatures& GetDescriptorIndexingFeatures() {
             return *deviceFeatures.descriptorIndexing;
@@ -66,7 +66,7 @@ namespace slim {
         bool verbose = false;
 
         // physical device features
-        VkPhysicalDeviceFeatures2 features = {};
+        std::shared_ptr<VkPhysicalDeviceFeatures2> features = {};
         struct {
             std::shared_ptr<VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures> separateDepthStencilLayout;
             std::shared_ptr<VkPhysicalDeviceDescriptorIndexingFeatures> descriptorIndexing;
@@ -106,7 +106,7 @@ namespace slim {
         void InitPhysicalDevice(const ContextDesc &desc);
 
     private:
-        ContextDesc desc;
+        ContextDesc              desc;
         VkInstance               instance       = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
         VkSurfaceKHR             surface        = VK_NULL_HANDLE;

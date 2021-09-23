@@ -108,8 +108,6 @@ void Device::InitLogicalDevice() {
         queueCreateInfos.push_back(queueCreateInfo);
     }
 
-    const VkPhysicalDeviceFeatures2 &features = desc.features;
-
     // prepare device info
     VkDeviceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -118,7 +116,7 @@ void Device::InitLogicalDevice() {
     createInfo.pEnabledFeatures = nullptr;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    createInfo.pNext = &features;
+    createInfo.pNext = desc.features.get();
 
     // enable validation if needed
     if (desc.validation) {
