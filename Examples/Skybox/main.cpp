@@ -112,12 +112,12 @@ int main() {
     uint32_t geometryIndexCount = 0;
     device->Execute([&](CommandBuffer* commandBuffer) {
         cubemap = TextureLoader::LoadCubemap(commandBuffer,
-                ToAssetPath("Skyboxes/NiagaraFalls/posx.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negx.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/posy.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negy.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/posz.jpg"),
-                ToAssetPath("Skyboxes/NiagaraFalls/negz.jpg"));
+                GetUserAsset("Skyboxes/NiagaraFalls/posx.jpg"),
+                GetUserAsset("Skyboxes/NiagaraFalls/negx.jpg"),
+                GetUserAsset("Skyboxes/NiagaraFalls/posy.jpg"),
+                GetUserAsset("Skyboxes/NiagaraFalls/negy.jpg"),
+                GetUserAsset("Skyboxes/NiagaraFalls/posz.jpg"),
+                GetUserAsset("Skyboxes/NiagaraFalls/negz.jpg"));
 
         builder = SlimPtr<scene::Builder>(device);
 

@@ -21,6 +21,10 @@ if (${VULKAN_SUPPORT})
     add_definitions(-DSLIM_VULKAN_SUPPORT)
 endif()
 
+# compilation database
+# -----------------------------------
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 #     _                 _
 #    / \   ___ ___  ___| |_ ___
 #   / _ \ / __/ __|/ _ \ __/ __|
@@ -29,7 +33,8 @@ endif()
 #
 # add assets directory
 # ----------------------------------------------------------------
-add_definitions(-DSLIM_ASSETS_DIRECTORY="${PROJECT_SOURCE_DIR}")
+add_definitions(-DSLIM_LIB_ASSETS_DIRECTORY="${PROJECT_SOURCE_DIR}/Library/assets")
+add_definitions(-DSLIM_USR_ASSETS_DIRECTORY="${PROJECT_SOURCE_DIR}/Assets")
 
 #   ____                      _ _
 #  / ___|___  _ __ ___  _ __ (_) | ___ _ __
@@ -63,9 +68,53 @@ if (MSVC_VERSION GREATER_EQUAL "1900")
     endif()
 endif()
 
-# compilation database
-# -----------------------------------
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+#  ____  _               _
+# / ___|| |__   __ _  __| | ___ _ __
+# \___ \| '_ \ / _` |/ _` |/ _ \ '__|
+#  ___) | | | | (_| | (_| |  __/ |
+# |____/|_| |_|\__,_|\__,_|\___|_|
+#
+# ---------------------------------------------------------------
+find_program(CMAKE_GLSL_COMPILER glslc)
+mark_as_advanced(CMAKE_GLSL_COMPILER)
+
+function(add_slim_project)
+    # parse args
+    set(prefix SLIM_PROJECT)
+    set(flags "")
+    set(singleValues TARGET SPV)
+    set(multiValues SOURCES SHADERS)
+    include(CMakeParseArguments)
+    cmake_parse_arguments(${prefix}
+                     "${flags}"
+                     "${singleValues}"
+                     "${multiValues}"
+                      ${ARGN})
+
+    # generate shader objects
+    foreach(SHADER ${SLIM_PROJECT_SHADERS})
+        get_filename_component(FILENAME  ${SHADER} NAME)
+        get_filename_component(DIRECTORY ${SHADER} DIRECTORY)
+        file(MAKE_DIRECTORY ${DIRECTORY})
+        set(INPUT  "${CMAKE_CURRENT_SOURCE_DIR}/${DIRECTORY}/${FILENAME}")
+        set(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/${FILENAME}.spv")
+        set(INCLUDE "${PROJECT_SOURCE_DIR}/Library/shaderlib")
+        add_custom_command(
+            OUTPUT  ${OUTPUT}
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/"
+            COMMAND ${SHADERCOMPILER} --target-env=${SLIM_PROJECT_SPV} -I ${INCLUDE} ${INPUT} -g -O -o ${OUTPUT}
+            DEPENDS ${INPUT}
+            COMMENT "Building shader: ${OUTPUT}"
+        )
+        list(APPEND SPIRV_BINARY_FILES ${OUTPUT})
+    endforeach(SHADER)
+
+    # generate project target with both sources and shaders
+    add_executable(${SLIM_PROJECT_TARGET}
+                   ${SLIM_PROJECT_SOURCES}
+                   ${SPIRV_BINARY_FILES})
+    target_link_libraries(${SLIM_PROJECT_TARGET} PRIVATE slim)
+endfunction()
 
 #  _     _ _                    _
 # | |   (_) |__  _ __ __ _ _ __(_) ___  ___
@@ -74,49 +123,6 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # |_____|_|_.__/|_|  \__,_|_|  |_|\___||___/
 # ---------------------------------------------------------------
 add_subdirectory(Library)
-
-#  ____  _               _
-# / ___|| |__   __ _  __| | ___ _ __
-# \___ \| '_ \ / _` |/ _` |/ _ \ '__|
-#  ___) | | | | (_| | (_| |  __/ |
-# |____/|_| |_|\__,_|\__,_|\___|_|
-#
-# ---------------------------------------------------------------
-find_program(SHADERCOMPILER glslc)
-
-set(SPV_TARGET_ENV "")
-if (WIN32)
-    # This is needed for ray tracing workloads
-    set(SPV_TARGET_ENV "--target-env=vulkan1.2")
-endif (WIN32)
-
-function(compile_glsl Target Directory)
-    file(GLOB_RECURSE GLSL_SOURCE_FILES
-        "${Directory}/*.vert"
-        "${Directory}/*.frag"
-        "${Directory}/*.comp"
-        "${Directory}/*.rgen"
-        "${Directory}/*.rmiss"
-        "${Directory}/*.rchit"
-        "${Directory}/*.rahit"
-    )
-
-    foreach(GLSL ${GLSL_SOURCE_FILES})
-        get_filename_component(FILENAME ${GLSL} NAME)
-        file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${Directory})
-        set(SPIRV "${CMAKE_CURRENT_BINARY_DIR}/${Directory}/${FILENAME}.spv")
-        add_custom_command(
-            OUTPUT  ${SPIRV}
-            COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/"
-            COMMAND ${SHADERCOMPILER} ${SPV_TARGET_ENV} ${GLSL} -g -o ${SPIRV}
-            DEPENDS ${GLSL}
-            COMMENT "Building ${SPIRV}"
-        )
-        list(APPEND SPIRV_BINARY_FILES ${SPIRV})
-    endforeach(GLSL)
-
-    add_custom_target(${Target} DEPENDS ${SPIRV_BINARY_FILES})
-endfunction()
 
 #  _____                           _
 # | ____|_  ____ _ _ __ ___  _ __ | | ___  ___

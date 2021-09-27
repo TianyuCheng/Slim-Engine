@@ -1,20 +1,34 @@
-compile_glsl(hybrid_glsl_shaders shaders/)
-add_executable(hybrid
-    main.cpp
-    scene.h
-    light.h
+add_slim_project(
+    TARGET hybrid
 
-    gbuffer.h
-    gbuffer.cpp
+    SOURCES
+        main.cpp
+        light.h
+        config.h
 
-    composer.h
-    composer.cpp
+        scene.h
+        scene.cpp
 
-    raytrace.h
-    raytrace.cpp
+        gbuffer.h
+        gbuffer.cpp
 
-    overlay.h
-    overlay.cpp
+        composer.h
+        composer.cpp
+
+        raytrace.h
+        raytrace.cpp
+
+        overlay.h
+        overlay.cpp
+
+    SHADERS
+        shaders/compose.frag
+        shaders/compose.vert
+        shaders/gbuffer.frag
+        shaders/gbuffer.vert
+        shaders/shadow.rchit
+        shaders/shadow.rgen
+        shaders/shadow.rmiss
+
+    SPV     vulkan1.2
 )
-target_link_libraries(hybrid PRIVATE slim)
-add_dependencies(hybrid hybrid_glsl_shaders)

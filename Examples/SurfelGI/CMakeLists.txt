@@ -1,26 +1,48 @@
-compile_glsl(surfelgi_glsl_shaders shaders/)
-add_executable(surfelgi
-    main.cpp
-    light.h
-    config.h
+add_slim_project(
+    TARGET
+        surfelgi
 
-    scene.h
-    scene.cpp
+    SOURCES
+        main.cpp
+        light.h
+        config.h
 
-    gbuffer.h
-    gbuffer.cpp
+        scene.h
+        scene.cpp
 
-    composer.h
-    composer.cpp
+        gbuffer.h
+        gbuffer.cpp
 
-    raytrace.h
-    raytrace.cpp
+        composer.h
+        composer.cpp
 
-    overlay.h
-    overlay.cpp
+        raytrace.h
+        raytrace.cpp
 
-    surfel.h
-    surfel.cpp
+        overlay.h
+        overlay.cpp
+
+        visualize.h
+        visualize.cpp
+
+        surfel.h
+        surfel.cpp
+
+    SHADERS
+        shaders/fullscreen.vert
+        shaders/compose.frag
+        shaders/objectvis.frag
+        shaders/lineardepth.frag
+
+        shaders/gbuffer.frag
+        shaders/gbuffer.vert
+
+        shaders/shadow.rchit
+        shaders/shadow.rgen
+        shaders/shadow.rmiss
+
+        shaders/surfelcov.comp
+
+    SPV
+        vulkan1.2
 )
-target_link_libraries(surfelgi PRIVATE slim)
-add_dependencies(surfelgi surfelgi_glsl_shaders)

@@ -59,7 +59,7 @@ SubpassDesc& SubpassDesc::AddDepthAttachment(uint32_t attachment, VkImageLayout 
 
     // reference
     depthStencilAttachments.push_back(VkAttachmentReference {
-        attachment, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+        attachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     });
 
     // record layout transition in mappings
@@ -75,7 +75,7 @@ SubpassDesc& SubpassDesc::AddStencilAttachment(uint32_t attachment, VkImageLayou
 
     // reference
     depthStencilAttachments.push_back(VkAttachmentReference {
-        attachment, VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL
+        attachment, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
     });
 
     // record layout transition in mappings

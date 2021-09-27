@@ -1,4 +1,11 @@
-compile_glsl(texturemapping_glsl_shaders shaders/)
-add_executable(texturemapping main.cpp)
-target_link_libraries(texturemapping PRIVATE slim)
-add_dependencies(texturemapping texturemapping_glsl_shaders)
+add_slim_project(
+    TARGET
+        texturemapping
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/textured.vert
+        shaders/textured.frag
+    SPV
+        vulkan1.0
+)

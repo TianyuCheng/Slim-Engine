@@ -31,6 +31,11 @@ namespace slim {
             || (format == VK_FORMAT_D32_SFLOAT_S8_UINT);
     }
 
+    inline bool IsDepthOnly(VkFormat format) {
+        return (format == VK_FORMAT_D16_UNORM)
+            || (format == VK_FORMAT_D32_SFLOAT);
+    }
+
     class SubpassDesc {
         friend class RenderPass;
     public:

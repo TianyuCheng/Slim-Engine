@@ -1,4 +1,11 @@
-compile_glsl(scenegraph_glsl_shaders shaders/)
-add_executable(scenegraph main.cpp)
-target_link_libraries(scenegraph PRIVATE slim)
-add_dependencies(scenegraph scenegraph_glsl_shaders)
+add_slim_project(
+    TARGET
+        scenegraph
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)

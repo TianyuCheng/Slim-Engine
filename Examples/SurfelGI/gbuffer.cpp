@@ -10,18 +10,10 @@ void AddGBufferPass(RenderGraph& renderGraph,
     Device* device = renderGraph.GetRenderFrame()->GetDevice();
 
     // vertex shader
-    static Shader* vShader = nullptr;
-    if (vShader == nullptr) {
-        vShader = new spirv::VertexShader(device, "main", "shaders/gbuffer.vert.spv");
-        bundle.AutoRelease(vShader);
-    }
+    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "main", "shaders/gbuffer.vert.spv"));
 
     // fragment shader
-    static Shader* fShader = nullptr;
-    if (fShader == nullptr) {
-        fShader = new spirv::FragmentShader(device, "main", "shaders/gbuffer.frag.spv");
-        bundle.AutoRelease(fShader);
-    }
+    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "main", "shaders/gbuffer.frag.spv"));
 
     // pipeline
     VkDescriptorBindingFlags bindFlags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
@@ -55,10 +47,10 @@ void AddGBufferPass(RenderGraph& renderGraph,
     // compile
     auto gbufferPass = renderGraph.CreateRenderPass("gbuffer");
     gbufferPass->SetColor(gbuffer->albedoBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
-    gbufferPass->SetColor(gbuffer->normalBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     gbufferPass->SetColor(gbuffer->positionBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    gbufferPass->SetColor(gbuffer->normalBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     gbufferPass->SetColor(gbuffer->objectBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
-    gbufferPass->SetDepthStencil(gbuffer->depthBuffer, ClearValue(1.0f, 0));
+    gbufferPass->SetDepth(gbuffer->depthBuffer,    ClearValue(1.0f, 0));
 
     // execute
     gbufferPass->Execute([=](const RenderInfo& info) {

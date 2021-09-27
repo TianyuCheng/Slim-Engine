@@ -11,21 +11,20 @@ layout(push_constant) uniform Object {
 layout (set = 1, binding = 0) uniform texture2D textures[];
 layout (set = 2, binding = 0) uniform sampler   samplers[];
 
-layout(location = 0) in vec3 inWorldNormal;
-layout(location = 1) in vec3 inWorldPos;
+layout(location = 0) in vec3 inWorldPos;
+layout(location = 1) in vec3 inWorldNormal;
 layout(location = 2) in vec2 inUV;
 
 layout(location = 0) out vec4 outAlbedo;
-layout(location = 1) out vec4 outWorldNormal;
-layout(location = 2) out vec4 outWorldPos;
+layout(location = 1) out vec4 outWorldPos;
+layout(location = 2) out vec4 outWorldNormal;
 layout(location = 3) out uint outInstanceID;
 
 void main() {
     uint baseColorTextureId = nonuniformEXT(object.baseColorTextureID);
     uint baseColorSamplerId = nonuniformEXT(object.baseColorSamplerID);
-    outAlbedo = texture(sampler2D(textures[baseColorTextureId], samplers[baseColorSamplerId]), inUV);
-
-    outWorldNormal = vec4(normalize(inWorldNormal), 1.0);
-    outWorldPos = vec4(inWorldPos, 1.0);
-    outInstanceID = object.instanceID;
+    outAlbedo       = texture(sampler2D(textures[baseColorTextureId], samplers[baseColorSamplerId]), inUV);
+    outWorldPos     = vec4(inWorldPos, 1.0);
+    outWorldNormal  = vec4(normalize(inWorldNormal), 1.0);
+    outInstanceID   = object.instanceID;
 }

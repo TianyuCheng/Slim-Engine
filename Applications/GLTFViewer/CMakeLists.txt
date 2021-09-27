@@ -1,7 +1,19 @@
-compile_glsl(gltfviewer_glsl_shaders shaders/)
-add_executable(gltfviewer
-    main.cpp
-    viewer.cpp
-    viewer.h)
-target_link_libraries(gltfviewer PRIVATE slim)
-add_dependencies(gltfviewer gltfviewer_glsl_shaders)
+add_slim_project(
+    TARGET
+        gltfviewer
+    SOURCES
+        main.cpp
+        viewer.cpp
+        viewer.h
+        gizmo.h
+        skybox.h
+    SHADERS
+        shaders/gizmo.frag
+        shaders/gizmo.vert
+        shaders/gltf.frag
+        shaders/gltf.vert
+        shaders/skybox.frag
+        shaders/skybox.vert
+    SPV
+        vulkan1.0
+)

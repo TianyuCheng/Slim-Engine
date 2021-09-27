@@ -31,20 +31,20 @@ struct Skybox : ReferenceCountable {
 
     void InitCubemap(CommandBuffer* commandBuffer) {
         skybox = TextureLoader::LoadCubemap(commandBuffer,
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/px.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/nx.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/py.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/ny.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/pz.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/cubemap/nz.png"));
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/px.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/nx.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/py.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/ny.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/pz.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/cubemap/nz.png"));
 
         irradiance = TextureLoader::LoadCubemap(commandBuffer,
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/px.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/nx.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/py.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/ny.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/pz.png"),
-                ToAssetPath("Skyboxes/Ridgecrest_Road/irradiance/nz.png"));
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/px.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/nx.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/py.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/ny.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/pz.png"),
+                GetUserAsset("Skyboxes/Ridgecrest_Road/irradiance/nz.png"));
 
         sampler = SlimPtr<Sampler>(commandBuffer->GetDevice(), SamplerDesc());
     }

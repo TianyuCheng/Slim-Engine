@@ -1,4 +1,14 @@
-compile_glsl(raytracing_glsl_shaders shaders/)
-add_executable(raytracing main.cpp)
-target_link_libraries(raytracing PRIVATE slim)
-add_dependencies(raytracing raytracing_glsl_shaders)
+add_slim_project(
+    TARGET
+        raytracing
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/post.frag
+        shaders/post.vert
+        shaders/raytrace.rchit
+        shaders/raytrace.rgen
+        shaders/raytrace.rmiss
+    SPV
+        vulkan1.2
+)

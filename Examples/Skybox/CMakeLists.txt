@@ -1,4 +1,14 @@
-compile_glsl(skybox_glsl_shaders shaders/)
-add_executable(skybox main.cpp)
-target_link_libraries(skybox PRIVATE slim)
-add_dependencies(skybox skybox_glsl_shaders)
+add_slim_project(
+    TARGET
+        skybox
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/common.vert
+        shaders/reflect.frag
+        shaders/refract.frag
+        shaders/skybox.frag
+        shaders/skybox.vert
+    SPV
+        vulkan1.0
+)

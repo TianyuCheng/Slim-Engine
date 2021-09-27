@@ -57,15 +57,15 @@ int main() {
     SmartPtr<GPUImage> matcapCrystal = nullptr;
     SmartPtr<Sampler> matcapSampler = SlimPtr<Sampler>(device, SamplerDesc { });
     device->Execute([&](CommandBuffer* commandBuffer) {
-        matcapJade = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/matcap_jade.png"));
-        matcapMetal = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/matcap_metal.jpg"));
-        matcapCrystal = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/matcap_crystal.jpg"));
+        matcapJade = TextureLoader::Load2D(commandBuffer, GetUserAsset("Pictures/matcap_jade.png"));
+        matcapMetal = TextureLoader::Load2D(commandBuffer, GetUserAsset("Pictures/matcap_metal.jpg"));
+        matcapCrystal = TextureLoader::Load2D(commandBuffer, GetUserAsset("Pictures/matcap_crystal.jpg"));
     });
 
     // model loading
     auto builder = SlimPtr<scene::Builder>(device);
     auto model = gltf::Model { };
-    model.Load(builder, ToAssetPath("Characters/Suzanne/glTF/Suzanne.gltf"));
+    model.Load(builder, GetUserAsset("Characters/Suzanne/glTF/Suzanne.gltf"));
     model.GetScene(0)->ApplyTransform();
     builder->Build();
 

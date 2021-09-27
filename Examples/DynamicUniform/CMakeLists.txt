@@ -1,4 +1,11 @@
-compile_glsl(dynamicuniform_glsl_shaders shaders/)
-add_executable(dynamicuniform main.cpp)
-target_link_libraries(dynamicuniform PRIVATE slim)
-add_dependencies(dynamicuniform dynamicuniform_glsl_shaders)
+add_slim_project(
+    TARGET
+        dynamicuniform
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)

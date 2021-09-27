@@ -40,6 +40,7 @@ namespace slim {
         ContextDesc& EnableShaderFloat64();
         ContextDesc& EnableRayTracing();
         ContextDesc& EnableBufferDeviceAddress();
+        ContextDesc& EnableMultiDraw();
 
         // allow finer-grain tuning by users
         VkPhysicalDeviceFeatures& GetDeviceFeatures() {
@@ -67,6 +68,7 @@ namespace slim {
 
         // physical device features
         std::shared_ptr<VkPhysicalDeviceFeatures2> features = {};
+        std::shared_ptr<VkPhysicalDeviceProperties2> properties = {};
         struct {
             std::shared_ptr<VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures> separateDepthStencilLayout;
             std::shared_ptr<VkPhysicalDeviceDescriptorIndexingFeatures> descriptorIndexing;
@@ -76,6 +78,9 @@ namespace slim {
             std::shared_ptr<VkPhysicalDeviceRayQueryFeaturesKHR> rayQuery;
             std::shared_ptr<VkPhysicalDeviceHostQueryResetFeatures> hostQueryReset;
         } deviceFeatures;
+        struct {
+            std::shared_ptr<VkPhysicalDeviceSubgroupProperties> subgroup;
+        } deviceProperties;
 
         // extensions + validation layers
         // clean up glfw

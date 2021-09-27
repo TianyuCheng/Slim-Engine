@@ -80,9 +80,7 @@ void Descriptor::SetInputAttachment(const std::string& name, Image* image) {
     auto& info = infos.back();
 
     info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    info.imageView = IsDepthStencil(image->GetFormat())
-                   ? image->AsDepthStencilBuffer()
-                   : image->AsTexture();
+    info.imageView = image->AsAutomaticView();
     info.sampler = VK_NULL_HANDLE;
 
     VkWriteDescriptorSet update = {};
@@ -121,7 +119,7 @@ void Descriptor::SetTextures(const std::string &name, const std::vector<Image*> 
     for (uint32_t i = 0; i < images.size(); i++) {
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = images[i]->AsTexture();
+        imageInfo.imageView = images[i]->AsAutomaticView();
         imageInfo.sampler = *samplers[i];
         infos.push_back(imageInfo);
     }
@@ -161,7 +159,7 @@ void Descriptor::SetSampledImages(const std::string &name, const std::vector<Ima
     for (auto* image : images) {
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = image->AsTexture();
+        imageInfo.imageView = image->AsAutomaticView();
         imageInfo.sampler = nullptr;
         infos.push_back(imageInfo);
     }
@@ -201,7 +199,7 @@ void Descriptor::SetStorageImages(const std::string &name, const std::vector<Ima
     for (auto* image : images) {
         VkDescriptorImageInfo imageInfo = {};
         imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-        imageInfo.imageView = image->AsTexture();
+        imageInfo.imageView = image->AsAutomaticView();
         imageInfo.sampler = nullptr;
         infos.push_back(imageInfo);
     }

@@ -9,31 +9,17 @@ void AddRayTracePass(RenderGraph& renderGraph,
     Device* device = renderGraph.GetRenderFrame()->GetDevice();
 
     // ray gen shader
-    static Shader* shadowRayGenShader = nullptr;
-    if (shadowRayGenShader == nullptr) {
-        shadowRayGenShader = new spirv::RayGenShader(device, "main", "shaders/shadow.rgen.spv");
-        bundle.AutoRelease(shadowRayGenShader);
-    }
+    static Shader* shadowRayGenShader = bundle.AutoRelease(new spirv::RayGenShader(device, "main", "shaders/shadow.rgen.spv"));
 
     // shadow ray miss shader
-    static Shader* shadowRayMissShader = nullptr;
-    if (shadowRayMissShader == nullptr) {
-        shadowRayMissShader = new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv");
-        bundle.AutoRelease(shadowRayMissShader);
-    }
+    static Shader* shadowRayMissShader = bundle.AutoRelease(new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv"));
 
     // shadow ray closest hit shader
-    static Shader* shadowRayClosestHitShader = nullptr;
-    if (shadowRayClosestHitShader == nullptr) {
-        shadowRayClosestHitShader = new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv");
-        bundle.AutoRelease(shadowRayClosestHitShader);
-    }
+    static Shader* shadowRayClosestHitShader = bundle.AutoRelease(new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv"));
 
     // ray tracing pipeline
-    static Pipeline* pipeline = nullptr;
-    if (pipeline == nullptr) {
-        // create pipeline
-        pipeline = new Pipeline(
+    static Pipeline* pipeline = bundle.AutoRelease(
+        new Pipeline(
             device,
             RayTracingPipelineDesc()
                 .SetName("hybrid-raytracing")
@@ -48,9 +34,8 @@ void AddRayTracePass(RenderGraph& renderGraph,
                     .AddBinding("Normal",   SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     .AddBinding("Position", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                 )
-        );
-        bundle.AutoRelease(pipeline);
-    }
+        )
+    );
 
     // hybrid ray tracer / rasterizer
     auto raytracePass = renderGraph.CreateComputePass("raytrace");

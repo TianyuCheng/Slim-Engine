@@ -261,6 +261,9 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     for (auto& attachment : attachments) {
         attachment.resource->Allocate(renderFrame);
     }
+    for (auto& storage : storages) {
+        storage->Allocate(renderFrame);
+    }
 
     commandBuffer->BeginRegion(name);
     if (compute) {
@@ -448,14 +451,14 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
         for (uint32_t attachment : subpass->usedAsDepthAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
             VkImageLayout initialLayout = attachments[attachment].resource->layout;
-            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddDepthAttachment(attachmentId, initialLayout, finalLayout);
             attachments[attachment].resource->layout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsStencilAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
             VkImageLayout initialLayout = attachments[attachment].resource->layout;
-            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+            VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddStencilAttachment(attachmentId, initialLayout, finalLayout);
             attachments[attachment].resource->layout = finalLayout;
         }

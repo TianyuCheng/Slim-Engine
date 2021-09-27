@@ -151,7 +151,7 @@ void GLTFViewer::InitSkybox() {
 
 void GLTFViewer::InitLUT() {
     device->Execute([&](CommandBuffer* commandBuffer) {
-        dfglut = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/ibl_brdf_lut.png"));
+        dfglut = TextureLoader::Load2D(commandBuffer, GetLibraryAsset("BXDF/ibl_brdf_lut.png"));
     });
 }
 
@@ -233,7 +233,7 @@ void GLTFViewer::LoadModel() {
     root = builder->CreateNode("root");
 
     model = SlimPtr<gltf::Model>();
-    model->Load(builder, ToAssetPath("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"), true);
+    model->Load(builder, GetUserAsset("Objects/DamagedHelmet/glTF/DamagedHelmet.gltf"), true);
     // model->Load(builder, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/MetalRoughSpheres/glTF/MetalRoughSpheres.gltf", true);
     // model->Load(builder, "/Users/tcheng/Downloads/glTF-Sample-Models/2.0/WaterBottle/glTF/WaterBottle.gltf", true);
     ProcessModel(model);

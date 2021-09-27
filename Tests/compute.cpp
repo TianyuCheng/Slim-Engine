@@ -7,8 +7,8 @@ TEST(SlimCore, ComputeShader) {
     auto context= SlimPtr<Context>(contextDesc);
     auto device = SlimPtr<Device>(context);
     auto data = GenerateSequence<uint32_t>(256);
-    auto srcBuffer = SlimPtr<DeviceStorageBuffer>(device, BufferSize(data));
-    auto dstBuffer = SlimPtr<DeviceStorageBuffer>(device, BufferSize(data));
+    auto srcBuffer = SlimPtr<HostStorageBuffer>(device, BufferSize(data));
+    auto dstBuffer = SlimPtr<HostStorageBuffer>(device, BufferSize(data));
     auto shader = SlimPtr<spirv::ComputeShader>(device, "main", "shaders/simple.comp.spv");
     auto pipeline = SlimPtr<Pipeline>(
         device,

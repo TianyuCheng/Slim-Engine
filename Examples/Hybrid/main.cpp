@@ -1,4 +1,5 @@
 #include <slim/slim.hpp>
+#include "config.h"
 #include "scene.h"
 #include "gbuffer.h"
 #include "raytrace.h"
@@ -18,10 +19,12 @@ int main() {
             .EnableGraphics(true)
             .EnableValidation(true)
             .EnableGLFW(true)
-            // additional features
-            .EnableRayTracing()
+            .EnableDescriptorIndexing()
+            #ifdef ENABLE_RAY_TRACING
             .EnableBufferDeviceAddress()
             .EnableShaderInt64()
+            .EnableRayTracing()
+            #endif
     );
 
     // create a slim device
@@ -81,16 +84,19 @@ int main() {
 
             // resources
             GBuffer gbuffer = {};
-            gbuffer.albedoBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.normalBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.albedoBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.normalBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM,      VK_SAMPLE_COUNT_1_BIT);
             gbuffer.positionBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.depthBuffer    = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.objectBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.depthBuffer    = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D24_UNORM_S8_UINT,   VK_SAMPLE_COUNT_1_BIT);
 
             // draw gbuffer
-            AddGBufferPass(renderGraph, bundle, camera, &gbuffer, scene.model.GetScene(0));
+            AddGBufferPass(renderGraph, bundle, camera, &gbuffer, &scene);
 
+            #ifdef ENABLE_RAY_TRACING
             // hybrid ray tracer / rasterizer
-            AddRayTracePass(renderGraph, bundle, &gbuffer, scene.builder->GetAccelBuilder()->GetTlas(), &dirLight);
+            AddRayTracePass(renderGraph, bundle, &gbuffer, scene.GetTlas(), &dirLight);
+            #endif
 
             // compose
             AddComposerPass(renderGraph, bundle, colorBuffer, &gbuffer, &dirLight);

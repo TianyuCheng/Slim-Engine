@@ -43,7 +43,7 @@ public:
     void PrepareScene() {
         // model loading
         builder = SlimPtr<scene::Builder>(device);
-        model.Load(builder, ToAssetPath("Scenes/Sponza/glTF/Sponza.gltf"));
+        model.Load(builder, GetUserAsset("Scenes/Sponza/glTF/Sponza.gltf"));
 
         // update materials
         for (auto& material : model.materials) {

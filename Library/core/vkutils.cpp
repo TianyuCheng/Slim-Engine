@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "core/vkutils.h"
 #include "core/image.h"
+#include "core/renderpass.h"
 #include "utility/color.h"
 
 namespace slim {
@@ -397,7 +398,10 @@ namespace slim {
             case VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL:
             case VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL:
                 srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-                subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+                subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+                if (!IsDepthOnly(image->GetFormat())) {
+                    subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+                }
                 break;
             // separate depth only
             case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:

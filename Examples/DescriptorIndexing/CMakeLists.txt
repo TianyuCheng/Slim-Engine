@@ -1,4 +1,11 @@
-compile_glsl(descriptorindex_glsl_shaders shaders/)
-add_executable(descriptorindex main.cpp)
-target_link_libraries(descriptorindex PRIVATE slim)
-add_dependencies(descriptorindex descriptorindex_glsl_shaders)
+add_slim_project(
+    TARGET
+        descriptorindexing
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)

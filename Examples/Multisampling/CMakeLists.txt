@@ -1,4 +1,11 @@
-compile_glsl(multisampling_glsl_shaders shaders/)
-add_executable(multisampling main.cpp)
-target_link_libraries(multisampling PRIVATE slim)
-add_dependencies(multisampling multisampling_glsl_shaders)
+add_slim_project(
+    TARGET
+        multisampling
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)

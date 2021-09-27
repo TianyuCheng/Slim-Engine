@@ -25,6 +25,8 @@ namespace slim {
         // camera view matrix
         virtual void LookAt(const glm::vec3 &eye, const glm::vec3 &center, const glm::vec3 &up) override;
 
+        virtual const glm::vec3& GetPosition() const override { return pos; }
+
     private:
         glm::vec3 pos = glm::vec3(0.0, 0.0, 0.0);
         glm::vec3 look = glm::vec3(0.0, 0.0, 1.0);

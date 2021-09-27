@@ -5,7 +5,9 @@
 
 namespace slim {
 
-    const std::string ToAssetPath(const std::string &path);
+    const std::string GetUserAsset(const std::string &path);
+
+    const std::string GetLibraryAsset(const std::string &path);
 
 } // end of namespace slim
 

@@ -1,4 +1,11 @@
-compile_glsl(depthbuffering_glsl_shaders shaders/)
-add_executable(depthbuffering main.cpp)
-target_link_libraries(depthbuffering PRIVATE slim)
-add_dependencies(depthbuffering depthbuffering_glsl_shaders)
+add_slim_project(
+    TARGET
+        depthbuffering
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)

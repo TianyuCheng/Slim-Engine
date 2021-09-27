@@ -19,9 +19,9 @@ int main() {
     auto device = SlimPtr<Device>(context);
 
     // create a buffers
-    auto buffer1 = SlimPtr<StagingBuffer>(device, 256);
-    auto buffer2 = SlimPtr<VertexBuffer>(device, 256);
-    auto buffer3 = SlimPtr<StagingBuffer>(device, 256);
+    auto buffer1 = SlimPtr<Buffer>(device, 256, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    auto buffer2 = SlimPtr<Buffer>(device, 256, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    auto buffer3 = SlimPtr<Buffer>(device, 256, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
     // copy
     device->Execute([=](auto commandBuffer) {

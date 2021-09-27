@@ -18,6 +18,12 @@ void AddToFeatures(VkPhysicalDeviceFeatures2* features, T* object) {
     features->pNext = object;
 }
 
+template <typename T>
+void AddToProperties(VkPhysicalDeviceProperties2* properties, T* object) {
+    object->pNext = properties->pNext;
+    properties->pNext = object;
+}
+
 ContextDesc::ContextDesc() {
     // initialize physical device features
     features.reset(new VkPhysicalDeviceFeatures2{ });
@@ -172,6 +178,11 @@ ContextDesc& ContextDesc::EnableShaderInt64() {
 
 ContextDesc& ContextDesc::EnableShaderFloat64() {
     features->features.shaderFloat64 = VK_TRUE;
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableMultiDraw() {
+    features->features.multiDrawIndirect = VK_TRUE;
     return *this;
 }
 

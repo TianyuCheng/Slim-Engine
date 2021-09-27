@@ -1,4 +1,11 @@
-compile_glsl(matcap_glsl_shaders shaders/)
-add_executable(matcap main.cpp)
-target_link_libraries(matcap PRIVATE slim)
-add_dependencies(matcap matcap_glsl_shaders)
+add_slim_project(
+    TARGET
+        matcap
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/matcap.vert
+        shaders/matcap.frag
+    SPV
+        vulkan1.0
+)

@@ -1,5 +1,6 @@
 #include "core/debug.h"
 #include "core/image.h"
+#include "core/renderpass.h"
 #include "core/vkutils.h"
 
 using namespace slim;
@@ -275,4 +276,17 @@ VkImageView Image::AsDepthStencilBuffer() const {
         ErrorCheck(DeviceDispatch(vkCreateImageView(*device, &viewCreateInfo, nullptr, &depthStencilView)), "create depth stencil view");
     }
     return depthStencilView;
+}
+
+VkImageView Image::AsAutomaticView() const {
+    bool isDepthOnly = IsDepthOnly(GetFormat());
+    bool isDepthStencil = IsDepthOnly(GetFormat());
+
+    if (isDepthOnly) {
+        return AsDepthBuffer();
+    } else if (isDepthStencil) {
+        return AsDepthStencilBuffer();
+    } else {
+        return AsTexture();
+    }
 }

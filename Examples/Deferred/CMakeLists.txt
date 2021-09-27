@@ -1,4 +1,19 @@
-compile_glsl(deferred_glsl_shaders shaders/)
-add_executable(deferred main.cpp fairy.h scene.h)
-target_link_libraries(deferred PRIVATE slim)
-add_dependencies(deferred deferred_glsl_shaders)
+add_slim_project(
+    TARGET
+        deferred
+    SOURCES
+        main.cpp
+        fairy.h
+        scene.h
+    SHADERS
+        shaders/fairy.frag
+        shaders/fairy.vert
+        shaders/fairylight.frag
+        shaders/fairylight.vert
+        shaders/fairymask.frag
+        shaders/fairymask.vert
+        shaders/gbuffer.frag
+        shaders/gbuffer.vert
+    SPV
+        vulkan1.0
+)

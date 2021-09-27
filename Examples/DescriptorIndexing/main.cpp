@@ -72,8 +72,8 @@ int main() {
         commandBuffer->CopyDataToBuffer(indices, iBuffer);
 
         TextureLoader::FlipVerticallyOnLoad();
-        texture1 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
-        texture2 = TextureLoader::Load2D(commandBuffer, ToAssetPath("Pictures/VulkanTransparent.png"), VK_FILTER_LINEAR);
+        texture1 = TextureLoader::Load2D(commandBuffer, GetUserAsset("Pictures/VulkanOpaque.png"), VK_FILTER_LINEAR);
+        texture2 = TextureLoader::Load2D(commandBuffer, GetUserAsset("Pictures/VulkanTransparent.png"), VK_FILTER_LINEAR);
     });
 
     // window

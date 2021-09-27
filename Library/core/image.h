@@ -195,6 +195,7 @@ namespace slim {
         VkImageView AsDepthBuffer() const;
         VkImageView AsStencilBuffer() const;
         VkImageView AsDepthStencilBuffer() const;
+        VkImageView AsAutomaticView() const;
 
         void SetName(const std::string& name) const;
 

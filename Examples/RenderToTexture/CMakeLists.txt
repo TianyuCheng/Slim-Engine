@@ -1,4 +1,11 @@
-compile_glsl(render2texture_glsl_shaders shaders/)
-add_executable(render2texture main.cpp)
-target_link_libraries(render2texture PRIVATE slim)
-add_dependencies(render2texture render2texture_glsl_shaders)
+add_slim_project(
+    TARGET
+        render2texture
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/simple.vert
+        shaders/simple.frag
+    SPV
+        vulkan1.0
+)
