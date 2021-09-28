@@ -3,13 +3,11 @@
 
 #include <cstdint>
 
+// This knob controls whether we turn on ray tracing at all.
 // #define ENABLE_RAY_TRACING
-constexpr uint32_t MAX_NUM_SURFELS       = 250000;
-constexpr uint32_t NUM_SURFELS_ON_WIDTH  = 500;
-constexpr uint32_t NUM_SURFELS_ON_HEIGHT = 500;
-constexpr uint32_t SURFEL_MINIMAP_WIDTH  = 6;
-constexpr uint32_t SURFEL_MINIMAP_HEIGHT = 6;
-constexpr uint32_t TILE_X                = 16;
-constexpr uint32_t TILE_Y                = 16;
+
+// This knob controls whehter we scale the whole scene down
+// for smaller grid testing.
+#define MINUSCALE_SCENE
 
 #endif // SLIM_EXAMPLE_CONFIG_H

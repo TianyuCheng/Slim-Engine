@@ -107,7 +107,7 @@ void AddLinearDepthVisPass(RenderGraph& renderGraph,
     // NOTE: no additional resources created
 
     // compile
-    auto composerPass = renderGraph.CreateRenderPass("objectvis");
+    auto composerPass = renderGraph.CreateRenderPass("lineardepth");
     composerPass->SetColor(targetBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     composerPass->SetTexture(depthBuffer);
 

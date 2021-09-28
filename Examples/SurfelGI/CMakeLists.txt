@@ -42,6 +42,9 @@ add_slim_project(
         shaders/shadow.rmiss
 
         shaders/surfelcov.comp
+        shaders/surfelprepare.comp
+        shaders/surfelupdate.comp
+        shaders/surfelgridreset.comp
 
     SPV
         vulkan1.2

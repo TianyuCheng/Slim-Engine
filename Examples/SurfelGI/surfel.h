@@ -35,6 +35,7 @@ private:
     void InitSurfelGridBuffer();
     void InitSurfelCellBuffer();
     void InitSurfelMomentBuffer();
+    void InitSurfelIndirectBuffer();
 
 public:
     SmartPtr<Buffer> surfelBuffer;
@@ -42,15 +43,16 @@ public:
     SmartPtr<Buffer> surfelGridBuffer;
     SmartPtr<Buffer> surfelCellBuffer;
     SmartPtr<Buffer> surfelStatBuffer;
+    SmartPtr<Buffer> surfelIndirectBuffer;
 };
 
 // ---------------------------------------------------------
 
-void AddSurfelCovPass(RenderGraph& renderGraph,
-                      ResourceBundle& bundle,
-                      Camera* camera,
-                      GBuffer* gbuffer,
-                      Visualize* visualize,
-                      SurfelManager* surfel);
+void AddSurfelPass(RenderGraph& renderGraph,
+                   ResourceBundle& bundle,
+                   Camera* camera,
+                   GBuffer* gbuffer,
+                   Visualize* visualize,
+                   SurfelManager* surfel);
 
 #endif // SLIM_EXAMPLE_SURFEL_H

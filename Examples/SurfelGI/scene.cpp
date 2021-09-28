@@ -2,6 +2,7 @@
 
 MainScene::MainScene(Device* device) : device(device) {
     PrepareScene();
+    PrepareCamera();
     PrepareTransformBuffer();
 }
 
@@ -18,6 +19,11 @@ void MainScene::PrepareScene() {
     // load model
     model.Load(builder, GetUserAsset("Scenes/Sponza/glTF/Sponza.gltf"));
 
+    #ifdef MINUSCALE_SCENE
+    model.GetScene(0)->Scale(0.01, 0.01, 0.01);
+    model.GetScene(0)->ApplyTransform();
+    #endif
+
     // create scene
     builder->Build();
 
@@ -26,6 +32,18 @@ void MainScene::PrepareScene() {
 
     // prepare samplers
     for (auto& sampler : model.samplers) samplers.push_back(sampler);
+}
+
+void MainScene::PrepareCamera() {
+    // camera
+    camera = SlimPtr<Flycam>("camera");
+    #ifdef MINUSCALE_SCENE
+    camera->SetWalkSpeed(1.0f);
+    camera->LookAt(glm::vec3(0.03, 1.35, 0.0), glm::vec3(0.0, 1.35, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    #else
+    camera->SetWalkSpeed(100.0f);
+    camera->LookAt(glm::vec3(3.0, 135.0, 0.0), glm::vec3(0.0, 135.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    #endif
 }
 
 void MainScene::PrepareTransformBuffer() {

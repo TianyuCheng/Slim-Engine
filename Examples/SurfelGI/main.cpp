@@ -49,11 +49,6 @@ int main() {
     auto input = SlimPtr<Input>(window);
     auto time = SlimPtr<Time>();
 
-    // camera
-    auto camera = SlimPtr<Flycam>("camera");
-    camera->SetWalkSpeed(100.0f);
-    camera->LookAt(glm::vec3(3.0, 135.0, 0.0), glm::vec3(0.0, 135.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-
     // scene
     auto scene = MainScene(device);
 
@@ -64,7 +59,7 @@ int main() {
     };
 
     // surfel
-    auto surfel = SurfelManager(device, MAX_NUM_SURFELS);
+    auto surfel = SurfelManager(device, SURFEL_CAPACITY);
 
     // resource bundle
     ResourceBundle bundle;
@@ -77,9 +72,9 @@ int main() {
         auto frame = window->AcquireNext();
 
         // configure camera
-        camera->Perspective(1.05, frame->GetAspectRatio(), 0.1, 3000.0f);
-        camera->SetExtent(frame->GetExtent());
-        camera->Update(input, time);
+        scene.camera->Perspective(1.05, frame->GetAspectRatio(), scene.GetNear(), scene.GetFar());
+        scene.camera->SetExtent(frame->GetExtent());
+        scene.camera->Update(input, time);
 
         // update time
         time->Update();
@@ -104,10 +99,10 @@ int main() {
             vis.surfelcovBuffer    = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
 
             // draw gbuffer
-            AddGBufferPass(renderGraph, bundle, camera, &gbuffer, &scene);
+            AddGBufferPass(renderGraph, bundle, scene.camera, &gbuffer, &scene);
 
             // spawn surfels based on iterative hole filling algorithm
-            AddSurfelCovPass(renderGraph, bundle, camera, &gbuffer, &vis, &surfel);
+            AddSurfelPass(renderGraph, bundle, scene.camera, &gbuffer, &vis, &surfel);
 
             // #ifdef ENABLE_RAY_TRACING
             // // hybrid ray tracer / rasterizer
@@ -117,15 +112,19 @@ int main() {
             // compose
             AddComposerPass(renderGraph, bundle, colorBuffer, &gbuffer, &dirLight);
 
-            // [DEBUG] visualize object ID
-            AddObjectVisPass(renderGraph, bundle, vis.objectBuffer, gbuffer.objectBuffer);
+            // debug and ui passes
+            {
+                // visualize object ID
+                AddObjectVisPass(renderGraph, bundle, vis.objectBuffer, gbuffer.objectBuffer);
 
-            // [DEBUG] visualize linear depth
-            AddLinearDepthVisPass(renderGraph, bundle, camera, vis.depthBuffer, gbuffer.depthBuffer);
+                // visualize linear depth
+                AddLinearDepthVisPass(renderGraph, bundle, scene.camera, vis.depthBuffer, gbuffer.depthBuffer);
 
-            // [DEBUG] overlay
-            AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, ui);
+                // overlay
+                AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, ui);
+            }
         }
+        // renderGraph.Print();
         renderGraph.Execute();
 
         input->Reset();

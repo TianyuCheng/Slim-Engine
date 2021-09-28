@@ -22,8 +22,25 @@ public:
         return builder->GetAccelBuilder()->GetTlas();
     }
 
+    float GetNear() const {
+        #ifdef MINUSCALE_SCENE
+        return 0.001;
+        #else
+        return 0.1;
+        #endif
+    }
+
+    float GetFar() const {
+        #ifdef MINUSCALE_SCENE
+        return 30.0;
+        #else
+        return 3000.0;
+        #endif
+    }
+
 private:
     void PrepareScene();
+    void PrepareCamera();
     void PrepareTransformBuffer();
 
 private:
@@ -32,6 +49,7 @@ private:
 public:
     // scene/models
     SmartPtr<scene::Builder>          builder;
+    SmartPtr<Flycam>                  camera;
     gltf::Model                       model;
 
     // other scene data

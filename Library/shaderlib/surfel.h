@@ -9,6 +9,7 @@
 const uint SURFEL_CAPACITY           = 250000;
 const uint SURFEL_CAPACITY_SQRT      = 500;
 const uint SURFEL_CELL_CAPACITY      = 0xffffffff;
+const uint SURFEL_UPDATE_GROUP_SIZE  = 64;
 const float SURFEL_MAX_RADIUS        = 1.0;
 const float SURFEL_TARGET_COVERAGE   = 0.5;
 
@@ -58,7 +59,7 @@ struct SurfelData {
     vec3 hitEnergy;
     float padding0;
 
-    vec3 traceResylt;
+    vec3 traceResult;
     float padding1;
 };
 
@@ -72,7 +73,6 @@ struct SurfelGrid {
 struct SurfelStat {
     uint count;
     uint cellAllocator;
-    uint indirect;
 };
 
 #ifndef __cplusplus
@@ -99,6 +99,16 @@ SLIM_ATTR uint compute_surfel_grid_index(ivec3 grid) {
     return uint(grid.x) * SURFEL_GRID_DIMENSIONS.y * SURFEL_GRID_DIMENSIONS.z
          + uint(grid.y) * SURFEL_GRID_DIMENSIONS.z
          + uint(grid.z);
+}
+
+// check if surfel intersects with grid cell
+SLIM_ATTR bool intersect_surfel_grid(Surfel surfel, ivec3 cell, vec3 camPos) {
+    vec3 gridmin = cell       - SURFEL_GRID_DIMENSIONS / 2 * SURFEL_MAX_RADIUS + floor(camPos);
+    vec3 gridmax = (cell + 1) - SURFEL_GRID_DIMENSIONS / 2 * SURFEL_MAX_RADIUS + floor(camPos);
+
+    vec3 closestPointInAabb = min(max(surfel.position, gridmin), gridmax);
+	float dist = distance(closestPointInAabb, surfel.position);
+	return dist < surfel.radius;
 }
 
 #endif
