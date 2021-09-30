@@ -20,19 +20,19 @@ void AddOverlayPass(RenderGraph& renderGraph,
     overlayPass->SetTexture(visualize->depthBuffer);
     overlayPass->SetTexture(visualize->objectBuffer);
     overlayPass->SetTexture(visualize->surfelcovBuffer);
+    overlayPass->SetTexture(visualize->surfelAllocBuffer);
 
     // execute
     overlayPass->Execute([=](const RenderInfo& info) {
-        ImTextureID albedo    = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->albedoBuffer->GetImage()->AsTexture());
-        ImTextureID normal    = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normalBuffer->GetImage()->AsTexture());
-        ImTextureID depth     = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->depthBuffer->GetImage()->AsTexture());
-        ImTextureID object    = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->objectBuffer->GetImage()->AsTexture());
-        ImTextureID surfelcov = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelcovBuffer->GetImage()->AsTexture());
+        ImTextureID albedo      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->albedoBuffer->GetImage()->AsTexture());
+        ImTextureID normal      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normalBuffer->GetImage()->AsTexture());
+        ImTextureID depth       = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->depthBuffer->GetImage()->AsTexture());
+        ImTextureID object      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->objectBuffer->GetImage()->AsTexture());
+        ImTextureID surfelCov   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelcovBuffer->GetImage()->AsTexture());
+        ImTextureID surfelAlloc = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelAllocBuffer->GetImage()->AsTexture());
         ui->Begin();
         {
-            ImVec2 winsize = ImVec2(200, 200);
-
-            ImGui::SetNextWindowSize(winsize, ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
             ImGui::Begin("GBuffer");
             {
                 ImVec2 region = ImGui::GetContentRegionAvail();
@@ -60,16 +60,17 @@ void AddOverlayPass(RenderGraph& renderGraph,
             }
             ImGui::End();
 
-            ImGui::SetNextWindowSize(winsize, ImGuiCond_Once);
+            ImGui::SetNextWindowSize(ImVec2(200, 230), ImGuiCond_Once);
             ImGui::Begin("Surfel");
             {
                 ImVec2 region = ImGui::GetContentRegionAvail();
                 ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
+                ImVec2 barSize = ImVec2(size.x, 10);
 
                 ImGui::BeginTabBar("##Surfel");
                 {
                     if (ImGui::BeginTabItem("Coverage")) {
-                        ImGui::Image(surfelcov, size);
+                        ImGui::Image(surfelCov, size);
                         ImGui::EndTabItem();
                     }
 
@@ -77,6 +78,8 @@ void AddOverlayPass(RenderGraph& renderGraph,
                         ImGui::Image(object, size);
                         ImGui::EndTabItem();
                     }
+
+                    ImGui::Image(surfelAlloc, barSize);
                 }
                 ImGui::EndTabBar();
             }

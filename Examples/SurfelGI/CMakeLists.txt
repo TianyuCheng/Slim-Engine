@@ -33,6 +33,7 @@ add_slim_project(
         shaders/compose.frag
         shaders/objectvis.frag
         shaders/lineardepth.frag
+        shaders/surfelallocvis.frag
 
         shaders/gbuffer.frag
         shaders/gbuffer.vert
@@ -41,10 +42,12 @@ add_slim_project(
         shaders/shadow.rgen
         shaders/shadow.rmiss
 
-        shaders/surfelcov.comp
-        shaders/surfelprepare.comp
-        shaders/surfelupdate.comp
-        shaders/surfelgridreset.comp
+        shaders/surfelprepare.comp          # prepare for indirect call
+        shaders/surfelgridreset.comp        # reset grid
+        shaders/surfelupdate.comp           # update grid/cell count
+        shaders/surfelgridoffset.comp       # recompute grid offset
+        shaders/surfelbinning.comp          # fill grid cells
+        shaders/surfelcov.comp              # coverage, allocate new surfels
 
     SPV
         vulkan1.2

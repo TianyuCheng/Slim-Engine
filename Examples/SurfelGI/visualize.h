@@ -9,6 +9,7 @@ struct Visualize {
     RenderGraph::Resource* objectBuffer;
     RenderGraph::Resource* depthBuffer;
     RenderGraph::Resource* surfelcovBuffer;
+    RenderGraph::Resource* surfelAllocBuffer;
 };
 
 void AddObjectVisPass(RenderGraph& renderGraph,
@@ -21,6 +22,11 @@ void AddLinearDepthVisPass(RenderGraph& renderGraph,
                            Camera* camera,
                            RenderGraph::Resource* targetBuffer,
                            RenderGraph::Resource* depthBuffer);
+
+void AddSurfelAllocVisPass(RenderGraph& renderGraph,
+                           ResourceBundle& bundle,
+                           Buffer* buffer,
+                           RenderGraph::Resource* targetBuffer);
 
 
 #endif // SLIM_EXAMPLE_VISUALIZE_H

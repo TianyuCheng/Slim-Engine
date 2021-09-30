@@ -43,7 +43,10 @@ public:
     SmartPtr<Buffer> surfelGridBuffer;
     SmartPtr<Buffer> surfelCellBuffer;
     SmartPtr<Buffer> surfelStatBuffer;
+    SmartPtr<Buffer> surfelStatBufferCPU;
     SmartPtr<Buffer> surfelIndirectBuffer;
+
+    void ShowSurfelCount(const std::string& prefix, CommandBuffer* commandBuffer);
 };
 
 // ---------------------------------------------------------

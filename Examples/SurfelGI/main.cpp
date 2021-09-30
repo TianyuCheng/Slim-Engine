@@ -82,21 +82,26 @@ int main() {
         // rendergraph-based design
         RenderGraph renderGraph(frame);
         {
+            VkExtent2D frameExtent = frame->GetExtent();
+            VkExtent2D barExtent = frameExtent;
+            barExtent.height = 20;
+
             auto colorBuffer       = renderGraph.CreateResource(frame->GetBackBuffer());
 
             // gbuffer resources
             GBuffer gbuffer = {};
-            gbuffer.albedoBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.normalBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM,      VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.positionBuffer = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.objectBuffer   = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.depthBuffer    = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.albedoBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.normalBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_SNORM,      VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.positionBuffer = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.objectBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.depthBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
             // debug resources
             Visualize vis;
-            vis.objectBuffer       = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.depthBuffer        = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.surfelcovBuffer    = renderGraph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.depthBuffer        = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.surfelcovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.surfelAllocBuffer  = renderGraph.CreateResource(barExtent,   VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
 
             // draw gbuffer
             AddGBufferPass(renderGraph, bundle, scene.camera, &gbuffer, &scene);
@@ -119,6 +124,9 @@ int main() {
 
                 // visualize linear depth
                 AddLinearDepthVisPass(renderGraph, bundle, scene.camera, vis.depthBuffer, gbuffer.depthBuffer);
+
+                // surfel alloc vis
+                AddSurfelAllocVisPass(renderGraph, bundle, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
 
                 // overlay
                 AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, ui);

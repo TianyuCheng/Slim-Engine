@@ -25,4 +25,6 @@ void main() {
 
     // prepare indirect dispatch count
     surfelIndirect.x = (surfelStat.data.count + SURFEL_UPDATE_GROUP_SIZE - 1) / SURFEL_UPDATE_GROUP_SIZE;
+    surfelIndirect.y = 1;
+    surfelIndirect.z = 1;
 }

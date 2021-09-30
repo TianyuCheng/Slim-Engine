@@ -140,3 +140,59 @@ void AddLinearDepthVisPass(RenderGraph& renderGraph,
 
     return;
 }
+
+void AddSurfelAllocVisPass(RenderGraph& renderGraph,
+                           ResourceBundle& bundle,
+                           Buffer* buffer,
+                           RenderGraph::Resource* targetBuffer) {
+
+    Device* device = renderGraph.GetRenderFrame()->GetDevice();
+
+    // vertex shader
+    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "main", "shaders/fullscreen.vert.spv"));
+
+    // fragment shader
+    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "main", "shaders/surfelallocvis.frag.spv"));
+
+    // pipeline
+    static auto pipelineDesc = GraphicsPipelineDesc()
+        .SetName("surfel-alloc-vis")
+        .SetVertexShader(vShader)
+        .SetFragmentShader(fShader)
+        .SetCullMode(VK_CULL_MODE_BACK_BIT)
+        .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .SetPipelineLayout(PipelineLayoutDesc()
+            .AddBinding("SurfelStat", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+        );
+
+    // ------------------------------------------------------------------------------------------------------------------
+
+    // resources
+    // NOTE: no additional resources created
+
+    // compile
+    auto surfelAllocVisPass = renderGraph.CreateRenderPass("surfel-alloc-vis");
+    surfelAllocVisPass->SetColor(targetBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+
+    // execute
+    surfelAllocVisPass->Execute([=](const RenderInfo& info) {
+        auto pipeline = info.renderFrame->RequestPipeline(
+            pipelineDesc
+                .SetViewport(info.renderFrame->GetExtent())
+                .SetRenderPass(info.renderPass)
+        );
+
+        // bind pipeline
+        info.commandBuffer->BindPipeline(pipeline);
+
+        // bind descriptor
+        auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+        descriptor->SetStorageBuffer("SurfelStat", buffer);
+        info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+        // draw
+        info.commandBuffer->Draw(6, 1, 0, 0);
+    });
+
+    return;
+}

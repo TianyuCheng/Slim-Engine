@@ -2,11 +2,7 @@
 #extension GL_ARB_separate_shader_objects                : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
-#include "pack.h"
-#include "unpack.h"
 #include "surfel.h"
-#include "camera.h"
-#include "random.h"
 
 layout(local_size_x = SURFEL_UPDATE_GROUP_SIZE,
        local_size_y = 1,
@@ -21,25 +17,25 @@ layout(set = 0, binding = 0) uniform Camera {
     float zFarRcp;
 } camera;
 
-// surfel information
-layout(set = 1, binding = 0) buffer SurfelBuffer {
-    Surfel data[];
-} surfels;
+// surfel stat
+layout(set = 1, binding = 0) buffer SurfelStatBuffer {
+    SurfelStat data;
+} surfelStat;
 
 // surfel metadata
-layout(set = 1, binding = 1) buffer SurfelDataBuffer {
-    SurfelData data[];
-} surfelData;
+layout(set = 1, binding = 1) buffer SurfelBuffer {
+    Surfel data[];
+} surfels;
 
 // surfel grids
 layout(set = 1, binding = 2) buffer SurfelGridBuffer {
     SurfelGrid data[];
 } surfelGrids;
 
-// surfel stat
-layout(set = 1, binding = 3) buffer SurfelStatBuffer {
-    SurfelStat data;
-} surfelStat;
+// surfel cell
+layout(set = 1, binding = 3) buffer SurfelCellBuffer {
+    uint data[];
+} surfelCells;
 
 void main() {
     uint current_surfel_id = gl_GlobalInvocationID.x;
@@ -48,15 +44,7 @@ void main() {
         return;
     }
 
-    SurfelData surfelData = surfelData.data[current_surfel_id];
-
-    // copy surfel data over
-    Surfel surfel;
-    surfel.position = surfelData.position;
-    surfel.normal = surfelData.normal;
-    surfel.color = surfelData.mean;
-    float dist = length(surfel.position - camera.pos);
-    surfel.radius = mix(0.1, SURFEL_MAX_RADIUS, dist / camera.zFar);
+    Surfel surfel = surfels.data[current_surfel_id];
 
     // find grid for potential surfel on this pixel
     ivec3 center_cell = compute_surfel_grid(surfel.position, camera.pos);
@@ -69,12 +57,12 @@ void main() {
                 if (is_surfel_grid_valid(grid_pos)) {
                     if (intersect_surfel_grid(surfel, grid_pos, camera.pos)) {
                         uint grid_index = compute_surfel_grid_index(grid_pos);
-                        atomicAdd(surfelGrids.data[grid_index].count, 1);
+                        uint cell_offset = surfelGrids.data[grid_index].offset;
+                        uint cell_index = atomicAdd(surfelGrids.data[grid_index].count, 1);
+                        surfelCells.data[cell_offset + cell_index] = current_surfel_id;
                     }
                 }
             }
         }
     }
-
-    surfels.data[current_surfel_id] = surfel;
 }
