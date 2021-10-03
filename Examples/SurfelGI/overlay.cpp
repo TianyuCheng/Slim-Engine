@@ -5,6 +5,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
                     RenderGraph::Resource* colorBuffer,
                     GBuffer* gbuffer,
                     Visualize* visualize,
+                    SurfelManager* surfel,
                     DearImGui* ui) {
 
     RenderFrame* frame = renderGraph.GetRenderFrame();
@@ -19,7 +20,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
     overlayPass->SetTexture(gbuffer->normalBuffer);
     overlayPass->SetTexture(visualize->depthBuffer);
     overlayPass->SetTexture(visualize->objectBuffer);
-    overlayPass->SetTexture(visualize->surfelcovBuffer);
+    overlayPass->SetTexture(visualize->surfelCovBuffer);
     overlayPass->SetTexture(visualize->surfelAllocBuffer);
 
     // execute
@@ -28,7 +29,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
         ImTextureID normal      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normalBuffer->GetImage()->AsTexture());
         ImTextureID depth       = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->depthBuffer->GetImage()->AsTexture());
         ImTextureID object      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->objectBuffer->GetImage()->AsTexture());
-        ImTextureID surfelCov   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelcovBuffer->GetImage()->AsTexture());
+        ImTextureID surfelCov   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelCovBuffer->GetImage()->AsTexture());
         ImTextureID surfelAlloc = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelAllocBuffer->GetImage()->AsTexture());
         ui->Begin();
         {

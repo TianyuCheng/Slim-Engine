@@ -277,7 +277,11 @@ namespace slim {
         RayTracingPipelineDesc& SetMissShader(Shader* shader);
         RayTracingPipelineDesc& SetAnyHitShader(Shader* shader);
         RayTracingPipelineDesc& SetClosestHitShader(Shader* shader);
-        RayTracingPipelineDesc& SetIntersectionShader(Shader* shader);
+        RayTracingPipelineDesc& SetAnyHitShader(Shader* aHitShader, Shader* isectShader);
+        RayTracingPipelineDesc& SetClosestHitShader(Shader* cHitShader, Shader* isectShader);
+
+    private:
+        uint32_t FindShader(Shader* shader);
 
     private:
         VkPipelineLibraryCreateInfoKHR pipelineLibraryCreateInfo = {};

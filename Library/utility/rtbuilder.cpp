@@ -10,12 +10,12 @@ void accel::Builder::EnableCompaction() {
     compaction = true;
 }
 
-void accel::Builder::AddNode(scene::Node* node) {
+void accel::Builder::AddNode(scene::Node* node, uint32_t sbtRecordOffset, uint32_t mask) {
     if (tlas.get() == nullptr) {
         VkAccelerationStructureCreateFlagsKHR createFlags = 0;
         tlas = new Instance(device, createFlags);
     }
-    tlas->AddInstance(node);
+    tlas->AddInstance(node, sbtRecordOffset, mask);
 }
 
 void accel::Builder::AddMesh(scene::Mesh* mesh) {
@@ -30,6 +30,13 @@ void accel::Builder::AddMesh(scene::Mesh* mesh) {
 
     blas.push_back(geometry);
     mesh->SetBlasGeometry(geometry);
+}
+
+void accel::Builder::AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride) {
+    VkAccelerationStructureCreateFlagsKHR createFlags = 0;
+    Geometry* geometry = new Geometry(device, createFlags);
+    geometry->AddAABBs(aabbsBuffer, count, stride);
+    blas.push_back(geometry);
 }
 
 void accel::Builder::BuildTlas() {

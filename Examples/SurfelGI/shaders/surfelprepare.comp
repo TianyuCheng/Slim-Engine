@@ -22,6 +22,8 @@ layout(set = 0, binding = 1) buffer SurfelIndirectBuffer {
 void main() {
     // reset cell allocator
     surfelStat.data.cellAllocator = 0;
+    surfelStat.data.debug0 = 0;
+    surfelStat.data.debug1 = 0;
 
     // prepare indirect dispatch count
     surfelIndirect.x = (surfelStat.data.count + SURFEL_UPDATE_GROUP_SIZE - 1) / SURFEL_UPDATE_GROUP_SIZE;

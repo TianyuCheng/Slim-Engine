@@ -523,17 +523,24 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetPipelineLayout(const Pipeline
     return *this;
 }
 
+uint32_t RayTracingPipelineDesc::FindShader(Shader* shader) {
+    for (uint32_t i = 0; i < shaders.size(); i++) {
+        if (shaders[i].get() == shader) return i;
+    }
+    shaders.push_back(shader);
+    shaderInfos.push_back(shader->GetInfo());
+    return shaders.size() - 1;
+}
+
 RayTracingPipelineDesc& RayTracingPipelineDesc::SetRayGenShader(Shader* shader) {
     VkRayTracingShaderGroupCreateInfoKHR group = {};
     group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
     group.anyHitShader = VK_SHADER_UNUSED_KHR;
     group.closestHitShader = VK_SHADER_UNUSED_KHR;
-    group.generalShader = static_cast<uint32_t>(shaders.size());
+    group.generalShader = FindShader(shader);
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
     rayGenCreateInfos.push_back(group);
-    shaders.push_back(shader);
-    shaderInfos.push_back(shader->GetInfo());
     return *this;
 }
 
@@ -543,11 +550,9 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetMissShader(Shader* shader) {
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
     group.anyHitShader = VK_SHADER_UNUSED_KHR;
     group.closestHitShader = VK_SHADER_UNUSED_KHR;
-    group.generalShader = static_cast<uint32_t>(shaders.size());
+    group.generalShader = FindShader(shader);
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
     missCreateInfos.push_back(group);
-    shaders.push_back(shader);
-    shaderInfos.push_back(shader->GetInfo());
     return *this;
 }
 
@@ -555,13 +560,11 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetAnyHitShader(Shader* shader) 
     VkRayTracingShaderGroupCreateInfoKHR group = {};
     group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-    group.anyHitShader = static_cast<uint32_t>(shaders.size());
+    group.anyHitShader = FindShader(shader);
     group.closestHitShader = VK_SHADER_UNUSED_KHR;
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
     hitCreateInfos.push_back(group);
-    shaders.push_back(shader);
-    shaderInfos.push_back(shader->GetInfo());
     return *this;
 }
 
@@ -570,26 +573,34 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetClosestHitShader(Shader* shad
     group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR ;
     group.anyHitShader = VK_SHADER_UNUSED_KHR;
-    group.closestHitShader = static_cast<uint32_t>(shaders.size());
+    group.closestHitShader = FindShader(shader);
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.intersectionShader = VK_SHADER_UNUSED_KHR;
     hitCreateInfos.push_back(group);
-    shaders.push_back(shader);
-    shaderInfos.push_back(shader->GetInfo());
     return *this;
 }
 
-RayTracingPipelineDesc& RayTracingPipelineDesc::SetIntersectionShader(Shader* shader) {
+RayTracingPipelineDesc& RayTracingPipelineDesc::SetAnyHitShader(Shader* aHitShader, Shader* isectShader) {
+    VkRayTracingShaderGroupCreateInfoKHR group = {};
+    group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+    group.anyHitShader = FindShader(aHitShader);
+    group.closestHitShader = VK_SHADER_UNUSED_KHR;
+    group.generalShader = VK_SHADER_UNUSED_KHR;
+    group.intersectionShader = FindShader(isectShader);
+    callableCreateInfos.push_back(group);
+    return *this;
+}
+
+RayTracingPipelineDesc& RayTracingPipelineDesc::SetClosestHitShader(Shader* cHitShader, Shader* isectShader) {
     VkRayTracingShaderGroupCreateInfoKHR group = {};
     group.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
     group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
     group.anyHitShader = VK_SHADER_UNUSED_KHR;
-    group.closestHitShader = VK_SHADER_UNUSED_KHR;
+    group.closestHitShader = FindShader(cHitShader);
     group.generalShader = VK_SHADER_UNUSED_KHR;
-    group.intersectionShader = static_cast<uint32_t>(shaders.size());
+    group.intersectionShader = FindShader(isectShader);
     callableCreateInfos.push_back(group);
-    shaders.push_back(shader);
-    shaderInfos.push_back(shader->GetInfo());
     return *this;
 }
 

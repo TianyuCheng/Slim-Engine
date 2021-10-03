@@ -8,7 +8,7 @@ using namespace slim;
 struct Visualize {
     RenderGraph::Resource* objectBuffer;
     RenderGraph::Resource* depthBuffer;
-    RenderGraph::Resource* surfelcovBuffer;
+    RenderGraph::Resource* surfelCovBuffer;
     RenderGraph::Resource* surfelAllocBuffer;
 };
 

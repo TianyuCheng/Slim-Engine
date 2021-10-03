@@ -2,6 +2,7 @@
 #define SLIM_EXAMPLE_OVERLAY_H
 
 #include <slim/slim.hpp>
+#include "surfel.h"
 #include "gbuffer.h"
 #include "visualize.h"
 
@@ -12,6 +13,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
                     RenderGraph::Resource* colorBuffer,
                     GBuffer* gbuffer,
                     Visualize* visualize,
+                    SurfelManager* surfel,
                     DearImGui* ui);
 
 

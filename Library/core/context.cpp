@@ -109,7 +109,6 @@ ContextDesc& ContextDesc::EnableRayTracing() {
     // adding required device extensions
     deviceExtensions.insert(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
-    // deviceExtensions.insert(VK_KHR_RAY_QUERY_EXTENSION_NAME); // This requires RTX GPU
     deviceExtensions.insert(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
@@ -133,17 +132,6 @@ ContextDesc& ContextDesc::EnableRayTracing() {
         AddToFeatures(features.get(), deviceFeatures.rayTracingPipeline.get());
     }
 
-    #if 0 // This requires RTX GPU
-    // adding ray query pipeline features
-    if (!deviceFeatures.rayQuery.get()) {
-        deviceFeatures.rayQuery.reset(new VkPhysicalDeviceRayQueryFeaturesKHR {});
-        deviceFeatures.rayQuery->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-        deviceFeatures.rayQuery->rayQuery = VK_TRUE;
-        deviceFeatures.rayQuery->pNext = nullptr;
-        AddToFeatures(features.get(), deviceFeatures.rayQuery.get());
-    }
-    #endif
-
     // adding host query reset features
     if (!deviceFeatures.hostQueryReset.get()) {
         deviceFeatures.hostQueryReset.reset(new VkPhysicalDeviceHostQueryResetFeatures { });
@@ -151,6 +139,23 @@ ContextDesc& ContextDesc::EnableRayTracing() {
         deviceFeatures.hostQueryReset->hostQueryReset = VK_TRUE;
         deviceFeatures.hostQueryReset->pNext = nullptr;
         AddToFeatures(features.get(), deviceFeatures.hostQueryReset.get());
+    }
+
+    return *this;
+}
+
+ContextDesc& ContextDesc::EnableRayQuery() {
+    // adding required device extensions
+    deviceExtensions.insert(VK_KHR_RAY_QUERY_EXTENSION_NAME); // This requires RTX GPU
+
+    // This requires RTX GPU
+    // adding ray query pipeline features
+    if (!deviceFeatures.rayQuery.get()) {
+        deviceFeatures.rayQuery.reset(new VkPhysicalDeviceRayQueryFeaturesKHR {});
+        deviceFeatures.rayQuery->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+        deviceFeatures.rayQuery->rayQuery = VK_TRUE;
+        deviceFeatures.rayQuery->pNext = nullptr;
+        AddToFeatures(features.get(), deviceFeatures.rayQuery.get());
     }
 
     return *this;

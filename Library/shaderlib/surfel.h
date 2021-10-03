@@ -73,19 +73,17 @@ struct SurfelGrid {
 struct SurfelStat {
     uint count;
     uint cellAllocator;
+    uint debug0;
+    uint debug1;
 };
 
 #ifndef __cplusplus
 
 // checking if a grid is out of range
 SLIM_ATTR bool is_surfel_grid_valid(ivec3 grid) {
-    if (grid.x < 0 || grid.x >= SURFEL_GRID_DIMENSIONS.x)
-        return false;
-    if (grid.y < 0 || grid.y >= SURFEL_GRID_DIMENSIONS.y)
-        return false;
-    if (grid.z < 0 || grid.z >= SURFEL_GRID_DIMENSIONS.z)
-        return false;
-    return true;
+    return grid.x >= 0 && grid.x < SURFEL_GRID_DIMENSIONS.x &&
+           grid.y >= 0 && grid.y < SURFEL_GRID_DIMENSIONS.y &&
+           grid.z >= 0 && grid.z < SURFEL_GRID_DIMENSIONS.z;
 }
 
 // compute the grid index3 for a given world position
@@ -103,8 +101,8 @@ SLIM_ATTR uint compute_surfel_grid_index(ivec3 grid) {
 
 // check if surfel intersects with grid cell
 SLIM_ATTR bool intersect_surfel_grid(Surfel surfel, ivec3 cell, vec3 camPos) {
-    vec3 gridmin = cell       - SURFEL_GRID_DIMENSIONS / 2 * SURFEL_MAX_RADIUS + floor(camPos);
-    vec3 gridmax = (cell + 1) - SURFEL_GRID_DIMENSIONS / 2 * SURFEL_MAX_RADIUS + floor(camPos);
+    vec3 gridmin = (cell + 0) - (SURFEL_GRID_DIMENSIONS / 2) * SURFEL_MAX_RADIUS + floor(camPos);
+    vec3 gridmax = (cell + 1) - (SURFEL_GRID_DIMENSIONS / 2) * SURFEL_MAX_RADIUS + floor(camPos);
 
     vec3 closestPointInAabb = min(max(surfel.position, gridmin), gridmax);
 	float dist = distance(closestPointInAabb, surfel.position);

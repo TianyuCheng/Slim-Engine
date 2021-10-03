@@ -64,6 +64,8 @@ int main() {
     // resource bundle
     ResourceBundle bundle;
 
+    int frameId = 0;
+
     // render
     while (window->IsRunning()) {
         Window::PollEvents();
@@ -88,6 +90,9 @@ int main() {
 
             auto colorBuffer       = renderGraph.CreateResource(frame->GetBackBuffer());
 
+            // surfel resources
+            surfel.surfelCovBuffer = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
+
             // gbuffer resources
             GBuffer gbuffer = {};
             gbuffer.albedoBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
@@ -96,23 +101,28 @@ int main() {
             gbuffer.objectBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
             gbuffer.depthBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
+            // raytrace resources
+            RayTrace raytrace = {};
+            raytrace.shadowBuffer  = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8_UINT,             VK_SAMPLE_COUNT_1_BIT);
+            raytrace.surfelBuffer  = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+
             // debug resources
             Visualize vis;
             vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.depthBuffer        = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.surfelcovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.surfelCovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.surfelAllocBuffer  = renderGraph.CreateResource(barExtent,   VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
 
             // draw gbuffer
             AddGBufferPass(renderGraph, bundle, scene.camera, &gbuffer, &scene);
 
-            // spawn surfels based on iterative hole filling algorithm
-            AddSurfelPass(renderGraph, bundle, scene.camera, &gbuffer, &vis, &surfel);
-
             // #ifdef ENABLE_RAY_TRACING
             // // hybrid ray tracer / rasterizer
-            // AddRayTracePass(renderGraph, bundle, &gbuffer, scene.GetTlas(), &dirLight);
+            // AddRayTracePass(renderGraph, bundle, &gbuffer, &raytrace, scene.GetTlas(), scene.camera, &dirLight);
             // #endif
+
+            // spawn surfels based on iterative hole filling algorithm
+            AddSurfelPass(renderGraph, bundle, scene.camera, &gbuffer, &raytrace, &vis, &surfel);
 
             // compose
             AddComposerPass(renderGraph, bundle, colorBuffer, &gbuffer, &dirLight);
@@ -129,13 +139,17 @@ int main() {
                 AddSurfelAllocVisPass(renderGraph, bundle, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
 
                 // overlay
-                AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, ui);
+                AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, &surfel, ui);
             }
         }
         // renderGraph.Print();
         renderGraph.Execute();
 
         input->Reset();
+
+        // if (frameId++ > 2) {
+        //     break;
+        // }
     }
 
     device->WaitIdle();

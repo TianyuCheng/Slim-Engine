@@ -39,6 +39,7 @@ namespace slim {
         ContextDesc& EnableShaderInt64();
         ContextDesc& EnableShaderFloat64();
         ContextDesc& EnableRayTracing();
+        ContextDesc& EnableRayQuery();
         ContextDesc& EnableBufferDeviceAddress();
         ContextDesc& EnableMultiDraw();
 

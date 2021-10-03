@@ -20,7 +20,8 @@ namespace slim::accel {
         void EnableCompaction();
 
         void AddMesh(scene::Mesh* mesh);
-        void AddNode(scene::Node* node);
+        void AddNode(scene::Node* node, uint32_t sbtRecordOffset = 0, uint32_t mask = 0xff);
+        void AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);
 
         void BuildTlas();
         void BuildBlas();

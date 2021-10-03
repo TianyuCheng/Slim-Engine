@@ -14,10 +14,10 @@ layout(set = 0, binding = 0) buffer SurfelGridBuffer {
 } surfelGrids;
 
 void main() {
-    uint current_cell_id = gl_GlobalInvocationID.x;
-    if (current_cell_id >= SURFEL_TABLE_SIZE) {
+    uint current_grid_id = gl_GlobalInvocationID.x;
+    if (current_grid_id >= SURFEL_TABLE_SIZE) {
         return;
     }
 
-    surfelGrids.data[current_cell_id].count = 0;
+    surfelGrids.data[current_grid_id].count = 0;
 }

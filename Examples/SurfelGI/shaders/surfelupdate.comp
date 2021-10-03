@@ -57,6 +57,7 @@ void main() {
     surfel.color = surfelData.mean;
     float dist = length(surfel.position - camera.pos);
     surfel.radius = mix(0.1, SURFEL_MAX_RADIUS, dist / camera.zFar);
+    surfels.data[current_surfel_id] = surfel;
 
     // find grid for potential surfel on this pixel
     ivec3 center_cell = compute_surfel_grid(surfel.position, camera.pos);
@@ -75,6 +76,4 @@ void main() {
             }
         }
     }
-
-    surfels.data[current_surfel_id] = surfel;
 }

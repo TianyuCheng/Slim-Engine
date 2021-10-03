@@ -42,7 +42,7 @@ namespace slim::accel {
         friend class AccelStruct;
     public:
         explicit Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
-        uint32_t AddInstance(scene::Node* node);
+        uint32_t AddInstance(scene::Node* node, uint32_t sbtRecordOffset = 0, uint32_t mask = 0xff);
         void Prepare();
 
     private:
@@ -73,6 +73,7 @@ namespace slim::accel {
                           Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
                           Buffer* transformBuffer = nullptr, uint64_t transformOffset = 0,
                           VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT);
+        void AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);
         void Prepare();
 
     private:

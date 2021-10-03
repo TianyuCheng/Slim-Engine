@@ -104,6 +104,9 @@ namespace slim::scene {
             return material;
         }
 
+        // Experimental: bounding box is only used in ray tracing for procedural generation
+        void AddAABB(const BoundingBox& aaBox);
+
         void EnableRayTracing();
 
         void Build();
@@ -169,11 +172,18 @@ namespace slim::scene {
                               VkBufferUsageFlags bufferUsage,
                               VmaMemoryUsage memoryUsage);
 
+        void BuildAabbsBuffer(CommandBuffer* commandBuffer,
+                              VkBufferUsageFlags bufferUsage,
+                              VmaMemoryUsage memoryUsage);
+
     private:
         SmartPtr<Device> device;
-        SmartPtr<Buffer> indexBuffer;
-        SmartPtr<Buffer> vertexBuffer;
         SmartPtr<accel::Builder> accelBuilder;
+
+        // Experimental: adding bounding box support for procedural generation
+        SmartPtr<Node> aabbsNode;
+        SmartPtr<Buffer> aabbsBuffer;
+        std::vector<BoundingBox> aabbs;
     };
 
 } // end of slim namespace

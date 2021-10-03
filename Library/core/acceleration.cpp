@@ -64,13 +64,15 @@ void accel::AccelStruct::SetName(const std::string& name) const {
     }
 }
 
+// ------------------------------------------------------------
+
 accel::Instance::Instance(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags) : device(device), createFlags(createFlags) {
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 }
 
-uint32_t accel::Instance::AddInstance(scene::Node* node) {
+uint32_t accel::Instance::AddInstance(scene::Node* node, uint32_t sbtRecordOffset, uint32_t mask) {
     uint32_t offset =  instances.size();
     if (!node->HasDraw()) {
         return offset;
@@ -89,9 +91,9 @@ uint32_t accel::Instance::AddInstance(scene::Node* node) {
         instance.transform = transform;
         instance.instanceCustomIndex = instanceId++;
         instance.accelerationStructureReference = device->GetDeviceAddress(as);
-        instance.instanceShaderBindingTableRecordOffset = 0;                        // TODO: We will use the same hit group for all objects
-        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR; // TODO: we will hard code back face culling for now
-        instance.mask = 0xff;
+        instance.instanceShaderBindingTableRecordOffset = sbtRecordOffset;
+        instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        instance.mask = mask;
         modified = true;
     }
     return offset;
@@ -147,7 +149,7 @@ void accel::Instance::PrepareInstanceBuffer() {
     #endif
 }
 
-void accel::Instance::Instance::Prepare() {
+void accel::Instance::Prepare() {
     PrepareInstanceBuffer();
 
     VkAccelerationStructureBuildTypeKHR buildType = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
@@ -164,13 +166,15 @@ void accel::Instance::Instance::Prepare() {
     DeviceDispatch(vkGetAccelerationStructureBuildSizesKHR(*device, buildType, &buildInfo, maxPrimitiveCount.data(), &sizeInfo));
 }
 
+// ------------------------------------------------------------
+
 accel::Geometry::Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags) : device(device), createFlags(createFlags) {
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
     sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 }
 
-void accel::Geometry::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
+void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
                                              Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
                                              Buffer* transformBuffer, uint64_t transformOffset,
                                              VkFormat vertexFormat) {
@@ -199,7 +203,7 @@ void accel::Geometry::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t index
     buildRange.transformOffset = transformOffset;
 }
 
-void accel::Geometry::Geometry::Prepare() {
+void accel::Geometry::Prepare() {
     VkAccelerationStructureBuildTypeKHR buildType = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
 
     buildInfo.geometryCount = geometries.size();
@@ -212,4 +216,26 @@ void accel::Geometry::Geometry::Prepare() {
         maxPrimitiveCount.push_back(range.primitiveCount);
     }
     DeviceDispatch(vkGetAccelerationStructureBuildSizesKHR(*device, buildType, &buildInfo, maxPrimitiveCount.data(), &sizeInfo));
+}
+
+void accel::Geometry::AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride) {
+    geometries.push_back(VkAccelerationStructureGeometryKHR { });
+    auto& geometry = geometries.back();
+
+    // prepare geometry data
+    geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR; // TODO: force opaque objcet for now
+    geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+    geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+    geometry.geometry.aabbs.pNext = nullptr;
+    geometry.geometry.aabbs.stride = stride;
+    geometry.geometry.aabbs.data.deviceAddress = device->GetDeviceAddress(aabbsBuffer);
+
+    // prepare geometry offsets
+    buildRanges.push_back(VkAccelerationStructureBuildRangeInfoKHR {});
+    auto& buildRange = buildRanges.back();
+    buildRange.primitiveCount = count;
+    buildRange.primitiveOffset = 0;
+    buildRange.firstVertex = 0;
+    buildRange.transformOffset = 0;
 }

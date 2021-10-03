@@ -118,19 +118,29 @@ void scene::Builder::Build() {
             mesh->built = true;
             #endif
         }
+        BuildAabbsBuffer(commandBuffer, bufferUsage, memoryUsage);
     });
 
     // build acceleration structure if needed to
     if (accelBuilder.get()) {
-        // build blas
+        // add mesh-based blas
         for (auto& mesh : meshes) {
             accelBuilder->AddMesh(mesh);
         }
+        // add aabb-based blas
+        if (aabbsBuffer) {
+            accelBuilder->AddAABBs(aabbsBuffer, 0, sizeof(VkAabbPositionsKHR));
+        }
+        // build blas
         accelBuilder->BuildBlas();
 
-        // build tlas
+        // add mesh-based tlas
         for (auto& node : nodes) {
-            accelBuilder->AddNode(node);
+            accelBuilder->AddNode(node, 0, 0xff);       // use sbt record 0 (for triangle mesh)
+        }
+        // add aabb-based tlas
+        if (aabbsNode.get()) {
+            accelBuilder->AddNode(aabbsNode, 1, 0xff);  // use sbt record 1 (for procedural)
         }
         accelBuilder->BuildTlas();
     }
@@ -143,6 +153,12 @@ void scene::Builder::Clear() {
 
 void scene::Builder::EnableRayTracing() {
     accelBuilder = SlimPtr<accel::Builder>(device);
+}
+
+void scene::Builder::AddAABB(const BoundingBox& aaBox) {
+    if (!accelBuilder.get()) {
+        aabbs.push_back(aaBox);
+    }
 }
 
 VkBufferUsageFlags scene::Builder::GetCommonBufferUsages() const {
@@ -184,4 +200,30 @@ void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
         mesh->vertexOffsets.push_back(vertexBufferOffset);
         commandBuffer->CopyDataToBuffer(attrib, mesh->vertexBuffer, vertexBufferOffset);
     }
+}
+
+void scene::Builder::BuildAabbsBuffer(CommandBuffer* commandBuffer,
+                                      VkBufferUsageFlags bufferUsage,
+                                      VmaMemoryUsage memoryUsage) {
+    // prepare aabbs buffer
+    uint64_t aabbsBufferSize = aabbs.size() * sizeof(VkAabbPositionsKHR);
+    if (aabbsBufferSize == 0) return;
+
+    // create aabbs buffer and aabbs node
+    aabbsNode = SlimPtr<Node>();
+    aabbsBuffer = SlimPtr<Buffer>(device, aabbsBufferSize, bufferUsage, memoryUsage);
+
+    // copy bounding boxes to dest type
+    std::vector<VkAabbPositionsKHR> data(aabbs.size());
+    for (uint32_t i = 0; i < aabbs.size(); i++) {
+        const auto& min = aabbs[i].Min();
+        const auto& max = aabbs[i].Max();
+        data[i].minX = min.x;
+        data[i].minY = min.y;
+        data[i].minZ = min.z;
+        data[i].maxX = max.x;
+        data[i].maxY = max.y;
+        data[i].maxZ = max.z;
+    }
+    commandBuffer->CopyDataToBuffer(data, aabbsBuffer);
 }

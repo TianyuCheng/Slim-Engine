@@ -69,6 +69,8 @@ void SurfelManager::InitSurfelStatBuffer() {
         SurfelStat stat;
         stat.count = 0;
         stat.cellAllocator = 0;
+        stat.debug0 = 0;
+        stat.debug1 = 0;
         commandBuffer->CopyDataToBuffer(stat, surfelStatBuffer);
     });
 
@@ -96,16 +98,17 @@ void SurfelManager::ShowSurfelCount(const std::string& prefix, CommandBuffer* co
     commandBuffer->CopyBufferToBuffer(surfelStatBuffer, 0, surfelStatBufferCPU, 0, sizeof(SurfelStat));
     AddBufferMemoryBarrier(commandBuffer, surfelStatBufferCPU);
 
-    SurfelStat* stat = surfelStatBufferCPU->GetData<SurfelStat>();
-    std::cout << "[" << prefix << "] Surfel Count:      " << stat->count << std::endl;
-    std::cout << "[" << prefix << "] Surfel Cell Alloc: " << stat->cellAllocator << std::endl;
-    std::cout << "--------------------------------------" << std::endl;
+    // SurfelStat* stat = surfelStatBufferCPU->GetData<SurfelStat>();
+    // std::cout << "[" << prefix << "] Surfel Count:      " << stat->count << std::endl;
+    // std::cout << "[" << prefix << "] Surfel Cell Alloc: " << stat->cellAllocator << std::endl;
+    // std::cout << "--------------------------------------" << std::endl;
 }
 
 void AddSurfelPass(RenderGraph& renderGraph,
                    ResourceBundle& bundle,
                    Camera* camera,
                    GBuffer* gbuffer,
+                   RayTrace* raytrace,
                    Visualize* visualize,
                    SurfelManager* surfel) {
 
@@ -124,7 +127,26 @@ void AddSurfelPass(RenderGraph& renderGraph,
     };
 
     // sampler
-    static auto sampler = bundle.AutoRelease(new Sampler(device, SamplerDesc {}));
+    static auto sampler = bundle.AutoRelease(new Sampler(device,
+        SamplerDesc {}
+            .MinFilter(VK_FILTER_NEAREST)
+            .MagFilter(VK_FILTER_NEAREST)
+    ));
+
+    // surfel indirect prepare pipeline
+    static auto surfelPrepareShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelprepare.comp.spv"));
+    static auto surfelPreparePipeline = bundle.AutoRelease(new Pipeline(
+        device,
+        ComputePipelineDesc()
+            .SetName("surfel-prepare")
+            .SetComputeShader(surfelPrepareShader)
+            .SetPipelineLayout(PipelineLayoutDesc()
+                // set 0
+                .AddBinding("SurfelStat",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                .AddBinding("SurfelIndirect", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+            )
+        )
+    );
 
     // surfel grid reset pipeline
     static auto surfelGridResetShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelgridreset.comp.spv"));
@@ -141,7 +163,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
     );
 
     // surfel update pipeline
-    static Shader* surfelUpdateShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelupdate.comp.spv"));
+    static auto surfelUpdateShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelupdate.comp.spv"));
     static auto surfelUpdatePipeline = bundle.AutoRelease(new Pipeline(
         device,
         ComputePipelineDesc()
@@ -193,21 +215,6 @@ void AddSurfelPass(RenderGraph& renderGraph,
         )
     );
 
-    // surfel indirect prepare pipeline
-    static auto surfelPrepareShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelprepare.comp.spv"));
-    static auto surfelPreparePipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-prepare")
-            .SetComputeShader(surfelPrepareShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("SurfelStat",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelIndirect", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
-    );
-
     // surfel coverage pipeline
     static auto surfelCoverageShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelcov.comp.spv"));
     static auto surfelCoveragePipeline = bundle.AutoRelease(new Pipeline(
@@ -230,6 +237,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
                 .AddBinding("Normal",     SetBinding { 2, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                 .AddBinding("Object",     SetBinding { 2, 2 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                 .AddBinding("Coverage",   SetBinding { 2, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                .AddBinding("Debug",      SetBinding { 2, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
             )
         )
     );
@@ -241,7 +249,8 @@ void AddSurfelPass(RenderGraph& renderGraph,
     surfelComputePass->SetTexture(gbuffer->depthBuffer);
     surfelComputePass->SetTexture(gbuffer->normalBuffer);
     surfelComputePass->SetTexture(gbuffer->objectBuffer);
-    surfelComputePass->SetStorage(visualize->surfelcovBuffer, RenderGraph::STORAGE_IMAGE_WRITE_ONLY);
+    surfelComputePass->SetStorage(surfel->surfelCovBuffer, RenderGraph::STORAGE_IMAGE_WRITE_ONLY);
+    surfelComputePass->SetStorage(visualize->surfelCovBuffer, RenderGraph::STORAGE_IMAGE_WRITE_ONLY);
 
     // execute
     surfelComputePass->Execute([=](const RenderInfo& info) {
@@ -254,6 +263,34 @@ void AddSurfelPass(RenderGraph& renderGraph,
         cameraData.zFarRcp = 1.0 / camera->GetFar();
         auto cameraUniform = info.renderFrame->RequestUniformBuffer(cameraData);
         cameraUniform->SetName("Camera Uniform");
+
+        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelStatBuffer);
+        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelCellBuffer);
+        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelDataBuffer);
+        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelBuffer);
+
+        // surfel indirect prepare
+        // This step update the indirect draw buffer's dispatch count based on active surfel count
+        // ---------------------------------------------------------------------------------------
+        info.commandBuffer->BeginRegion("Surfel Indirect Prepare");
+        {
+            auto pipeline = surfelPreparePipeline;
+            info.commandBuffer->BindPipeline(pipeline);
+
+            // bind descriptor
+            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+            descriptor->SetStorageBuffer("SurfelStat",     surfel->surfelStatBuffer);
+            descriptor->SetStorageBuffer("SurfelIndirect", surfel->surfelIndirectBuffer);
+            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+            // issue compute call
+            info.commandBuffer->Dispatch(1, 1, 1);
+
+            // barriers
+            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelIndirectBuffer);
+        }
+        info.commandBuffer->EndRegion();
 
         // surfel grid reset
         // This step reset grid's count.
@@ -276,28 +313,6 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
             // barriers
             AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
-        }
-        info.commandBuffer->EndRegion();
-
-        // surfel indirect prepare
-        // This step update the indirect draw buffer's dispatch count based on active surfel count
-        // ---------------------------------------------------------------------------------------
-        info.commandBuffer->BeginRegion("Surfel Indirect Prepare");
-        {
-            auto pipeline = surfelPreparePipeline;
-            info.commandBuffer->BindPipeline(pipeline);
-
-            // bind descriptor
-            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-            descriptor->SetStorageBuffer("SurfelStat",     surfel->surfelStatBuffer);
-            descriptor->SetStorageBuffer("SurfelIndirect", surfel->surfelIndirectBuffer);
-            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-
-            // issue compute call
-            info.commandBuffer->Dispatch(1, 1, 1);
-
-            // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelIndirectBuffer);
         }
         info.commandBuffer->EndRegion();
 
@@ -352,6 +367,32 @@ void AddSurfelPass(RenderGraph& renderGraph,
         }
         info.commandBuffer->EndRegion();
 
+        #if 1
+        // surfel grid reset
+        // This step reset grid's count.
+        // ---------------------------------------------------------------------------------------
+        info.commandBuffer->BeginRegion("Surfel Grid Reset v2");
+        {
+            auto pipeline = surfelGridResetPipeline;
+            info.commandBuffer->BindPipeline(pipeline);
+
+            // bind descriptor
+            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+            descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGridBuffer);
+            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+            // issue compute call
+            uint32_t groupCountX = SURFEL_TABLE_SIZE / SURFEL_UPDATE_GROUP_SIZE;
+            uint32_t groupCountY = 1;
+            uint32_t groupCountZ = 1;
+            info.commandBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
+
+            // barriers
+            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+        }
+        info.commandBuffer->EndRegion();
+        #endif
+
         // surfel binning
         // This step puts surfel cell index into correct place
         // ---------------------------------------------------------------------------------------
@@ -382,6 +423,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
         // Newly added surfels will be processed in the next frame.
         // ---------------------------------------------------------------------------------------
         surfel->ShowSurfelCount("SurfelCov Before", info.commandBuffer);
+        info.commandBuffer->BeginRegion("Surfel Coverage");
         {
 
             auto pipeline = surfelCoveragePipeline;
@@ -398,7 +440,8 @@ void AddSurfelPass(RenderGraph& renderGraph,
             descriptor->SetTexture("Normal", gbuffer->normalBuffer->GetImage(), sampler);
             descriptor->SetTexture("Depth",  gbuffer->depthBuffer->GetImage(), sampler);
             descriptor->SetTexture("Object", gbuffer->objectBuffer->GetImage(), sampler);
-            descriptor->SetStorageImage("Coverage", visualize->surfelcovBuffer->GetImage());
+            descriptor->SetStorageImage("Coverage", surfel->surfelCovBuffer->GetImage());
+            descriptor->SetStorageImage("Debug", visualize->surfelCovBuffer->GetImage());
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
             // push constant
@@ -418,7 +461,6 @@ void AddSurfelPass(RenderGraph& renderGraph,
             AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelDataBuffer);
             AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelStatBuffer);
         }
-        surfel->ShowSurfelCount("SurfelCov After ", info.commandBuffer);
         info.commandBuffer->EndRegion();
     });
 }

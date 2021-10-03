@@ -24,6 +24,13 @@ void MainScene::PrepareScene() {
     model.GetScene(0)->ApplyTransform();
     #endif
 
+    // adding bounding box for procedural hit
+    #ifdef MINUSCALE_SCENE
+    builder->AddAABB(BoundingBox(glm::vec3(-300, -300, -300), glm::vec3(+300, +300, +300)));
+    #else
+    builder->AddAABB(BoundingBox(glm::vec3(-3000, -3000, -3000), glm::vec3(+3000, +3000, +3000)));
+    #endif
+
     // create scene
     builder->Build();
 
