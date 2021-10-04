@@ -83,7 +83,7 @@ void main() {
     uint primID = texelFetch(imageObject, pixel, 0).x;
     vec3 normal = texelFetch(imageNormal, pixel, 0).xyz;
     vec2 uv = (vec2(pixel) + vec2(0.5)) / vec2(info.size);
-    vec3 pos = reconstruct_position(uv, depth, camera.invVP);
+    vec3 pos = compute_world_position(uv, depth, camera.invVP);
 
     #if 0 // debug if world position reconstruction is correct
     vec4 color = vec4(pos, 1.0);

@@ -28,7 +28,7 @@ void main() {
     vec2 ndc = (gl_FragCoord.xy + 0.5) / vec2(info.size);
     ivec2 pixel = ivec2(ndc * info.size);
     float depth = texture(imageDepth, inUV).x;
-    vec3 pos = reconstruct_position(ndc, depth, camera.invVP);
+    vec3 pos = compute_world_position(ndc, depth, camera.invVP);
 
     ivec3 grid = compute_surfel_grid(pos, camera.pos);
     if (is_surfel_grid_valid(grid)) {

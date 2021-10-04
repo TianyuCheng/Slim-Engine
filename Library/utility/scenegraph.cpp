@@ -136,11 +136,11 @@ void scene::Builder::Build() {
 
         // add mesh-based tlas
         for (auto& node : nodes) {
-            accelBuilder->AddNode(node, 0, 0xff);       // use sbt record 0 (for triangle mesh)
+            accelBuilder->AddNode(node, 0, 0x1);       // use sbt record 0 (for triangle mesh)
         }
         // add aabb-based tlas
         if (aabbsNode.get()) {
-            accelBuilder->AddNode(aabbsNode, 1, 0xff);  // use sbt record 1 (for procedural)
+            accelBuilder->AddNode(aabbsNode, 1, 0x2);  // use sbt record 1 (for procedural)
         }
         accelBuilder->BuildTlas();
     }

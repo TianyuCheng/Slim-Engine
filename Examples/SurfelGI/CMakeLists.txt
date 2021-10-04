@@ -16,9 +16,6 @@ add_slim_project(
         composer.h
         composer.cpp
 
-        raytrace.h
-        raytrace.cpp
-
         overlay.h
         overlay.cpp
 
@@ -39,9 +36,9 @@ add_slim_project(
         shaders/gbuffer.frag
         shaders/gbuffer.vert
 
-        shaders/shadow.rchit
-        shaders/shadow.rgen
-        shaders/shadow.rmiss
+        shaders/raytrace.rchit
+        shaders/raytrace.rgen
+        shaders/raytrace.rmiss
 
         shaders/surfelprepare.comp          # prepare for indirect call
         shaders/surfelgridreset.comp        # reset grid

@@ -3,7 +3,6 @@
 #include "scene.h"
 #include "surfel.h"
 #include "gbuffer.h"
-#include "raytrace.h"
 #include "visualize.h"
 #include "composer.h"
 #include "overlay.h"
@@ -85,6 +84,7 @@ int main() {
         RenderGraph renderGraph(frame);
         {
             VkExtent2D frameExtent = frame->GetExtent();
+
             VkExtent2D barExtent = frameExtent;
             barExtent.height = 20;
 
@@ -101,11 +101,6 @@ int main() {
             gbuffer.objectBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
             gbuffer.depthBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
-            // raytrace resources
-            RayTrace raytrace = {};
-            raytrace.shadowBuffer  = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8_UINT,             VK_SAMPLE_COUNT_1_BIT);
-            raytrace.surfelBuffer  = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-
             // debug resources
             Visualize vis;
             vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
@@ -117,13 +112,8 @@ int main() {
             // draw gbuffer
             AddGBufferPass(renderGraph, pool, scene.camera, &gbuffer, &scene);
 
-            // #ifdef ENABLE_RAY_TRACING
-            // // hybrid ray tracer / rasterizer
-            // AddRayTracePass(renderGraph, pool, &gbuffer, &raytrace, scene.GetTlas(), scene.camera, &dirLight);
-            // #endif
-
             // spawn surfels based on iterative hole filling algorithm
-            AddSurfelPass(renderGraph, pool, scene.camera, &gbuffer, &raytrace, &vis, &surfel, frameId);
+            AddSurfelPass(renderGraph, pool, &scene, &gbuffer, &vis, &surfel, &dirLight, frameId);
 
             // compose
             AddComposerPass(renderGraph, pool, colorBuffer, &gbuffer, &dirLight);

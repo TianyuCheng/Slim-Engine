@@ -20,6 +20,7 @@
 namespace slim {
 
     class Image;
+    class CommandBuffer;
 
     struct QueueFamilyIndices {
         std::optional<uint32_t> graphics;
@@ -52,7 +53,7 @@ namespace slim {
 
     VkExtent2D ChooseSwapExtent(GLFWwindow *window, const VkSurfaceCapabilitiesKHR& capabilities);
 
-    void LayoutTransition(VkCommandBuffer cmdbuffer,
+    void LayoutTransition(CommandBuffer* cmdbuffer,
                           Image *image,
                           const VkImageSubresourceRange &subresources,
                           VkImageLayout srcLayout,
@@ -62,7 +63,7 @@ namespace slim {
                           VkPipelineStageFlags srcStageMask,
                           VkPipelineStageFlags dstStageMask);
 
-    void PrepareLayoutTransition(VkCommandBuffer cmdbuffer,
+    void PrepareLayoutTransition(CommandBuffer* cmdbuffer,
                                  Image *image,
                                  VkImageLayout srcLayout,
                                  VkImageLayout dstLayout,

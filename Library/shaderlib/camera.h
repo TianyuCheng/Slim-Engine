@@ -14,7 +14,7 @@ SLIM_ATTR float linearize_depth(float depth, float z_near, float z_far)
 #endif
 }
 
-SLIM_ATTR vec3 reconstruct_position(vec2 ndc, float depth, mat4 invVP) {
+SLIM_ATTR vec3 compute_world_position(vec2 ndc, float depth, mat4 invVP) {
     float x = +(ndc.x * 2.0 - 1.0);
     float y = -(ndc.y * 2.0 - 1.0);
     float z = depth;

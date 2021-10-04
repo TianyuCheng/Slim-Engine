@@ -112,6 +112,7 @@ namespace slim {
         void PrepareForTransferSrc(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
         void PrepareForTransferDst(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
         void PrepareForPresentSrc(Image *image, uint32_t baseLayer = 0, uint32_t layerCount = 0, uint32_t mipLevel = 0, uint32_t levelCount = 0);
+        void PrepareForBuffer(Buffer* buffer, VkPipelineStageFlags srcStages, VkPipelineStageFlags dstStages);
 
         Device* GetDevice() const { return device; }
 

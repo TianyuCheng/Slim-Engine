@@ -39,7 +39,7 @@ namespace slim {
         class Resource final : public ReferenceCountable {
             friend class RenderGraph;
         public:
-            explicit Resource(GPUImage *image);
+            explicit Resource(GPUImage* image);
             explicit Resource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);
             virtual ~Resource() = default;
             Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
@@ -50,7 +50,7 @@ namespace slim {
             void UseAsStencilBuffer()      { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
             void UseAsDepthStencilBuffer() { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
             void UseAsInputAttachment()    { usages |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;         }
-            void UseAsStorage()            { usages |= VK_IMAGE_USAGE_STORAGE_BIT;                  }
+            void UseAsStorageImage()       { usages |= VK_IMAGE_USAGE_STORAGE_BIT;                  }
             void UseAsTexture()            { usages |= VK_IMAGE_USAGE_SAMPLED_BIT;                  }
 
         private:
@@ -87,7 +87,7 @@ namespace slim {
         };
 
         struct ResourceMetadata {
-            Resource *resource;
+            Resource* resource;
             ResourceType type;
             std::optional<VkClearValue> clearValue = std::nullopt;
         };
@@ -108,7 +108,7 @@ namespace slim {
             explicit Subpass(Pass* parent);
 
             // color resolve attachment
-            void SetColorResolve(RenderGraph::Resource *resource);
+            void SetColorResolve(RenderGraph::Resource* resource);
 
             // preserved attachmented
             void SetPreserve(RenderGraph::Resource* resource);
@@ -117,24 +117,24 @@ namespace slim {
             void SetInput(RenderGraph::Resource* resource);
 
             // color attachment
-            void SetColor(RenderGraph::Resource *resource);
-            void SetColor(RenderGraph::Resource *resource, const ClearValue &clear);
+            void SetColor(RenderGraph::Resource* resource);
+            void SetColor(RenderGraph::Resource* resource, const ClearValue& clear);
 
             // separate depth
-            void SetDepth(RenderGraph::Resource *resource);
-            void SetDepth(RenderGraph::Resource *resource, const ClearValue &clear);
+            void SetDepth(RenderGraph::Resource* resource);
+            void SetDepth(RenderGraph::Resource* resource, const ClearValue& clear);
 
             // separate stencil
-            void SetStencil(RenderGraph::Resource *resource);
-            void SetStencil(RenderGraph::Resource *resource, const ClearValue &clear);
+            void SetStencil(RenderGraph::Resource* resource);
+            void SetStencil(RenderGraph::Resource* resource, const ClearValue& clear);
 
             // combined depth stencil
-            void SetDepthStencil(RenderGraph::Resource *resource);
-            void SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear);
+            void SetDepthStencil(RenderGraph::Resource* resource);
+            void SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear);
 
             // non-attachments
-            void SetTexture(RenderGraph::Resource *resource); // texture image, read-only
-            void SetStorage(RenderGraph::Resource *resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE); // storage image
+            void SetTexture(RenderGraph::Resource* resource); // texture image, read-only
+            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE); // storage image
 
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
@@ -151,7 +151,7 @@ namespace slim {
             std::vector<uint32_t> usedAsPreserveAttachment = {};
             std::vector<uint32_t> usedAsInputAttachment = {};
             std::vector<uint32_t> usedAsTexture = {};
-            std::vector<uint32_t> usedAsStorage = {};
+            std::vector<uint32_t> usedAsStorageImage = {};
         };
 
         // -------------------------------------------------------------------------------
@@ -160,7 +160,7 @@ namespace slim {
             friend class Subpass;
             friend class RenderGraph;
         public:
-            explicit Pass(const std::string &name, RenderGraph *graph, bool compute = false);
+            explicit Pass(const std::string& name, RenderGraph* graph, bool compute = false);
 
             Subpass* CreateSubpass();
 
@@ -191,7 +191,7 @@ namespace slim {
 
             // non-attachments
             void SetTexture(RenderGraph::Resource* resource);   // texture image
-            void SetStorage(RenderGraph::Resource *resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE);   // storage image
+            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE);   // storage image
 
             void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
 
@@ -209,7 +209,7 @@ namespace slim {
 
         private:
             std::string name;
-            RenderGraph *graph;
+            RenderGraph* graph;
 
             bool compute = false;
             SmartPtr<Semaphore> signalSemaphore = nullptr;
@@ -241,8 +241,8 @@ namespace slim {
         explicit RenderGraph(RenderFrame *frame);
         virtual ~RenderGraph();
 
-        RenderGraph::Pass*     CreateRenderPass(const std::string &name);
-        RenderGraph::Pass*     CreateComputePass(const std::string &name);                                         // async compute
+        RenderGraph::Pass*     CreateRenderPass(const std::string& name);
+        RenderGraph::Pass*     CreateComputePass(const std::string& name);                                         // async compute
         RenderGraph::Resource* CreateResource(GPUImage* image);                                                    // for retained resource
         RenderGraph::Resource* CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples);  // for transient resource
         void                   Compile();
@@ -255,8 +255,8 @@ namespace slim {
         CommandBuffer*         GetCommandBuffer() const;
 
     private:
-        void                   CompilePass(Pass *pass);
-        void                   CompileResource(Resource *resource);
+        void                   CompilePass(Pass* pass);
+        void                   CompileResource(Resource* resource);
         std::unordered_set<Pass*> FindPassDependencies(Pass* pass);
 
     private:

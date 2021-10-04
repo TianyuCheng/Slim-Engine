@@ -1,18 +1,5 @@
 #include "surfel.h"
 
-void AddBufferMemoryBarrier(CommandBuffer* commandBuffer, Buffer* buffer) {
-    VkBufferMemoryBarrier barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    barrier.pNext = nullptr;
-    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.buffer = *buffer;
-    barrier.offset = 0;
-    barrier.size = buffer->Size();
-}
-
 SurfelManager::SurfelManager(Device* device, uint32_t numSurfels) : device(device), numSurfels(numSurfels) {
     InitSurfelBuffer();
     InitSurfelDataBuffer();
@@ -93,24 +80,13 @@ void SurfelManager::InitSurfelIndirectBuffer() {
     });
 }
 
-void SurfelManager::ShowSurfelCount(const std::string& prefix, CommandBuffer* commandBuffer) {
-    AddBufferMemoryBarrier(commandBuffer, surfelStatBuffer);
-    commandBuffer->CopyBufferToBuffer(surfelStatBuffer, 0, surfelStatBufferCPU, 0, sizeof(SurfelStat));
-    AddBufferMemoryBarrier(commandBuffer, surfelStatBufferCPU);
-
-    // SurfelStat* stat = surfelStatBufferCPU->GetData<SurfelStat>();
-    // std::cout << "[" << prefix << "] Surfel Count:      " << stat->count << std::endl;
-    // std::cout << "[" << prefix << "] Surfel Cell Alloc: " << stat->cellAllocator << std::endl;
-    // std::cout << "--------------------------------------" << std::endl;
-}
-
 void AddSurfelPass(RenderGraph& renderGraph,
                    AutoReleasePool& pool,
-                   Camera* camera,
+                   MainScene* scene,
                    GBuffer* gbuffer,
-                   RayTrace* raytrace,
                    Visualize* visualize,
                    SurfelManager* surfel,
+                   DirectionalLight* light,
                    uint32_t frameId) {
 
     struct FrameInfo {
@@ -124,6 +100,11 @@ void AddSurfelPass(RenderGraph& renderGraph,
         float zNear;
         float zFar;
         float zFarRcp;
+    };
+
+    struct LightInfo {
+        glm::vec4 direction;
+        glm::vec4 color;
     };
 
     // sampler
@@ -293,6 +274,49 @@ void AddSurfelPass(RenderGraph& renderGraph,
         }
     );
 
+    #ifdef ENABLE_RAY_TRACING
+    // ray gen shader
+    static auto rayGenShader = pool.FetchOrCreate(
+        "raytrace.ray.gen",
+        [](Device* device) {
+            return new spirv::RayGenShader(device, "main", "shaders/raytrace.rgen.spv");
+        });
+    // shadow ray miss shader
+    static auto rayMissShader = pool.FetchOrCreate(
+        "raytrace.ray.miss",
+        [](Device* device) {
+            return new spirv::MissShader(device, "main", "shaders/raytrace.rmiss.spv");
+        });
+    // shadow ray closest hit shader
+    static auto rayClosestHitShader = pool.FetchOrCreate(
+        "raytrace.ray.closest.hit",
+        [](Device* device) {
+            return new spirv::ClosestHitShader(device, "main", "shaders/raytrace.rchit.spv");
+        });
+    // ray tracing pipeline
+    static auto raytracePipeline = pool.FetchOrCreate(
+        "surfel.raytrace.pipline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                RayTracingPipelineDesc()
+                    .SetName("surfel-ray-tracing")
+                    .SetRayGenShader(rayGenShader)
+                    .SetMissShader(rayMissShader)
+                    .SetClosestHitShader(rayClosestHitShader)
+                    .SetMaxRayRecursionDepth(1)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        .AddPushConstant("Light", Range { 0, sizeof(LightInfo) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Accel",      SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Camera",     SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelData", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelStat", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                    )
+                );
+        }
+    );
+    #endif
+
     // ------------------------------------------------------------------------------------------------------------------
 
     // compile
@@ -305,6 +329,8 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
     // execute
     surfelComputePass->Execute([=](const RenderInfo& info) {
+        Camera* camera = scene->camera;
+
         // prepare camera data
         CameraInfo cameraData;
         cameraData.invVP = glm::inverse(camera->GetProjection() * camera->GetView());
@@ -315,11 +341,10 @@ void AddSurfelPass(RenderGraph& renderGraph,
         auto cameraUniform = info.renderFrame->RequestUniformBuffer(cameraData);
         cameraUniform->SetName("Camera Uniform");
 
-        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelStatBuffer);
-        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
-        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelCellBuffer);
-        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelDataBuffer);
-        AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelBuffer);
+        // prepare light data
+        LightInfo lightInfo;
+        lightInfo.color = light->color;
+        lightInfo.direction = light->direction;
 
         // surfel indirect prepare
         // This step update the indirect draw buffer's dispatch count based on active surfel count
@@ -339,7 +364,9 @@ void AddSurfelPass(RenderGraph& renderGraph,
             info.commandBuffer->Dispatch(1, 1, 1);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelIndirectBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelIndirectBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
 
@@ -363,7 +390,9 @@ void AddSurfelPass(RenderGraph& renderGraph,
             info.commandBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelGridBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
 
@@ -388,8 +417,12 @@ void AddSurfelPass(RenderGraph& renderGraph,
             vkCmdDispatchIndirect(*info.commandBuffer, *surfel->surfelIndirectBuffer, 0);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelBuffer);
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelGridBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
 
@@ -414,11 +447,12 @@ void AddSurfelPass(RenderGraph& renderGraph,
             info.commandBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelGridBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
 
-        #if 1
         // surfel grid reset
         // This step reset grid's count.
         // ---------------------------------------------------------------------------------------
@@ -439,10 +473,11 @@ void AddSurfelPass(RenderGraph& renderGraph,
             info.commandBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelGridBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelGridBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
-        #endif
 
         // surfel binning
         // This step puts surfel cell index into correct place
@@ -465,7 +500,9 @@ void AddSurfelPass(RenderGraph& renderGraph,
             vkCmdDispatchIndirect(*info.commandBuffer, *surfel->surfelIndirectBuffer, 0);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelCellBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelCellBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
 
@@ -473,7 +510,6 @@ void AddSurfelPass(RenderGraph& renderGraph,
         // This step spawns new surfels if needed.
         // Newly added surfels will be processed in the next frame.
         // ---------------------------------------------------------------------------------------
-        surfel->ShowSurfelCount("SurfelCov Before", info.commandBuffer);
         info.commandBuffer->BeginRegion("Surfel Coverage");
         {
 
@@ -510,9 +546,49 @@ void AddSurfelPass(RenderGraph& renderGraph,
             info.commandBuffer->Dispatch(groupCountX, groupCountY, groupCountZ);
 
             // barriers
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelDataBuffer);
-            AddBufferMemoryBarrier(info.commandBuffer, surfel->surfelStatBuffer);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelDataBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelStatBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
         info.commandBuffer->EndRegion();
+
+        #ifdef ENABLE_RAY_TRACING
+        // surfel ray query
+        // This step spawns new surfels if needed.
+        // Newly added surfels will be processed in the next frame.
+        // ---------------------------------------------------------------------------------------
+        info.commandBuffer->BeginRegion("Surfel Ray Query");
+        {
+            auto pipeline = raytracePipeline;
+
+            // bind pipeline
+            info.commandBuffer->BindPipeline(pipeline);
+
+            // bind descriptor
+            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+            descriptor->SetUniformBuffer("Camera", cameraUniform);
+            descriptor->SetAccelStruct("Accel", tlas);
+            descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
+            descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStatBuffer);
+            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+            info.commandBuffer->PushConstants(pipeline->Layout(), "Light", &lightInfo);
+
+            // trace rays
+            vkCmdTraceRaysKHR(*info.commandBuffer,
+                              pipeline->GetRayGenRegion(),
+                              pipeline->GetMissRegion(),
+                              pipeline->GetHitRegion(),
+                              pipeline->GetCallableRegion(),
+                              SURFEL_CAPACITY_SQRT, SURFEL_CAPACITY_SQRT, 1);
+
+            info.commandBuffer->PrepareForBuffer(surfel->surfelDataBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+        }
+        info.commandBuffer->EndRegion();
+        #endif
     });
 }

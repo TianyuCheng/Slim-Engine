@@ -1,3 +1,6 @@
+#ifndef SLIM_EXAMPLE_SCENE_H
+#define SLIM_EXAMPLE_SCENE_H
+
 #include <slim/slim.hpp>
 #include "config.h"
 #include "light.h"
@@ -57,3 +60,5 @@ public:
     std::vector<Image*>               images;
     std::vector<Sampler*>             samplers;
 };
+
+#endif // SLIM_EXAMPLE_SCENE_H

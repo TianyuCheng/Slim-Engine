@@ -3,10 +3,11 @@
 
 #include <slim/slim.hpp>
 #include <shaderlib/surfel.h>
+#include "light.h"
 #include "config.h"
 #include "gbuffer.h"
+#include "scene.h"
 #include "visualize.h"
-#include "raytrace.h"
 
 using namespace slim;
 
@@ -47,8 +48,6 @@ public:
     SmartPtr<Buffer> surfelStatBufferCPU;
     SmartPtr<Buffer> surfelIndirectBuffer;
 
-    void ShowSurfelCount(const std::string& prefix, CommandBuffer* commandBuffer);
-
     RenderGraph::Resource* surfelCovBuffer;
 };
 
@@ -56,11 +55,11 @@ public:
 
 void AddSurfelPass(RenderGraph& renderGraph,
                    AutoReleasePool& pool,
-                   Camera* camera,
+                   MainScene* scene,
                    GBuffer* gbuffer,
-                   RayTrace* raytrace,
                    Visualize* visualize,
                    SurfelManager* surfel,
+                   DirectionalLight* light,
                    uint32_t frameId);
 
 #endif // SLIM_EXAMPLE_SURFEL_H

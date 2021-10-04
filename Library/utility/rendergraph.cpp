@@ -33,14 +33,14 @@ void RenderGraph::Resource::Deallocate() {
 RenderGraph::Subpass::Subpass(RenderGraph::Pass* parent) : parent(parent) {
 }
 
-void RenderGraph::Subpass::SetColorResolve(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetColorResolve(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorResolveAttachment });
     resource->writers.push_back(parent);
     usedAsColorResolveAttachment.push_back(attachmentId);
     resource->UseAsColorBuffer();
 }
 
-void RenderGraph::Subpass::SetPreserve(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetPreserve(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::PreserveAttachment });
     resource->readers.push_back(parent);
     resource->writers.push_back(parent);
@@ -54,83 +54,83 @@ void RenderGraph::Subpass::SetInput(RenderGraph::Resource* resource) {
     resource->UseAsInputAttachment();
 }
 
-void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetColor(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment });
     resource->writers.push_back(parent);
     usedAsColorAttachment.push_back(attachmentId);
     resource->UseAsColorBuffer();
 }
 
-void RenderGraph::Subpass::SetColor(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Subpass::SetColor(RenderGraph::Resource* resource, const ClearValue& clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::ColorAttachment, clear });
     resource->writers.push_back(parent);
     usedAsColorAttachment.push_back(attachmentId);
     resource->UseAsColorBuffer();
 }
 
-void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetDepth(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment });
     resource->writers.push_back(parent);
     usedAsDepthAttachment.push_back(attachmentId);
     resource->UseAsDepthBuffer();
 }
 
-void RenderGraph::Subpass::SetDepth(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Subpass::SetDepth(RenderGraph::Resource* resource, const ClearValue& clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthAttachment, clear });
     resource->writers.push_back(parent);
     usedAsDepthAttachment.push_back(attachmentId);
     resource->UseAsDepthBuffer();
 }
 
-void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetStencil(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment });
     resource->writers.push_back(parent);
     usedAsStencilAttachment.push_back(attachmentId);
     resource->UseAsStencilBuffer();
 }
 
-void RenderGraph::Subpass::SetStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Subpass::SetStencil(RenderGraph::Resource* resource, const ClearValue& clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::StencilAttachment, clear });
     resource->writers.push_back(parent);
     usedAsStencilAttachment.push_back(attachmentId);
     resource->UseAsStencilBuffer();
 }
 
-void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource* resource) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment });
     resource->writers.push_back(parent);
     usedAsDepthStencilAttachment.push_back(attachmentId);
     resource->UseAsDepthStencilBuffer();
 }
 
-void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Subpass::SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear) {
     uint32_t attachmentId = parent->AddAttachment(ResourceMetadata { resource, ResourceType::DepthStencilAttachment, clear });
     resource->writers.push_back(parent);
     usedAsDepthStencilAttachment.push_back(attachmentId);
     resource->UseAsDepthStencilBuffer();
 }
 
-void RenderGraph::Subpass::SetTexture(RenderGraph::Resource *resource) {
+void RenderGraph::Subpass::SetTexture(RenderGraph::Resource* resource) {
     uint32_t textureId = parent->AddTexture(resource);
     resource->readers.push_back(parent);
     usedAsTexture.push_back(textureId);
     resource->UseAsTexture();
 }
 
-void RenderGraph::Subpass::SetStorage(RenderGraph::Resource *resource, uint32_t usage) {
+void RenderGraph::Subpass::SetStorage(RenderGraph::Resource* resource, uint32_t usage) {
     uint32_t storageId = parent->AddStorage(resource);
     // a storage resource could both be read and written
     if (usage & STORAGE_IMAGE_READ_BIT)  resource->readers.push_back(parent);
     if (usage & STORAGE_IMAGE_WRITE_BIT) resource->writers.push_back(parent);
-    usedAsStorage.push_back(storageId);
-    resource->UseAsStorage();
+    usedAsStorageImage.push_back(storageId);
+    resource->UseAsStorageImage();
 }
 
-void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo &renderInfo)> callback) {
+void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo& renderInfo)> callback) {
     this->callback = callback;
 }
 
-RenderGraph::Pass::Pass(const std::string &name, RenderGraph *graph, bool compute) : name(name), graph(graph), compute(compute) {
+RenderGraph::Pass::Pass(const std::string& name, RenderGraph* graph, bool compute) : name(name), graph(graph), compute(compute) {
     defaultSubpass = SlimPtr<Subpass>(this);
 }
 
@@ -141,61 +141,61 @@ RenderGraph::Subpass* RenderGraph::Pass::CreateSubpass() {
     return subpasses.back();
 }
 
-void RenderGraph::Pass::SetColorResolve(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetColorResolve(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetColorResolve(resource);
 }
 
-void RenderGraph::Pass::SetPreserve(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetPreserve(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetPreserve(resource);
 }
 
-void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetColor(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetColor(resource);
 }
 
-void RenderGraph::Pass::SetColor(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Pass::SetColor(RenderGraph::Resource* resource, const ClearValue& clear) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetColor(resource, clear);
 }
 
-void RenderGraph::Pass::SetDepth(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetDepth(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetDepth(resource);
 }
 
-void RenderGraph::Pass::SetDepth(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Pass::SetDepth(RenderGraph::Resource* resource, const ClearValue& clear) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetDepth(resource, clear);
 }
 
-void RenderGraph::Pass::SetStencil(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetStencil(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetStencil(resource);
 }
 
-void RenderGraph::Pass::SetStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Pass::SetStencil(RenderGraph::Resource* resource, const ClearValue& clear) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetStencil(resource, clear);
 }
 
-void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource* resource) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetDepthStencil(resource);
 }
 
-void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource *resource, const ClearValue &clear) {
+void RenderGraph::Pass::SetDepthStencil(RenderGraph::Resource* resource, const ClearValue& clear) {
     assert(useDefaultSubpass && "call subpass's Set* function when not using the default subpass");
     defaultSubpass->SetDepthStencil(resource, clear);
 }
 
-void RenderGraph::Pass::SetTexture(RenderGraph::Resource *resource) {
+void RenderGraph::Pass::SetTexture(RenderGraph::Resource* resource) {
     defaultSubpass->SetTexture(resource);
 }
 
-void RenderGraph::Pass::SetStorage(RenderGraph::Resource *resource, uint32_t usage) {
+void RenderGraph::Pass::SetStorage(RenderGraph::Resource* resource, uint32_t usage) {
     defaultSubpass->SetStorage(resource, usage);
 }
 
@@ -305,7 +305,7 @@ void RenderGraph::Pass::TransitTextureLayout(RenderGraph::Resource* resource) {
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage texture is used
 
     // transit dst image layout
-    PrepareLayoutTransition(*commandBuffer,
+    PrepareLayoutTransition(commandBuffer,
         resource->image,
         srcLayout, dstLayout,
         srcStageMask, dstStageMask,
@@ -324,7 +324,7 @@ void RenderGraph::Pass::TransitStorageLayout(RenderGraph::Resource* resource) {
     VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage storage is used
 
     // transit dst image layout
-    PrepareLayoutTransition(*commandBuffer,
+    PrepareLayoutTransition(commandBuffer,
         resource->image,
         srcLayout, dstLayout,
         srcStageMask, dstStageMask,
@@ -341,7 +341,7 @@ void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     }
 
     // storage layout transition
-    for (auto &id : defaultSubpass->usedAsStorage) {
+    for (auto &id : defaultSubpass->usedAsStorageImage) {
         TransitStorageLayout(storages[id]);
     }
 
@@ -421,7 +421,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     }
 
     // storage layout transition
-    for (auto &id : defaultSubpass->usedAsStorage) {
+    for (auto &id : defaultSubpass->usedAsStorageImage) {
         TransitStorageLayout(storages[id]);
     }
 
@@ -549,12 +549,12 @@ CommandBuffer* RenderGraph::GetCommandBuffer() const {
     return commandBuffer.get();
 }
 
-RenderGraph::Pass* RenderGraph::CreateRenderPass(const std::string &name) {
+RenderGraph::Pass* RenderGraph::CreateRenderPass(const std::string& name) {
     passes.push_back(SlimPtr<Pass>(name, this, false));
     return passes.back().get();
 }
 
-RenderGraph::Pass* RenderGraph::CreateComputePass(const std::string &name) {
+RenderGraph::Pass* RenderGraph::CreateComputePass(const std::string& name) {
     passes.push_back(SlimPtr<Pass>(name, this, true));
     return passes.back().get();
 }
@@ -571,19 +571,19 @@ RenderGraph::Resource* RenderGraph::CreateResource(VkExtent2D extent, VkFormat f
 
 void RenderGraph::Compile() {
     // initialize resource status
-    for (auto &resource : resources) {
+    for (auto& resource : resources) {
         resource->rdCount = resource->readers.size();
         resource->wrCount = resource->writers.size();
     }
 
     // initialize pass status
-    for (auto &pass : passes) {
+    for (auto& pass : passes) {
         pass->visited = false;
     }
 
     // for each retained resource, find a path back
     // there must be at least 1 resource that is retained (for back buffer)
-    for (auto &resource : resources) {
+    for (auto& resource : resources) {
         if (resource->retained) {
             CompileResource(resource.get());
         }
@@ -593,14 +593,14 @@ void RenderGraph::Compile() {
     compiled = true;
 }
 
-void RenderGraph::CompileResource(Resource *resource) {
+void RenderGraph::CompileResource(Resource* resource) {
     // passes that write to this resource must be retained
-    for (Pass *pass : resource->writers) {
+    for (Pass* pass : resource->writers) {
         CompilePass(pass);
     }
 }
 
-void RenderGraph::CompilePass(Pass *pass) {
+void RenderGraph::CompilePass(Pass* pass) {
     // in case this pass is already processed, we don't process it anymore
     if (pass->retained) return;
 
@@ -645,7 +645,7 @@ void RenderGraph::Execute() {
     std::vector<CommandBuffer*> uniqueCommandBuffers = {};
 
     #if SLIM_DEBUG_RENDERGRAPH
-    for (Pass *pass : timeline) {
+    for (Pass* pass : timeline) {
         auto dependencies = FindPassDependencies(pass);
         std::cout << "Pass [" << pass->name << "] depends on" << std::endl;
         for (auto& dep : dependencies) {
@@ -654,7 +654,7 @@ void RenderGraph::Execute() {
     }
     #endif
 
-    for (Pass *pass : timeline) {
+    for (Pass* pass : timeline) {
         // don't execute a pass if it is executed
         // theoretically it should have been taken care of by Compile step
         #ifndef NDEBUG
@@ -740,7 +740,7 @@ void RenderGraph::Execute() {
         std::cout << "* last graphics command buffer: " << *lastGraphicsCommandBuffer << std::endl;
     }
 
-    for (Pass *pass : timeline) {
+    for (Pass* pass : timeline) {
         if (pass->commandBuffer != lastGraphicsCommandBuffer) {
             auto info = pass->commandBuffer->GetSubmitInfo();
             std::cout << "Pass Submit Info [Name] = " << pass->name << std::endl;

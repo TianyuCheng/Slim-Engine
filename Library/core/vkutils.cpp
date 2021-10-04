@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "core/vkutils.h"
 #include "core/image.h"
+#include "core/commands.h"
 #include "core/renderpass.h"
 #include "utility/color.h"
 
@@ -313,7 +314,7 @@ namespace slim {
         return results;
     }
 
-    void LayoutTransition(VkCommandBuffer cmdbuffer,
+    void LayoutTransition(CommandBuffer* cmdbuffer,
                           Image *image,
                           const VkImageSubresourceRange &subresources,
                           VkImageLayout srcLayout,
@@ -341,7 +342,7 @@ namespace slim {
         barrier.dstAccessMask                   = dstAccessMask;
 
         vkCmdPipelineBarrier(
-            cmdbuffer,                          // cmdbuffer
+            *cmdbuffer,                         // cmdbuffer
             srcStageMask, dstStageMask,         // srcStageMask, dstStageMask
             0,                                  // dependency flags
             0, nullptr,                         // memoryBarrierCount, pMemoryBarriers
@@ -350,7 +351,7 @@ namespace slim {
         );
     }
 
-    void PrepareLayoutTransition(VkCommandBuffer cmdbuffer,
+    void PrepareLayoutTransition(CommandBuffer* cmdbuffer,
                                  Image *image,
                                  VkImageLayout srcLayout,
                                  VkImageLayout dstLayout,

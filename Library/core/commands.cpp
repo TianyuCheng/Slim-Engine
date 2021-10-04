@@ -263,7 +263,7 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
 
         for (uint32_t i = 0; i < image->MipLevels() - 1; i++) {
             // transit mip-level {i} to transfer src
-            PrepareLayoutTransition(handle, image,
+            PrepareLayoutTransition(this, image,
                                     image->layouts[layer][i],
                                     VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -271,7 +271,7 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
                                     layer, 1, i, 1);
 
             // transit mip-level {i+1} to transfer dst
-            PrepareLayoutTransition(handle, image,
+            PrepareLayoutTransition(this, image,
                                     image->layouts[layer][i + 1],
                                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                     VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -292,7 +292,7 @@ void CommandBuffer::GenerateMipmaps(Image *image, VkFilter filter) {
 
         // transit mip-level mipCount-1 to transfer src
         uint32_t mip = image->MipLevels() - 1;
-        PrepareLayoutTransition(handle, image,
+        PrepareLayoutTransition(this, image,
                                 image->layouts[layer][mip],
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                 VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -305,7 +305,7 @@ void CommandBuffer::PrepareForShaderRead(Image *image, uint32_t baseLayer, uint3
     if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
     if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
-    PrepareLayoutTransition(handle, image,
+    PrepareLayoutTransition(this, image,
         image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -318,7 +318,7 @@ void CommandBuffer::PrepareForTransferSrc(Image *image, uint32_t baseLayer, uint
     if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
     if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
-    PrepareLayoutTransition(handle, image,
+    PrepareLayoutTransition(this, image,
         image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -331,7 +331,7 @@ void CommandBuffer::PrepareForTransferDst(Image *image, uint32_t baseLayer, uint
     if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
     if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
-    PrepareLayoutTransition(handle, image,
+    PrepareLayoutTransition(this, image,
         image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
@@ -344,7 +344,7 @@ void CommandBuffer::PrepareForPresentSrc(Image *image, uint32_t baseLayer, uint3
     if (layerCount == 0) layerCount = image->createInfo.arrayLayers;
     if (levelCount == 0) levelCount = image->createInfo.mipLevels;
     // transit dst image layout
-    PrepareLayoutTransition(handle, image,
+    PrepareLayoutTransition(this, image,
         image->layouts[baseLayer][mipLevel],
         VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -582,6 +582,27 @@ void CommandBuffer::ClearDepthStencil(Image* image,
     range.baseMipLevel = baseLayer;
     range.levelCount = levelCount;
     DeviceDispatch(vkCmdClearDepthStencilImage(handle, *image, image->layouts[baseLayer][layerCount], &clear, 1, &range));
+}
+
+void CommandBuffer::PrepareForBuffer(Buffer* buffer, VkPipelineStageFlags srcStages, VkPipelineStageFlags dstStages) {
+    VkBufferMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    barrier.pNext = nullptr;
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.buffer = *buffer;
+    barrier.offset = 0;
+    barrier.size = buffer->Size();
+    DeviceDispatch(vkCmdPipelineBarrier(
+        handle,
+        srcStages, dstStages,
+        0,
+        0, nullptr,  // memory barriers
+        1, &barrier, // buffer memory barriers
+        0, nullptr   // image memory barriers
+    ));
 }
 
 void CommandBuffer::SaveImage(const std::string& name, Image* image, uint32_t arrayLayer, uint32_t mipLevel) {
