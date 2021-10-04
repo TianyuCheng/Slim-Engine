@@ -54,7 +54,7 @@ void SurfelManager::InitSurfelGridBuffer() {
 void SurfelManager::InitSurfelCellBuffer() {
     VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    uint32_t bufferSize = SURFEL_TABLE_SIZE * sizeof(uint32_t);
+    uint32_t bufferSize = SURFEL_TABLE_SIZE * sizeof(uint32_t) * 64;
     surfelCellBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
     surfelCellBuffer->SetName("SurfelCell");
 }
@@ -105,17 +105,17 @@ void SurfelManager::ShowSurfelCount(const std::string& prefix, CommandBuffer* co
 }
 
 void AddSurfelPass(RenderGraph& renderGraph,
-                   ResourceBundle& bundle,
+                   AutoReleasePool& pool,
                    Camera* camera,
                    GBuffer* gbuffer,
                    RayTrace* raytrace,
                    Visualize* visualize,
-                   SurfelManager* surfel) {
-
-    Device* device = renderGraph.GetRenderFrame()->GetDevice();
+                   SurfelManager* surfel,
+                   uint32_t frameId) {
 
     struct FrameInfo {
         glm::uvec2 size;
+        uint32_t frameId;
     };
 
     struct CameraInfo {
@@ -127,119 +127,170 @@ void AddSurfelPass(RenderGraph& renderGraph,
     };
 
     // sampler
-    static auto sampler = bundle.AutoRelease(new Sampler(device,
-        SamplerDesc {}
-            .MinFilter(VK_FILTER_NEAREST)
-            .MagFilter(VK_FILTER_NEAREST)
-    ));
+    static auto sampler = pool.FetchOrCreate(
+        "nearest.sampler",
+        [](Device* device) {
+            return new Sampler(device,
+                SamplerDesc {}
+                    .MinFilter(VK_FILTER_NEAREST)
+                    .MagFilter(VK_FILTER_NEAREST));
+        });
 
     // surfel indirect prepare pipeline
-    static auto surfelPrepareShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelprepare.comp.spv"));
-    static auto surfelPreparePipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-prepare")
-            .SetComputeShader(surfelPrepareShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("SurfelStat",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelIndirect", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelPrepareShader = pool.FetchOrCreate(
+        "surfel.prepare.shader",
+        [](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelprepare.comp.spv");
+        });
+    static auto surfelPreparePipeline = pool.FetchOrCreate(
+        "surfel.prepare.pipeline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                .SetName("surfel-prepare")
+                .SetComputeShader(surfelPrepareShader)
+                .SetPipelineLayout(PipelineLayoutDesc()
+                    // set 0
+                    .AddBinding("SurfelStat",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelIndirect", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // surfel grid reset pipeline
-    static auto surfelGridResetShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelgridreset.comp.spv"));
-    static auto surfelGridResetPipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-grid-reset")
-            .SetComputeShader(surfelGridResetShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("SurfelGrid", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelGridResetShader = pool.FetchOrCreate(
+        "surfel.grid.reset.shader",
+        [&](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelgridreset.comp.spv");
+        });
+    static auto surfelGridResetPipeline = pool.FetchOrCreate(
+        "surfel.grid.reset.pipeline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                    .SetName("surfel-grid-reset")
+                    .SetComputeShader(surfelGridResetShader)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        // set 0
+                        .AddBinding("SurfelGrid", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // surfel update pipeline
-    static auto surfelUpdateShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelupdate.comp.spv"));
-    static auto surfelUpdatePipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-update")
-            .SetComputeShader(surfelUpdateShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                // set 1
-                .AddBinding("Surfel",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelData", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelStat", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelUpdateShader = pool.FetchOrCreate(
+        "surfel.update.shader",
+        [&](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelupdate.comp.spv");
+        });
+    static auto surfelUpdatePipeline = pool.FetchOrCreate(
+        "surfel.update.shader",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                    .SetName("surfel-update")
+                    .SetComputeShader(surfelUpdateShader)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        // set 0
+                        .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        // set 1
+                        .AddBinding("Surfel",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelData", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelStat", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // surfel grid offset pipeline
-    static auto surfelGridOffsetShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelgridoffset.comp.spv"));
-    static auto surfelGridOffsetPipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-grid-offset")
-            .SetComputeShader(surfelGridOffsetShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("SurfelStat", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelGrid", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelGridOffsetShader = pool.FetchOrCreate(
+        "surfel.grid.offset.shader",
+        [&](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelgridoffset.comp.spv");
+        });
+    static auto surfelGridOffsetPipeline = pool.FetchOrCreate(
+        "surfel.grid.offset.pipeline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                    .SetName("surfel-grid-offset")
+                    .SetComputeShader(surfelGridOffsetShader)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        // set 0
+                        .AddBinding("SurfelStat", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelGrid", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // surfel grid binning pipeline
-    static auto surfelBinningShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelbinning.comp.spv"));
-    static auto surfelBinningPipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-binning")
-            .SetComputeShader(surfelBinningShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                // set 0
-                .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                // set 1
-                .AddBinding("SurfelStat", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("Surfel",     SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelCell", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelBinningShader = pool.FetchOrCreate(
+        "surfel.binning.shader",
+        [&](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelbinning.comp.spv");
+        });
+    static auto surfelBinningPipeline = pool.FetchOrCreate(
+        "surfel.binning.pipeline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                    .SetName("surfel-binning")
+                    .SetComputeShader(surfelBinningShader)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        // set 0
+                        .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        // set 1
+                        .AddBinding("SurfelStat", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("Surfel",     SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelCell", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // surfel coverage pipeline
-    static auto surfelCoverageShader = bundle.AutoRelease(new spirv::ComputeShader(device, "main", "shaders/surfelcov.comp.spv"));
-    static auto surfelCoveragePipeline = bundle.AutoRelease(new Pipeline(
-        device,
-        ComputePipelineDesc()
-            .SetName("surfel-coverage")
-            .SetComputeShader(surfelCoverageShader)
-            .SetPipelineLayout(PipelineLayoutDesc()
-                .AddPushConstant("Info", Range { 0, sizeof(FrameInfo) }, VK_SHADER_STAGE_COMPUTE_BIT)
-                // set 0
-                .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                // set 1
-                .AddBinding("Surfel",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelData", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelCell", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("SurfelStat", SetBinding { 1, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
-                // set 2
-                .AddBinding("Depth",      SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("Normal",     SetBinding { 2, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("Object",     SetBinding { 2, 2 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("Coverage",   SetBinding { 2, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                .AddBinding("Debug",      SetBinding { 2, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-            )
-        )
+    static auto surfelCoverageShader = pool.FetchOrCreate(
+        "surfel.coverage.shader",
+        [&](Device* device) {
+            return new spirv::ComputeShader(device, "main", "shaders/surfelcov.comp.spv");
+        });
+    static auto surfelCoveragePipeline = pool.FetchOrCreate(
+        "surfel.coverage.pipeline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                ComputePipelineDesc()
+                    .SetName("surfel-coverage")
+                    .SetComputeShader(surfelCoverageShader)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        .AddPushConstant("Info", Range { 0, sizeof(FrameInfo) }, VK_SHADER_STAGE_COMPUTE_BIT)
+                        // set 0
+                        .AddBinding("Camera",     SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        // set 1
+                        .AddBinding("Surfel",     SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelData", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelCell", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelStat", SetBinding { 1, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        // set 2
+                        .AddBinding("Depth",      SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("Normal",     SetBinding { 2, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("Object",     SetBinding { 2, 2 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("Coverage",   SetBinding { 2, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("Debug",      SetBinding { 2, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    )
+                );
+        }
     );
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -448,6 +499,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
             FrameInfo frameInfo;
             frameInfo.size.x = info.renderFrame->GetExtent().width;
             frameInfo.size.y = info.renderFrame->GetExtent().height;
+            frameInfo.frameId = frameId;
             info.commandBuffer->PushConstants(pipeline->Layout(), "Info", &frameInfo);
 
             // issue compute call

@@ -9,7 +9,6 @@
 using namespace slim;
 
 void AddOverlayPass(RenderGraph& renderGraph,
-                    ResourceBundle& bundle,
                     RenderGraph::Resource* colorBuffer,
                     GBuffer* gbuffer,
                     Visualize* visualize,

@@ -55,11 +55,12 @@ public:
 // ---------------------------------------------------------
 
 void AddSurfelPass(RenderGraph& renderGraph,
-                   ResourceBundle& bundle,
+                   AutoReleasePool& pool,
                    Camera* camera,
                    GBuffer* gbuffer,
                    RayTrace* raytrace,
                    Visualize* visualize,
-                   SurfelManager* surfel);
+                   SurfelManager* surfel,
+                   uint32_t frameId);
 
 #endif // SLIM_EXAMPLE_SURFEL_H

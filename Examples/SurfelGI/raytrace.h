@@ -13,7 +13,7 @@ struct RayTrace {
 };
 
 void AddRayTracePass(RenderGraph& renderGraph,
-                     ResourceBundle& bundle,
+                     AutoReleasePool& pool,
                      GBuffer* gbuffer,
                      RayTrace* raytrace,
                      accel::AccelStruct* tlas,

@@ -1,7 +1,7 @@
 #include "raytrace.h"
 
 void AddRayTracePass(RenderGraph& renderGraph,
-                     ResourceBundle& bundle,
+                     AutoReleasePool& pool,
                      GBuffer* gbuffer,
                      RayTrace* raytrace,
                      accel::AccelStruct* tlas,
@@ -22,39 +22,62 @@ void AddRayTracePass(RenderGraph& renderGraph,
         float zFarRcp;
     };
 
-    Device* device = renderGraph.GetRenderFrame()->GetDevice();
-
     // sampler
-    static auto sampler = bundle.AutoRelease(new Sampler(device, SamplerDesc {}));
+    static auto sampler = pool.FetchOrCreate(
+        "nearest.sampler",
+        [](Device* device) {
+            return new Sampler(device,
+                SamplerDesc {}
+                    .MinFilter(VK_FILTER_NEAREST)
+                    .MagFilter(VK_FILTER_NEAREST));
+        });
 
     // ray gen shader
-    static auto shadowRayGenShader = bundle.AutoRelease(new spirv::RayGenShader(device, "main", "shaders/shadow.rgen.spv"));
+    static auto shadowRayGenShader = pool.FetchOrCreate(
+        "shadow.ray.gen",
+        [](Device* device) {
+            return new spirv::RayGenShader(device, "main", "shaders/shadow.rgen.spv");
+        }
+    );
 
     // shadow ray miss shader
-    static auto shadowRayMissShader = bundle.AutoRelease(new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv"));
+    static auto shadowRayMissShader = pool.FetchOrCreate(
+        "shadow.ray.miss",
+        [](Device* device) {
+            return new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv");
+        }
+    );
 
     // shadow ray closest hit shader
-    static auto shadowRayClosestHitShader = bundle.AutoRelease(new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv"));
+    static auto shadowRayClosestHitShader = pool.FetchOrCreate(
+        "shadow.ray.closest.hit",
+        [](Device* device) {
+            return new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv");
+        }
+    );
 
     // ray tracing pipeline
-    static Pipeline* shadowPipeline = bundle.AutoRelease(
-        new Pipeline(
-            device,
-            RayTracingPipelineDesc()
-                .SetName("hybrid-raytracing")
-                .SetRayGenShader(shadowRayGenShader)
-                .SetMissShader(shadowRayMissShader)
-                .SetClosestHitShader(shadowRayClosestHitShader)
-                .SetMaxRayRecursionDepth(1)
-                .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddPushConstant("FrameInfo", Range { 0, sizeof(FrameInfo) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                    .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                    .AddBinding("Accel",  SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                    .AddBinding("Depth",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                    .AddBinding("Normal", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                    .AddBinding("Shadow", SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                )
-        )
+    static auto shadowPipeline = pool.FetchOrCreate(
+        "shadow.raytrace.pipline",
+        [&](Device* device) {
+            return new Pipeline(
+                device,
+                RayTracingPipelineDesc()
+                    .SetName("hybrid-raytracing")
+                    .SetRayGenShader(shadowRayGenShader)
+                    .SetMissShader(shadowRayMissShader)
+                    .SetClosestHitShader(shadowRayClosestHitShader)
+                    .SetMaxRayRecursionDepth(1)
+                    .SetPipelineLayout(PipelineLayoutDesc()
+                        .AddPushConstant("FrameInfo", Range { 0, sizeof(FrameInfo) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Camera", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Accel",  SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Depth",  SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Normal", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Shadow", SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                    )
+                );
+        }
     );
 
     // hybrid ray tracer / rasterizer
@@ -109,11 +132,6 @@ void AddRayTracePass(RenderGraph& renderGraph,
                               pipeline->GetHitRegion(),
                               pipeline->GetCallableRegion(),
                               extent.width, extent.height, 1);
-        }
-
-        // surfel ray query
-        {
-
         }
     });
 }

@@ -14,13 +14,13 @@ SLIM_ATTR float linearize_depth(float depth, float z_near, float z_far)
 #endif
 }
 
-SLIM_ATTR vec3 reconstruct_position(vec2 uv, float depth, mat4 invVP) {
-    float x = uv.x * 2.0 - 1.0;
-    float y = (1.0 - uv.y) * 2.0 - 1.0;
+SLIM_ATTR vec3 reconstruct_position(vec2 ndc, float depth, mat4 invVP) {
+    float x = +(ndc.x * 2.0 - 1.0);
+    float y = -(ndc.y * 2.0 - 1.0);
     float z = depth;
-    vec4 position_s = vec4(x, y, z, 1.0);
-    vec4 position_v = invVP * position_s;
-    return vec3(position_v) / position_v.w;
+    vec4 position_c = vec4(x, y, z, 1.0);
+    vec4 position_w = invVP * position_c;
+    return vec3(position_w) / position_w.w;
 }
 
 #endif // SLIM_SHADER_LIB_CAMERA_H

@@ -1,7 +1,6 @@
 #include "overlay.h"
 
 void AddOverlayPass(RenderGraph& renderGraph,
-                    ResourceBundle& bundle,
                     RenderGraph::Resource* colorBuffer,
                     GBuffer* gbuffer,
                     Visualize* visualize,
@@ -22,6 +21,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
     overlayPass->SetTexture(visualize->objectBuffer);
     overlayPass->SetTexture(visualize->surfelCovBuffer);
     overlayPass->SetTexture(visualize->surfelAllocBuffer);
+    overlayPass->SetTexture(visualize->surfelGridBuffer);
 
     // execute
     overlayPass->Execute([=](const RenderInfo& info) {
@@ -31,8 +31,10 @@ void AddOverlayPass(RenderGraph& renderGraph,
         ImTextureID object      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->objectBuffer->GetImage()->AsTexture());
         ImTextureID surfelCov   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelCovBuffer->GetImage()->AsTexture());
         ImTextureID surfelAlloc = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelAllocBuffer->GetImage()->AsTexture());
+        ImTextureID surfelGrid  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelGridBuffer->GetImage()->AsTexture());
         ui->Begin();
         {
+            // visualize gbuffer
             ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
             ImGui::Begin("GBuffer");
             {
@@ -61,6 +63,7 @@ void AddOverlayPass(RenderGraph& renderGraph,
             }
             ImGui::End();
 
+            // visualize surfel
             ImGui::SetNextWindowSize(ImVec2(200, 230), ImGuiCond_Once);
             ImGui::Begin("Surfel");
             {
@@ -81,6 +84,25 @@ void AddOverlayPass(RenderGraph& renderGraph,
                     }
 
                     ImGui::Image(surfelAlloc, barSize);
+                }
+                ImGui::EndTabBar();
+            }
+            ImGui::End();
+
+            // visualize grid
+            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
+            ImGui::Begin("Grid");
+            {
+                ImVec2 region = ImGui::GetContentRegionAvail();
+                ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
+                ImVec2 barSize = ImVec2(size.x, 10);
+
+                ImGui::BeginTabBar("##Grid");
+                {
+                    if (ImGui::BeginTabItem("Grid")) {
+                        ImGui::Image(surfelGrid, size);
+                        ImGui::EndTabItem();
+                    }
                 }
                 ImGui::EndTabBar();
             }

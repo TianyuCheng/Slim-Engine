@@ -24,7 +24,6 @@ int main() {
             .EnableDescriptorIndexing()
             .EnableMultiDraw()
             .EnableShaderInt64()
-            .EnableSeparateDepthStencilLayout()
             #ifdef ENABLE_RAY_TRACING
             .EnableBufferDeviceAddress()
             .EnableRayTracing()
@@ -42,6 +41,7 @@ int main() {
             .SetResizable(true)
             .SetTitle("SurfelGI")
             .EnableFPS(true)
+            .SetMaxFramesInFlight(1)
     );
 
     // ui and input control
@@ -61,8 +61,8 @@ int main() {
     // surfel
     auto surfel = SurfelManager(device, SURFEL_CAPACITY);
 
-    // resource bundle
-    ResourceBundle bundle;
+    // resource pool
+    AutoReleasePool pool(device);
 
     int frameId = 0;
 
@@ -111,45 +111,46 @@ int main() {
             vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.depthBuffer        = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.surfelCovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            vis.surfelGridBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.surfelAllocBuffer  = renderGraph.CreateResource(barExtent,   VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
 
             // draw gbuffer
-            AddGBufferPass(renderGraph, bundle, scene.camera, &gbuffer, &scene);
+            AddGBufferPass(renderGraph, pool, scene.camera, &gbuffer, &scene);
 
             // #ifdef ENABLE_RAY_TRACING
             // // hybrid ray tracer / rasterizer
-            // AddRayTracePass(renderGraph, bundle, &gbuffer, &raytrace, scene.GetTlas(), scene.camera, &dirLight);
+            // AddRayTracePass(renderGraph, pool, &gbuffer, &raytrace, scene.GetTlas(), scene.camera, &dirLight);
             // #endif
 
             // spawn surfels based on iterative hole filling algorithm
-            AddSurfelPass(renderGraph, bundle, scene.camera, &gbuffer, &raytrace, &vis, &surfel);
+            AddSurfelPass(renderGraph, pool, scene.camera, &gbuffer, &raytrace, &vis, &surfel, frameId);
 
             // compose
-            AddComposerPass(renderGraph, bundle, colorBuffer, &gbuffer, &dirLight);
+            AddComposerPass(renderGraph, pool, colorBuffer, &gbuffer, &dirLight);
 
             // debug and ui passes
-            {
+            if (1) {
                 // visualize object ID
-                AddObjectVisPass(renderGraph, bundle, vis.objectBuffer, gbuffer.objectBuffer);
+                AddObjectVisPass(renderGraph, pool, vis.objectBuffer, gbuffer.objectBuffer);
 
                 // visualize linear depth
-                AddLinearDepthVisPass(renderGraph, bundle, scene.camera, vis.depthBuffer, gbuffer.depthBuffer);
+                AddLinearDepthVisPass(renderGraph, pool, scene.camera, vis.depthBuffer, gbuffer.depthBuffer);
+
+                // surfel grid vis
+                AddSurfelGridVisPass(renderGraph, pool, scene.camera, vis.surfelGridBuffer, gbuffer.depthBuffer);
 
                 // surfel alloc vis
-                AddSurfelAllocVisPass(renderGraph, bundle, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
+                AddSurfelAllocVisPass(renderGraph, pool, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
 
                 // overlay
-                AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, &vis, &surfel, ui);
+                AddOverlayPass(renderGraph, colorBuffer, &gbuffer, &vis, &surfel, ui);
             }
         }
         // renderGraph.Print();
         renderGraph.Execute();
 
         input->Reset();
-
-        // if (frameId++ > 2) {
-        //     break;
-        // }
+        frameId++;
     }
 
     device->WaitIdle();

@@ -1,21 +1,31 @@
 #include "composer.h"
 
 void AddComposerPass(RenderGraph& renderGraph,
-                     ResourceBundle& bundle,
+                     AutoReleasePool& pool,
                      RenderGraph::Resource* colorBuffer,
                      GBuffer* gbuffer,
                      DirectionalLight* light) {
 
-    Device* device = renderGraph.GetRenderFrame()->GetDevice();
-
     // sampler
-    static Sampler* sampler = bundle.AutoRelease(new Sampler(device, SamplerDesc { }));
+    static auto sampler = pool.FetchOrCreate(
+        "nearest.sampler",
+        [&](Device* device) {
+            return new Sampler(device, SamplerDesc { });
+        });
 
     // vertex shader
-    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "main", "shaders/fullscreen.vert.spv"));
+    static auto vShader = pool.FetchOrCreate(
+        "fullscreen.vertex.shader",
+        [&](Device* device) {
+            return new spirv::VertexShader(device, "main", "shaders/fullscreen.vert.spv");
+        });
 
     // fragment shader
-    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "main", "shaders/compose.frag.spv"));
+    static auto fShader = pool.FetchOrCreate(
+        "composer.fragment.shader",
+        [&](Device* device) {
+            return new spirv::FragmentShader(device, "main", "shaders/compose.frag.spv");
+        });
 
     // pipeline
     static auto pipelineDesc = GraphicsPipelineDesc()

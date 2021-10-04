@@ -34,6 +34,7 @@ add_slim_project(
         shaders/objectvis.frag
         shaders/lineardepth.frag
         shaders/surfelallocvis.frag
+        shaders/surfelgridvis.frag
 
         shaders/gbuffer.frag
         shaders/gbuffer.vert

@@ -8,7 +8,7 @@
 using namespace slim;
 
 void AddComposerPass(RenderGraph& renderGraph,
-                     ResourceBundle& bundle,
+                     AutoReleasePool& pool,
                      RenderGraph::Resource* colorBuffer,
                      GBuffer* gbuffer,
                      DirectionalLight* light);
