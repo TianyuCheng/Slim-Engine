@@ -7,13 +7,13 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 #extension GL_EXT_buffer_reference2 : require
 
-hitAttributeEXT vec2 attribs;
+#include "raycommon.h"
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(location = 0) rayPayloadInEXT bool inShadow;
+layout(location = 0) rayPayloadInEXT ShadowHitPayload shadowHitPayload;
 
 void main()
 {
-    inShadow = true;
+    shadowHitPayload.occlusionFactor = 0.0;   // occluded
 }

@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects                : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
+#include "aabb.h"
 #include "pack.h"
 #include "unpack.h"
 #include "surfel.h"
@@ -41,6 +42,11 @@ layout(set = 1, binding = 3) buffer SurfelStatBuffer {
     SurfelStat data;
 } surfelStat;
 
+// surfel bounding box
+layout(set = 1, binding = 4) buffer SurfelAabbBuffer {
+    AABB data[];
+} surfelAabb;
+
 void main() {
     uint current_surfel_id = gl_GlobalInvocationID.x;
     uint active_surfel_count = surfelStat.data.count;
@@ -76,4 +82,10 @@ void main() {
             }
         }
     }
+
+    // update surfel aabb
+    AABB aabb;
+    aabb.minBound = vec3(0.0); // surfel.position - vec3(surfel.radius);
+    aabb.maxBound = vec3(1.0); // surfel.position + vec3(surfel.radius);
+    surfelAabb.data[current_surfel_id] = aabb;
 }

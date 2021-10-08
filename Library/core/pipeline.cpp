@@ -588,7 +588,7 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetAnyHitShader(Shader* aHitShad
     group.closestHitShader = VK_SHADER_UNUSED_KHR;
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.intersectionShader = FindShader(isectShader);
-    callableCreateInfos.push_back(group);
+    hitCreateInfos.push_back(group);
     return *this;
 }
 
@@ -600,7 +600,7 @@ RayTracingPipelineDesc& RayTracingPipelineDesc::SetClosestHitShader(Shader* cHit
     group.closestHitShader = FindShader(cHitShader);
     group.generalShader = VK_SHADER_UNUSED_KHR;
     group.intersectionShader = FindShader(isectShader);
-    callableCreateInfos.push_back(group);
+    hitCreateInfos.push_back(group);
     return *this;
 }
 
@@ -754,6 +754,7 @@ Pipeline::Pipeline(Device *device, RayTracingPipelineDesc &desc) : device(device
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
                                    | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR;
     sbtBuffer = SlimPtr<Buffer>(device, sbtSize, bufferUsage, VMA_MEMORY_USAGE_CPU_ONLY);
+    sbtBuffer->SetName("SBT");
     auto* sbtData = sbtBuffer->GetData<uint8_t>();
     for (uint32_t i = 0; i < groupCount; i++) {
         memcpy(sbtData + i * groupSizeAligned,

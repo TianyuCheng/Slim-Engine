@@ -36,9 +36,12 @@ add_slim_project(
         shaders/gbuffer.frag
         shaders/gbuffer.vert
 
-        shaders/raytrace.rchit
         shaders/raytrace.rgen
-        shaders/raytrace.rmiss
+        shaders/shadow.rchit
+        shaders/shadow.rmiss
+        shaders/surfel.rchit
+        shaders/surfel.rmiss
+        shaders/surfel.rint
 
         shaders/surfelprepare.comp          # prepare for indirect call
         shaders/surfelgridreset.comp        # reset grid

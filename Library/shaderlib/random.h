@@ -5,6 +5,17 @@
 
 #ifndef __cplusplus
 
+SLIM_ATTR uint step_rng(uint rngState) {
+    return rngState * 747796405 + 1;
+}
+
+SLIM_ATTR float random_float(inout uint rngState) {
+    rngState = step_rng(rngState);
+    uint word = ((rngState >> ((rngState >> 28) + 4)) ^ rngState) * 277803737;
+    word = (word >> 22) ^ word;
+    return float(word) / 4294967295.0;
+}
+
 SLIM_ATTR highp float noise(vec2 co)
 {
     highp float a = 12.9898;

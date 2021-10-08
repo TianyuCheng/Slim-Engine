@@ -18,7 +18,7 @@ void accel::Builder::AddNode(scene::Node* node, uint32_t sbtRecordOffset, uint32
     tlas->AddInstance(node, sbtRecordOffset, mask);
 }
 
-void accel::Builder::AddMesh(scene::Mesh* mesh) {
+uint32_t accel::Builder::AddMesh(scene::Mesh* mesh) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Geometry* geometry = new Geometry(device, createFlags);
 
@@ -28,20 +28,24 @@ void accel::Builder::AddMesh(scene::Mesh* mesh) {
     geometry->AddTriangles(iBuffer, iOffset, mesh->GetIndexCount(), mesh->GetIndexType(),
                            vBuffer, vOffset, mesh->GetVertexStride());
 
+    uint32_t index = blas.size();
     blas.push_back(geometry);
     mesh->SetBlasGeometry(geometry);
+    return index;
 }
 
-void accel::Builder::AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride) {
+uint32_t accel::Builder::AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride) {
     VkAccelerationStructureCreateFlagsKHR createFlags = 0;
     Geometry* geometry = new Geometry(device, createFlags);
     geometry->AddAABBs(aabbsBuffer, count, stride);
+    uint32_t index = blas.size();
     blas.push_back(geometry);
+    return index;
 }
 
 void accel::Builder::BuildTlas() {
     // prepare acceleration structure input
-    tlas->Prepare();
+    tlas->Prepare(false);   // build mode
 
     // find data structure sizes
     uint32_t maxScratchSize = tlas->sizeInfo.buildScratchSize;
@@ -61,7 +65,7 @@ void accel::Builder::BuildTlas() {
 void accel::Builder::BuildBlas() {
     // prepare acceleration structure input
     for (auto& as : blas) {
-        as->Prepare();
+        as->Prepare(false); // build mode
     }
 
     // find data structure sizes
@@ -170,9 +174,9 @@ void accel::Builder::CreateBlas(CommandBuffer* commandBuffer,
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
         barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
         barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-        vkCmdPipelineBarrier(*commandBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                             VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
-                             &barrier, 0, nullptr, 0, nullptr);
+        DeviceDispatch(vkCmdPipelineBarrier(*commandBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
+                                            &barrier, 0, nullptr, 0, nullptr));
 
         // 4. update query pool
         if (queryPool) {

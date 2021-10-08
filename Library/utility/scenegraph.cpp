@@ -123,13 +123,15 @@ void scene::Builder::Build() {
 
     // build acceleration structure if needed to
     if (accelBuilder.get()) {
+        uint32_t aabbsGeometryIndex = 0;
+
         // add mesh-based blas
         for (auto& mesh : meshes) {
             accelBuilder->AddMesh(mesh);
         }
         // add aabb-based blas
         if (aabbsBuffer) {
-            accelBuilder->AddAABBs(aabbsBuffer, 0, sizeof(VkAabbPositionsKHR));
+            aabbsGeometryIndex = accelBuilder->AddAABBs(aabbsBuffer, aabbs.size(), sizeof(VkAabbPositionsKHR));
         }
         // build blas
         accelBuilder->BuildBlas();
@@ -139,7 +141,9 @@ void scene::Builder::Build() {
             accelBuilder->AddNode(node, 0, 0x1);       // use sbt record 0 (for triangle mesh)
         }
         // add aabb-based tlas
-        if (aabbsNode.get()) {
+        if (aabbsBuffer) {
+            // update blas geometry
+            aabbsMesh->SetBlasGeometry(accelBuilder->GetBlasGeometry(aabbsGeometryIndex));
             accelBuilder->AddNode(aabbsNode, 1, 0x2);  // use sbt record 1 (for procedural)
         }
         accelBuilder->BuildTlas();
@@ -156,8 +160,34 @@ void scene::Builder::EnableRayTracing() {
 }
 
 void scene::Builder::AddAABB(const BoundingBox& aaBox) {
+    AddAABBs(aaBox, 1);
+}
+
+void scene::Builder::AddAABBs(const BoundingBox& aaBox, uint32_t count) {
+    #ifndef NDEBUG
     if (!accelBuilder.get()) {
-        aabbs.push_back(aaBox);
+        throw std::runtime_error("scene::Builder::AddAABBs() is only supported when accel builder is enabled!");
+    }
+    #endif
+
+    const auto& min = aaBox.Min();
+    const auto& max = aaBox.Max();
+
+    VkAabbPositionsKHR aabb;
+    aabb.minX = min.x;
+    aabb.minY = min.y;
+    aabb.minZ = min.z;
+    aabb.maxX = max.x;
+    aabb.maxY = max.y;
+    aabb.maxZ = max.z;
+
+    if (count <= 1) {
+        aabbs.push_back(aabb);
+    } else {
+        aabbs.reserve(aabbs.size() + count);
+        for (uint32_t i = 0; i < count; i++) {
+            aabbs.push_back(aabb);
+        }
     }
 }
 
@@ -181,6 +211,7 @@ void scene::Builder::BuildIndexBuffer(CommandBuffer* commandBuffer, Mesh* mesh, 
         mesh->indexBuffer = SlimPtr<Buffer>(device, mesh->indexData.size(),
                                             bufferUsage | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                             memoryUsage);
+        mesh->indexBuffer->SetName("Scene Mesh Index Buffer");
         commandBuffer->CopyDataToBuffer(mesh->indexData, mesh->indexBuffer, mesh->indexOffset);
     }
 }
@@ -195,6 +226,7 @@ void scene::Builder::BuildVertexBuffer(CommandBuffer* commandBuffer, Mesh* mesh,
     mesh->vertexBuffer = SlimPtr<Buffer>(device, vertexBufferSize,
                                          bufferUsage | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                          memoryUsage);
+    mesh->vertexBuffer->SetName("Scene Mesh Vertex Buffer");
     for (const auto& attrib : mesh->vertexData) {
         mesh->vertexBuffers.push_back(*mesh->vertexBuffer);
         mesh->vertexOffsets.push_back(vertexBufferOffset);
@@ -209,21 +241,17 @@ void scene::Builder::BuildAabbsBuffer(CommandBuffer* commandBuffer,
     uint64_t aabbsBufferSize = aabbs.size() * sizeof(VkAabbPositionsKHR);
     if (aabbsBufferSize == 0) return;
 
+    // allow compute shader to use it as a storage buffer
+    bufferUsage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
     // create aabbs buffer and aabbs node
     aabbsNode = SlimPtr<Node>();
+    aabbsMesh = SlimPtr<Mesh>();
+    aabbsNode->SetDraw(aabbsMesh, nullptr);
     aabbsBuffer = SlimPtr<Buffer>(device, aabbsBufferSize, bufferUsage, memoryUsage);
+    aabbsBuffer->SetName("Scene AABBs Buffer");
 
     // copy bounding boxes to dest type
     std::vector<VkAabbPositionsKHR> data(aabbs.size());
-    for (uint32_t i = 0; i < aabbs.size(); i++) {
-        const auto& min = aabbs[i].Min();
-        const auto& max = aabbs[i].Max();
-        data[i].minX = min.x;
-        data[i].minY = min.y;
-        data[i].minZ = min.z;
-        data[i].maxX = max.x;
-        data[i].maxY = max.y;
-        data[i].maxZ = max.z;
-    }
-    commandBuffer->CopyDataToBuffer(data, aabbsBuffer);
+    commandBuffer->CopyDataToBuffer(aabbs, aabbsBuffer);
 }

@@ -62,6 +62,9 @@ void accel::AccelStruct::SetName(const std::string& name) const {
         nameInfo.pObjectName = name.c_str();
         ErrorCheck(DeviceDispatch(vkDebugMarkerSetObjectNameEXT(*device, &nameInfo)), "set acceleration structure name");
     }
+    if (buffer) {
+        buffer->SetName(name + " buffer");
+    }
 }
 
 // ------------------------------------------------------------
@@ -79,7 +82,7 @@ uint32_t accel::Instance::AddInstance(scene::Node* node, uint32_t sbtRecordOffse
     }
     uint32_t instanceId = offset;
     VkTransformMatrixKHR transform = node->GetVkTransformMatrix();
-    for (auto& [mesh, material] : *node) {
+    for (auto& [mesh, _] : *node) {
         accel::AccelStruct* as = mesh->GetBlasGeometry()->accel;
         #ifndef NDEBUG
         if (as == nullptr) {
@@ -109,6 +112,7 @@ void accel::Instance::PrepareInstanceBuffer() {
                                        | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
         VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
         buffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
+        buffer->SetName("RT Instance Data");
     }
 
     // update buffer data
@@ -149,7 +153,7 @@ void accel::Instance::PrepareInstanceBuffer() {
     #endif
 }
 
-void accel::Instance::Prepare() {
+void accel::Instance::Prepare(bool update) {
     PrepareInstanceBuffer();
 
     VkAccelerationStructureBuildTypeKHR buildType = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
@@ -163,6 +167,10 @@ void accel::Instance::Prepare() {
     for (const auto& range : buildRanges) {
         maxPrimitiveCount.push_back(range.primitiveCount);
     }
+
+    buildInfo.mode = update
+                   ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+                   : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     DeviceDispatch(vkGetAccelerationStructureBuildSizesKHR(*device, buildType, &buildInfo, maxPrimitiveCount.data(), &sizeInfo));
 }
 
@@ -175,9 +183,9 @@ accel::Geometry::Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR 
 }
 
 void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
-                                             Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
-                                             Buffer* transformBuffer, uint64_t transformOffset,
-                                             VkFormat vertexFormat) {
+                                   Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
+                                   Buffer* transformBuffer, uint64_t transformOffset,
+                                   VkFormat vertexFormat) {
 
     geometries.push_back(VkAccelerationStructureGeometryKHR { });
     auto& geometry = geometries.back();
@@ -188,8 +196,8 @@ void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, ui
     geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
     geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
     geometry.geometry.triangles.indexType = indexType;
-    geometry.geometry.triangles.indexData.deviceAddress = device->GetDeviceAddress(indexBuffer) + indexOffset;
-    geometry.geometry.triangles.vertexData.deviceAddress = device->GetDeviceAddress(vertexBuffer) + vertexOffset;
+    geometry.geometry.triangles.indexData.deviceAddress = device->GetDeviceAddress(indexBuffer) + indexOffset;      // NOTE: This is probably wrong
+    geometry.geometry.triangles.vertexData.deviceAddress = device->GetDeviceAddress(vertexBuffer) + vertexOffset;   // NOTE: This is probably wrong
     geometry.geometry.triangles.vertexStride = vertexStride;
     geometry.geometry.triangles.vertexFormat = vertexFormat;
     geometry.geometry.triangles.transformData.deviceAddress = transformBuffer ? device->GetDeviceAddress(transformBuffer) : 0;
@@ -203,7 +211,7 @@ void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, ui
     buildRange.transformOffset = transformOffset;
 }
 
-void accel::Geometry::Prepare() {
+void accel::Geometry::Prepare(bool update) {
     VkAccelerationStructureBuildTypeKHR buildType = VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR;
 
     buildInfo.geometryCount = geometries.size();
@@ -215,6 +223,9 @@ void accel::Geometry::Prepare() {
     for (const auto& range : buildRanges) {
         maxPrimitiveCount.push_back(range.primitiveCount);
     }
+    buildInfo.mode = update
+                   ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+                   : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     DeviceDispatch(vkGetAccelerationStructureBuildSizesKHR(*device, buildType, &buildInfo, maxPrimitiveCount.data(), &sizeInfo));
 }
 

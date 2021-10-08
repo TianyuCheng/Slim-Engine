@@ -37,7 +37,7 @@ struct Surfel {
 
 // surfel data
 struct SurfelData {
-    // NOTE: we don't support skining now.
+    // NOTE: we don't support skinning now.
     // In the future, we will replace this with object's instance ID,
     // and compute skinning on the fly.
     // For now, we will stick to static scene

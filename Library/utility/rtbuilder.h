@@ -19,14 +19,18 @@ namespace slim::accel {
 
         void EnableCompaction();
 
-        void AddMesh(scene::Mesh* mesh);
-        void AddNode(scene::Node* node, uint32_t sbtRecordOffset = 0, uint32_t mask = 0xff);
-        void AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);
+        uint32_t AddMesh(scene::Mesh* mesh);
+        uint32_t AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);
+        void     AddNode(scene::Node* node, uint32_t sbtRecordOffset = 0, uint32_t mask = 0xff);
 
         void BuildTlas();
         void BuildBlas();
 
-        AccelStruct* GetTlas() const { return tlas->accel; }
+        AccelStruct* GetTlas()               const { return tlas->accel;        }
+        AccelStruct* GetBlas(uint32_t index) const { return blas[index]->accel; }
+
+        accel::Instance* GetTlasInstance()               const { return tlas;        }
+        accel::Geometry* GetBlasGeometry(uint32_t index) const { return blas[index]; }
 
     private:
 

@@ -25,25 +25,36 @@ struct SurfelState {
 class SurfelManager {
 public:
 
-    SurfelManager(Device* device, uint32_t numSurfels);
+    SurfelManager(Device* device);
+
+    accel::AccelStruct* GetTlas() const { return accelBuilder->GetTlas(); }
+
+    void UpdateAABB() const;
 
 private:
-    Device* device;
-    uint32_t numSurfels;
+    SmartPtr<Device> device;
+
+    SmartPtr<scene::Node> aabbNode;
+    SmartPtr<scene::Mesh> aabbMesh;
+    SmartPtr<accel::Builder> accelBuilder;
+    SmartPtr<Buffer> accelScratchBuffer;
 
     void InitSurfelBuffer();
     void InitSurfelDataBuffer();
     void InitSurfelStatBuffer();
     void InitSurfelGridBuffer();
     void InitSurfelCellBuffer();
+    void InitSurfelAabbBuffer();
     void InitSurfelMomentBuffer();
     void InitSurfelIndirectBuffer();
+    void InitSurfelAabbAccelStructure();
 
 public:
     SmartPtr<Buffer> surfelBuffer;
     SmartPtr<Buffer> surfelDataBuffer;
     SmartPtr<Buffer> surfelGridBuffer;
     SmartPtr<Buffer> surfelCellBuffer;
+    SmartPtr<Buffer> surfelAabbBuffer;
     SmartPtr<Buffer> surfelStatBuffer;
     SmartPtr<Buffer> surfelStatBufferCPU;
     SmartPtr<Buffer> surfelIndirectBuffer;

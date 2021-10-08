@@ -30,6 +30,8 @@ using mat4    = glm::mat4;
 #define highp
 #define mediump
 #define lowp
+#define max(a, b)  ((a) > (b) ? (a) : (b))
+#define min(a, b)  ((a) < (b) ? (a) : (b))
 
 #else
 

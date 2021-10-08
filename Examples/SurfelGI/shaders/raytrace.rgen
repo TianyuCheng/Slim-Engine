@@ -5,13 +5,16 @@
 #include "surfel.h"
 #include "camera.h"
 #include "unpack.h"
+#include "random.h"
+#include "sampling.h"
 #include "raycommon.h"
 
 // acceleration structure
-layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
+layout(set = 0, binding = 0) uniform accelerationStructureEXT sceneAS;
+layout(set = 0, binding = 1) uniform accelerationStructureEXT surfelAS;
 
 // camera information
-layout(set = 0, binding = 1) uniform Camera {
+layout(set = 0, binding = 2) uniform Camera {
     mat4 invVP; // inverse(P * V) for world position reconstruction
     vec3 pos;
     float zNear;
@@ -19,18 +22,28 @@ layout(set = 0, binding = 1) uniform Camera {
     float zFarRcp;
 } camera;
 
-// surfel information
-layout(set = 1, binding = 0) buffer SurfelDataBuffer { SurfelData data[]; } surfelData;
-layout(set = 1, binding = 1) buffer SurfelStatBuffer { SurfelStat data;   } surfelStat;
-
 // light information
-layout(push_constant) uniform DirectionalLight {
-    vec4 direction;
-    vec4 color;
+layout(set = 0, binding = 3) uniform DirectionalLight {
+    vec3 direction;
+    float padding0;
+
+    vec3 color;
+    float padding1;
 } dirLight;
 
+// surfel information
+layout(set = 1, binding = 0) buffer SurfelStatBuffer { SurfelStat data;   } surfelStat;
+layout(set = 1, binding = 1) buffer SurfelDataBuffer { SurfelData data[]; } surfelData;
+layout(set = 1, binding = 2) buffer SurfelBuffer     { Surfel     data[]; } surfels;
+
 // ray payload
-layout(location = 0) rayPayloadEXT HitPayload hitPayload;
+layout(location = 0) rayPayloadEXT ShadowHitPayload shadowHitPayload;
+layout(location = 1) rayPayloadEXT SurfelHitPayload surfelHitPayload;
+
+// push constant
+layout(push_constant) uniform FrameInfo {
+    uint frameId;
+} info;
 
 void main() {
     uint surfel_id = gl_LaunchIDEXT.x * SURFEL_CAPACITY_SQRT + gl_LaunchIDEXT.y;
@@ -38,27 +51,31 @@ void main() {
     // early exit
     if (surfel_id >= surfelStat.data.count) return;
 
-    // get surfel information
-    SurfelData surfel = surfelData.data[surfel_id];
-    vec3 position = surfel.position;
-    vec3 normal = unpack_unitvec3(surfel.normal) * 2.0 - 1.0;
-
     // accumulation
     vec3 irradiance = vec3(0.0);
 
+    // get surfel information
+    SurfelData surfel = surfelData.data[surfel_id];
+    vec3 P = surfel.position;
+    vec3 N = normalize(unpack_unitvec3(surfel.normal) * 2.0 - 1.0);
+
+    // light info
+    vec3 L = normalize(dirLight.direction);
+
+    // ray info
+    vec3  rayOrigin    =  P;
+    vec3  rayDirection = -L;
+    uint  rayFlags     = gl_RayFlagsOpaqueEXT;
+    float tMin         = 0.001;
+    float tMax         = 10000.0;
+
+    #if 0
     // compute direct lighting
-    float NoL = dot(normal, -dirLight.direction.xyz);
+    float NoL = dot(N, -L);
     if (NoL > 0.0) {
 
-        // ray info
-        vec3  rayOrigin    = position;
-        vec3  rayDirection = normal;
-        uint  rayFlags     = gl_RayFlagsOpaqueEXT;
-        float tMin         = 0.001;
-        float tMax         = 10000.0;
-
-        // trace
-        traceRayEXT(topLevelAS,     // acceleration structure
+        // trace scene geometries
+        traceRayEXT(sceneAS,        // acceleration structure
                 rayFlags,           // rayFlags
                 0x1,                // cullMask, only intersect scene geometry
                 0,                  // sbtRecordOffset
@@ -71,8 +88,33 @@ void main() {
                 0                   // payload (location = 0)
                 );
 
-        irradiance += hitPayload.inShadow * hitPayload.color;
+        irradiance += shadowHitPayload.occlusionFactor * dirLight.color;
     }
+    #endif
+
+    // compute indirect lighting from surfel irradiance cache
+    #if 1
+    {
+        uint rng = surfel_id * info.frameId;
+        vec3 dir = cosine_sample_hemisphere(random_float(rng), random_float(rng));
+        /* dir = dot(N, dir) >= 0.0 ? dir : -dir; */
+        dir = N;
+        // trace surfel procedural geometries
+        traceRayEXT(surfelAS,       // acceleration structure
+                rayFlags,           // rayFlags
+                0x2,                // cullMask, only intersect surfels
+                0,                  // sbtRecordOffset
+                0,                  // sbtRecordStride
+                1,                  // missIndex
+                rayOrigin,          // ray origin
+                tMin,               // ray min range
+                rayDirection,       // ray direction
+                tMax,               // ray max range
+                1                   // payload (location = 1)
+                );
+        irradiance += surfelHitPayload.color;   // no light attenuation for now
+    }
+    #endif
 
     // update surfel data
     surfel.mean = irradiance;

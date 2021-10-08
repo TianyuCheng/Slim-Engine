@@ -101,8 +101,8 @@ int main() {
             // compose
             AddComposerPass(renderGraph, bundle, colorBuffer, &gbuffer, &dirLight);
 
-            // overlay
-            AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, ui);
+            // // overlay
+            // AddOverlayPass(renderGraph, bundle, colorBuffer, &gbuffer, ui);
         }
         renderGraph.Execute();
         input->Reset();

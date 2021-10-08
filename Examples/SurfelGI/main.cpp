@@ -40,7 +40,6 @@ int main() {
             .SetResizable(true)
             .SetTitle("SurfelGI")
             .EnableFPS(true)
-            .SetMaxFramesInFlight(1)
     );
 
     // ui and input control
@@ -58,7 +57,7 @@ int main() {
     };
 
     // surfel
-    auto surfel = SurfelManager(device, SURFEL_CAPACITY);
+    auto surfel = SurfelManager(device);
 
     // resource pool
     AutoReleasePool pool(device);
@@ -102,7 +101,7 @@ int main() {
             gbuffer.depthBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
             // debug resources
-            Visualize vis;
+            Visualize vis = {};
             vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.depthBuffer        = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.surfelCovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
@@ -138,6 +137,9 @@ int main() {
         }
         // renderGraph.Print();
         renderGraph.Execute();
+
+        // update surfel aabbs
+        surfel.UpdateAABB();
 
         input->Reset();
         frameId++;

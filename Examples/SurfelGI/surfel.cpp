@@ -1,6 +1,6 @@
 #include "surfel.h"
 
-SurfelManager::SurfelManager(Device* device, uint32_t numSurfels) : device(device), numSurfels(numSurfels) {
+SurfelManager::SurfelManager(Device* device) : device(device) {
     InitSurfelBuffer();
     InitSurfelDataBuffer();
     InitSurfelMomentBuffer();
@@ -8,12 +8,14 @@ SurfelManager::SurfelManager(Device* device, uint32_t numSurfels) : device(devic
     InitSurfelCellBuffer();
     InitSurfelStatBuffer();
     InitSurfelIndirectBuffer();
+    InitSurfelAabbBuffer();
+    InitSurfelAabbAccelStructure();
 }
 
 void SurfelManager::InitSurfelBuffer() {
     VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    uint32_t bufferSize = numSurfels * sizeof(Surfel);
+    uint32_t bufferSize = SURFEL_CAPACITY * sizeof(Surfel);
     surfelBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
     surfelBuffer->SetName("Surfels");
 }
@@ -21,7 +23,7 @@ void SurfelManager::InitSurfelBuffer() {
 void SurfelManager::InitSurfelDataBuffer() {
     VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-    uint32_t bufferSize = numSurfels * sizeof(SurfelData);
+    uint32_t bufferSize = SURFEL_CAPACITY * sizeof(SurfelData);
     surfelDataBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
     surfelDataBuffer->SetName("SurfelData");
 }
@@ -44,6 +46,28 @@ void SurfelManager::InitSurfelCellBuffer() {
     uint32_t bufferSize = SURFEL_TABLE_SIZE * sizeof(uint32_t) * 64;
     surfelCellBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
     surfelCellBuffer->SetName("SurfelCell");
+}
+
+void SurfelManager::InitSurfelAabbBuffer() {
+    VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT
+                                   | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+                                   | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    uint32_t bufferSize = sizeof(VkAabbPositionsKHR) * SURFEL_CAPACITY;
+    surfelAabbBuffer = SlimPtr<Buffer>(device, bufferSize, bufferUsage, memoryUsage);
+    surfelAabbBuffer->SetName("SurfelAabb");
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        std::vector<VkAabbPositionsKHR> aabbs(SURFEL_CAPACITY);
+        for (uint32_t i = 0; i < SURFEL_CAPACITY; i++) {
+            aabbs[i].minX = 0.0;
+            aabbs[i].minY = 0.0;
+            aabbs[i].minZ = 0.0;
+            aabbs[i].maxX = 0.0;
+            aabbs[i].maxY = 0.0;
+            aabbs[i].maxZ = 0.0;
+        }
+        commandBuffer->CopyDataToBuffer(aabbs, surfelAabbBuffer);
+    });
 }
 
 void SurfelManager::InitSurfelStatBuffer() {
@@ -78,6 +102,37 @@ void SurfelManager::InitSurfelIndirectBuffer() {
         command.z = 1;
         commandBuffer->CopyDataToBuffer(command, surfelIndirectBuffer);
     });
+}
+
+void SurfelManager::InitSurfelAabbAccelStructure() {
+    // blas
+    accelBuilder = SlimPtr<accel::Builder>(device);
+    accelBuilder->AddAABBs(surfelAabbBuffer, SURFEL_CAPACITY, sizeof(VkAabbPositionsKHR));
+    accelBuilder->BuildBlas();
+
+    // mesh
+    aabbMesh = SlimPtr<scene::Mesh>();
+    aabbMesh->SetBlasGeometry(accelBuilder->GetBlasGeometry(0));
+
+    // node
+    aabbNode = SlimPtr<scene::Node>();
+    aabbNode->SetDraw(aabbMesh, nullptr);
+
+    // tlas, use hit group 2 for surfel
+    accelBuilder->AddNode(aabbNode, 1, 0x2);
+    accelBuilder->BuildTlas();
+
+    uint32_t maxScratchSize = max(accelBuilder->GetTlasBuildSize(),
+                                  accelBuilder->GetTlasUpdateSize());
+    accelScratchBuffer = SlimPtr<Buffer>(device,
+        maxScratchSize,
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+}
+
+void SurfelManager::UpdateAABB() const {
+    accelBuilder->UpdateBlas();
 }
 
 void AddSurfelPass(RenderGraph& renderGraph,
@@ -184,6 +239,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
                         .AddBinding("SurfelData", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
                         .AddBinding("SurfelGrid", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
                         .AddBinding("SurfelStat", SetBinding { 1, 3 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
+                        .AddBinding("SurfelAabb", SetBinding { 1, 4 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT)
                     )
                 );
         }
@@ -282,16 +338,34 @@ void AddSurfelPass(RenderGraph& renderGraph,
             return new spirv::RayGenShader(device, "main", "shaders/raytrace.rgen.spv");
         });
     // shadow ray miss shader
-    static auto rayMissShader = pool.FetchOrCreate(
-        "raytrace.ray.miss",
+    static auto shadowMissShader = pool.FetchOrCreate(
+        "shadow.ray.miss",
         [](Device* device) {
-            return new spirv::MissShader(device, "main", "shaders/raytrace.rmiss.spv");
+            return new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv");
         });
     // shadow ray closest hit shader
-    static auto rayClosestHitShader = pool.FetchOrCreate(
-        "raytrace.ray.closest.hit",
+    static auto shadowClosestHitShader = pool.FetchOrCreate(
+        "shadow.ray.closest.hit",
         [](Device* device) {
-            return new spirv::ClosestHitShader(device, "main", "shaders/raytrace.rchit.spv");
+            return new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv");
+        });
+    // surfel ray miss shader
+    static auto surfelMissShader = pool.FetchOrCreate(
+        "surel.ray.miss",
+        [](Device* device) {
+            return new spirv::MissShader(device, "main", "shaders/surfel.rmiss.spv");
+        });
+    // surfel ray closest hit shader
+    static auto surfelClosestHitShader = pool.FetchOrCreate(
+        "surfel.ray.closest.hit",
+        [](Device* device) {
+            return new spirv::ClosestHitShader(device, "main", "shaders/surfel.rchit.spv");
+        });
+    // surfel ray intersection shader
+    static auto surfelIntersectionShader = pool.FetchOrCreate(
+        "surel.ray.intersection",
+        [](Device* device) {
+            return new spirv::IntersectionShader(device, "main", "shaders/surfel.rint.spv");
         });
     // ray tracing pipeline
     static auto raytracePipeline = pool.FetchOrCreate(
@@ -302,15 +376,23 @@ void AddSurfelPass(RenderGraph& renderGraph,
                 RayTracingPipelineDesc()
                     .SetName("surfel-ray-tracing")
                     .SetRayGenShader(rayGenShader)
-                    .SetMissShader(rayMissShader)
-                    .SetClosestHitShader(rayClosestHitShader)
+                    // ---------------------------------------
+                    .SetMissShader(shadowMissShader)
+                    .SetClosestHitShader(shadowClosestHitShader)
+                    // ---------------------------------------
+                    .SetMissShader(surfelMissShader)
+                    .SetClosestHitShader(surfelClosestHitShader, surfelIntersectionShader)
+                    // ---------------------------------------
                     .SetMaxRayRecursionDepth(1)
                     .SetPipelineLayout(PipelineLayoutDesc()
-                        .AddPushConstant("Light", Range { 0, sizeof(LightInfo) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Accel",      SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Camera",     SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("SurfelData", SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("SurfelStat", SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddPushConstant("FrameInfo", Range { 0, sizeof(uint32_t) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Scene Accel",  SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Surfel Accel", SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Camera",       SetBinding { 0, 2 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Light",        SetBinding { 0, 3 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelStat",   SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR)
+                        .AddBinding("SurfelData",   SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR)
+                        .AddBinding("Surfel",       SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR)
                     )
                 );
         }
@@ -345,6 +427,8 @@ void AddSurfelPass(RenderGraph& renderGraph,
         LightInfo lightInfo;
         lightInfo.color = light->color;
         lightInfo.direction = light->direction;
+        auto lightUniform = info.renderFrame->RequestUniformBuffer(lightInfo);
+        lightUniform->SetName("Light Uniform");
 
         // surfel indirect prepare
         // This step update the indirect draw buffer's dispatch count based on active surfel count
@@ -411,6 +495,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
             descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGridBuffer);
             descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStatBuffer);
+            descriptor->SetStorageBuffer("SurfelAabb", surfel->surfelAabbBuffer);
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
             // issue compute call
@@ -421,6 +506,9 @@ void AddSurfelPass(RenderGraph& renderGraph,
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             info.commandBuffer->PrepareForBuffer(surfel->surfelGridBuffer,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelAabbBuffer,
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
         }
@@ -569,12 +657,15 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
             // bind descriptor
             auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+            descriptor->SetAccelStruct("Scene Accel", scene->GetTlas());
+            descriptor->SetAccelStruct("Surfel Accel", surfel->GetTlas());
             descriptor->SetUniformBuffer("Camera", cameraUniform);
-            descriptor->SetAccelStruct("Accel", tlas);
-            descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
+            descriptor->SetUniformBuffer("Light", lightUniform);
             descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStatBuffer);
+            descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
+            descriptor->SetStorageBuffer("Surfel",     surfel->surfelBuffer);
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-            info.commandBuffer->PushConstants(pipeline->Layout(), "Light", &lightInfo);
+            info.commandBuffer->PushConstants(pipeline->Layout(), "FrameInfo", &frameId);
 
             // trace rays
             vkCmdTraceRaysKHR(*info.commandBuffer,

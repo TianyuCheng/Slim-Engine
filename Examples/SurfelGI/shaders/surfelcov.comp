@@ -185,14 +185,16 @@ void main() {
 
             const uint count = 100;
             for (uint i = 0; i < count; i++) {
-                surfel_data.position = vec3(-0.5 * i, 0.0, 0.0);
-                surfel_data.normal = pack_unitvec3(vec3(0.0, 1.0, 0.0));
-                surfel_data.inconsistency = 1;
-                surfel_data.mean = random_colors[primID % random_color_count];
-                surfelData.data[i] = surfel_data;
+                for (uint j = 0; j < count; j++) {
+                    surfel_data.position = vec3(-0.5 * i, 0.0, 0.5 * j);
+                    surfel_data.normal = pack_unitvec3(vec3(0.0, 1.0, 0.0));
+                    surfel_data.inconsistency = 1;
+                    surfel_data.mean = random_colors[primID % random_color_count];
+                    surfelData.data[i * count + j] = surfel_data;
+                }
             }
 
-            surfelStat.data.count = count;
+            surfelStat.data.count = count * count;
         }
     }
     #endif

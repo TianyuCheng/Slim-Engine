@@ -139,6 +139,7 @@ void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, si
     else {
         stagingBuffers.emplace_back(new StagingBuffer(device, size));
         auto staging = stagingBuffers.back().get();
+        staging->SetName("StagingCopy");
         staging->SetData(data, size);
         CopyBufferToBuffer(staging, 0, buffer, offset, size);
     }
@@ -151,9 +152,10 @@ void CommandBuffer::CopyDataToImage(void *data, size_t size, Image *image,
     PrepareForTransferDst(image, baseLayer, layerCount, mipLevel, 1);
 
     stagingBuffers.emplace_back(new StagingBuffer(device, size));
-    auto stagingBuffer = stagingBuffers.back().get();
-    stagingBuffer->SetData(data, size);
-    CopyBufferToImage(stagingBuffer, 0, 0, extent.height, image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
+    auto staging = stagingBuffers.back().get();
+    staging->SetName("StagingCopy");
+    staging->SetData(data, size);
+    CopyBufferToImage(staging, 0, 0, extent.height, image, offset, extent, baseLayer, layerCount, mipLevel, aspectMask);
 }
 
 void CommandBuffer::CopyBufferToBuffer(Buffer *srcBuffer, size_t srcOffset, Buffer *dstBuffer, size_t dstOffset, size_t size) {
