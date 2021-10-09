@@ -4,6 +4,8 @@ MainScene::MainScene(Device* device) : device(device) {
     PrepareScene();
     PrepareCamera();
     PrepareTransformBuffer();
+    PrepareLightBuffer();
+    PrepareCameraBuffer();
 }
 
 void MainScene::PrepareScene() {
@@ -66,5 +68,35 @@ void MainScene::PrepareTransformBuffer() {
     // copy transforms to buffer
     device->Execute([&](CommandBuffer* commandBuffer) {
         commandBuffer->CopyDataToBuffer(transforms, transformBuffer);
+    });
+}
+
+void MainScene::PrepareLightBuffer() {
+    dirLight = DirectionalLight {
+        glm::vec4(0.0, -1.0, 0.0, 0.0), // direction
+        glm::vec4(1.0, 1.0, 1.0, 1.0),  // light color
+    };
+
+    lightBuffer = SlimPtr<Buffer>(device, sizeof(LightInfo),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    lightBuffer->SetName("Light Buffer");
+}
+
+void MainScene::PrepareCameraBuffer() {
+    cameraBuffer = SlimPtr<Buffer>(device, sizeof(CameraInfo),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    cameraBuffer->SetName("Camera Buffer");
+}
+
+void AddScenePreparePass(RenderGraph& renderGraph, MainScene* scene) {
+    // compile
+    auto preparePass = renderGraph.CreateComputePass("prepare");
+    preparePass->SetStorage(scene->lightResource, RenderGraph::STORAGE_WRITE_BIT);
+    preparePass->SetStorage(scene->cameraResource, RenderGraph::STORAGE_WRITE_BIT);
+
+    // execute
+    preparePass->Execute([=](const RenderInfo& info) {
+        scene->UpdateLight(info.commandBuffer);
+        scene->UpdateCamera(info.commandBuffer);
     });
 }

@@ -36,46 +36,6 @@ namespace slim {
 
         // -------------------------------------------------------------------------------
 
-        class Resource final : public ReferenceCountable {
-            friend class RenderGraph;
-        public:
-            explicit Resource(GPUImage* image);
-            explicit Resource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);
-            virtual ~Resource() = default;
-            Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
-            Image* GetImage() const { return image; }
-
-            void UseAsColorBuffer()        { usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;         }
-            void UseAsDepthBuffer()        { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
-            void UseAsStencilBuffer()      { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
-            void UseAsDepthStencilBuffer() { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
-            void UseAsInputAttachment()    { usages |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;         }
-            void UseAsStorageImage()       { usages |= VK_IMAGE_USAGE_STORAGE_BIT;                  }
-            void UseAsTexture()            { usages |= VK_IMAGE_USAGE_SAMPLED_BIT;                  }
-
-        private:
-            void Allocate(RenderFrame* renderFrame);
-            void Deallocate();
-
-        private:
-            VkFormat format;
-            VkExtent2D extent;
-            uint32_t mipLevels = 1;
-            VkSampleCountFlagBits samples;
-            VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-            VkImageUsageFlags usages = 0;
-
-            Transient<GPUImage> image;
-            std::vector<Pass*> readers = {};
-            std::vector<Pass*> writers = {};
-
-            bool retained = false;
-            int rdCount = 0;
-            int wrCount = 0;
-        };
-
-        // -------------------------------------------------------------------------------
-
         enum class ResourceType {
             ColorAttachment,
             ColorResolveAttachment,
@@ -84,6 +44,7 @@ namespace slim {
             DepthStencilAttachment,
             PreserveAttachment,
             InputAttachment,
+            StorageBuffer,
         };
 
         struct ResourceMetadata {
@@ -93,11 +54,69 @@ namespace slim {
         };
 
         enum StorageImageUsage {
-            STORAGE_IMAGE_READ_BIT = 1,
-            STORAGE_IMAGE_WRITE_BIT = 2,
-            STORAGE_IMAGE_READ_WRITE = STORAGE_IMAGE_READ_BIT | STORAGE_IMAGE_WRITE_BIT,
-            STORAGE_IMAGE_READ_ONLY = STORAGE_IMAGE_READ_BIT,
-            STORAGE_IMAGE_WRITE_ONLY = STORAGE_IMAGE_WRITE_BIT,
+            STORAGE_READ_BIT   = 1,
+            STORAGE_WRITE_BIT  = 2,
+            STORAGE_READ_WRITE = STORAGE_READ_BIT | STORAGE_WRITE_BIT,
+            STORAGE_READ_ONLY  = STORAGE_READ_BIT,
+            STORAGE_WRITE_ONLY = STORAGE_WRITE_BIT,
+        };
+
+        // -------------------------------------------------------------------------------
+
+        class Resource final : public ReferenceCountable {
+            friend class RenderGraph;
+        public:
+            explicit Resource(Buffer* buffer);
+            explicit Resource(GPUImage* image);
+            explicit Resource(VkFormat format, VkExtent2D extent, VkSampleCountFlagBits samples);
+            virtual ~Resource() = default;
+
+            Image*  GetImage()  const { return image;  }
+            Buffer* GetBuffer() const { return buffer; }
+
+            void UseAsColorBuffer()        { usages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;         }
+            void UseAsDepthBuffer()        { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsStencilBuffer()      { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsDepthStencilBuffer() { usages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT; }
+            void UseAsInputAttachment()    { usages |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;         }
+            void UseAsStorageImage()       { usages |= VK_IMAGE_USAGE_STORAGE_BIT;                  }
+            void UseAsTexture()            { usages |= VK_IMAGE_USAGE_SAMPLED_BIT;                  }
+
+            Resource& SetMipLevels(uint32_t levels) { mipLevels = levels; return *this; }
+
+        private:
+            void Allocate(RenderFrame* renderFrame);
+            void Deallocate();
+
+            void ShaderReadBarrier(CommandBuffer* commandBuffer, Pass* nextPass);
+            void StorageBarrier(CommandBuffer* commandBuffer, Pass* nextPass);
+            void StorageImageBarrier(CommandBuffer* commandBuffer, Pass* nextPass);
+            void StorageBufferBarrier(CommandBuffer* commandBuffer, Pass* nextPass);
+
+        private:
+            // image information
+            VkFormat format;
+            VkExtent2D extent;
+            uint32_t mipLevels = 1;
+            VkSampleCountFlagBits samples;
+            VkImageUsageFlags usages = 0;
+            Transient<GPUImage> image;
+
+            // buffer information
+            Buffer* buffer = nullptr;
+
+            // dependencies
+            std::vector<Pass*> readers = {};
+            std::vector<Pass*> writers = {};
+
+            // current information
+            Pass* currentPass = nullptr;
+            VkImageLayout currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+            // counter information
+            bool retained = false;
+            int rdCount = 0;
+            int wrCount = 0;
         };
 
         // -------------------------------------------------------------------------------
@@ -134,7 +153,7 @@ namespace slim {
 
             // non-attachments
             void SetTexture(RenderGraph::Resource* resource); // texture image, read-only
-            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE); // storage image
+            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_READ_WRITE); // storage image/buffer
 
             void Execute(std::function<void(const RenderInfo &renderInfo)> callback);
 
@@ -152,6 +171,7 @@ namespace slim {
             std::vector<uint32_t> usedAsInputAttachment = {};
             std::vector<uint32_t> usedAsTexture = {};
             std::vector<uint32_t> usedAsStorageImage = {};
+            std::vector<uint32_t> usedAsStorageBuffer = {};
         };
 
         // -------------------------------------------------------------------------------
@@ -191,9 +211,11 @@ namespace slim {
 
             // non-attachments
             void SetTexture(RenderGraph::Resource* resource);   // texture image
-            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_IMAGE_READ_WRITE);   // storage image
+            void SetStorage(RenderGraph::Resource* resource, uint32_t usage = STORAGE_READ_WRITE);   // storage image/buffer
 
             void Execute(std::function<void(const RenderInfo& renderInfo)> callback);
+
+            bool IsCompute() const { return compute; }
 
         private:
             void Execute(CommandBuffer* commandBuffer);
@@ -203,9 +225,6 @@ namespace slim {
             uint32_t AddAttachment(const RenderGraph::ResourceMetadata& metadata);
             uint32_t AddTexture(Resource* resource);
             uint32_t AddStorage(Resource* resource);
-
-            void TransitTextureLayout(Resource* resource);
-            void TransitStorageLayout(Resource* resource);
 
         private:
             std::string name;
@@ -243,6 +262,7 @@ namespace slim {
 
         RenderGraph::Pass*     CreateRenderPass(const std::string& name);
         RenderGraph::Pass*     CreateComputePass(const std::string& name);                                         // async compute
+        RenderGraph::Resource* CreateResource(Buffer* buffer);                                                     // for retained resource
         RenderGraph::Resource* CreateResource(GPUImage* image);                                                    // for retained resource
         RenderGraph::Resource* CreateResource(VkExtent2D extent, VkFormat format, VkSampleCountFlagBits samples);  // for transient resource
         void                   Compile();
@@ -265,7 +285,6 @@ namespace slim {
         mutable SmartPtr<CommandBuffer> commandBuffer;
         std::vector<SmartPtr<RenderGraph::Pass>> passes = {};
         std::vector<SmartPtr<RenderGraph::Resource>> resources = {};
-        std::vector<RenderGraph::Pass*> timeline = {};
         bool compiled = false;
     };
 

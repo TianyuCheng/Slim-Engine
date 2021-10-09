@@ -3,6 +3,7 @@
 
 #include <slim/slim.hpp>
 #include "light.h"
+#include "scene.h"
 #include "gbuffer.h"
 
 using namespace slim;
@@ -10,8 +11,8 @@ using namespace slim;
 void AddComposerPass(RenderGraph& renderGraph,
                      ResourceBundle& bundle,
                      RenderGraph::Resource* colorBuffer,
-                     GBuffer* gbuffer,
-                     DirectionalLight* light);
+                     MainScene* scene,
+                     GBuffer* gbuffer);
 
 
 #endif // SLIM_EXAMPLE_OVERLAY_H

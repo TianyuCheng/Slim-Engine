@@ -2,6 +2,7 @@
 #define SLIM_EXAMPLE_GBUFFER_H
 
 #include <slim/slim.hpp>
+#include "scene.h"
 
 using namespace slim;
 
@@ -17,8 +18,7 @@ struct GBuffer {
 
 void AddGBufferPass(RenderGraph& renderGraph,
                     ResourceBundle& bundle,
-                    Camera* camera,
-                    GBuffer* gbuffer,
-                    MainScene* scene);
+                    MainScene* scene,
+                    GBuffer* gbuffer);
 
 #endif // SLIM_EXAMPLE_GBUFFER_H

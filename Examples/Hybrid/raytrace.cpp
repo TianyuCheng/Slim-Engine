@@ -2,9 +2,9 @@
 
 void AddRayTracePass(RenderGraph& renderGraph,
                      ResourceBundle& bundle,
+                     MainScene* scene,
                      GBuffer* gbuffer,
-                     accel::AccelStruct* tlas,
-                     DirectionalLight* light) {
+                     accel::AccelStruct* tlas) {
 
     Device* device = renderGraph.GetRenderFrame()->GetDevice();
 
@@ -28,11 +28,11 @@ void AddRayTracePass(RenderGraph& renderGraph,
                 .SetClosestHitShader(shadowRayClosestHitShader)
                 .SetMaxRayRecursionDepth(1)
                 .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddPushConstant("DirectionalLight", Range { 0, sizeof(DirectionalLight) }, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     .AddBinding("Accel",    SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     .AddBinding("Albedo",   SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     .AddBinding("Normal",   SetBinding { 1, 1 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     .AddBinding("Position", SetBinding { 1, 2 }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                    .AddBinding("Light",    SetBinding { 2, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                 )
         )
     );
@@ -55,8 +55,8 @@ void AddRayTracePass(RenderGraph& renderGraph,
         descriptor->SetStorageImage("Albedo", gbuffer->albedoBuffer->GetImage());
         descriptor->SetStorageImage("Normal", gbuffer->normalBuffer->GetImage());
         descriptor->SetStorageImage("Position", gbuffer->positionBuffer->GetImage());
+        descriptor->SetUniformBuffer("Light", scene->lightBuffer);
         commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-        commandBuffer->PushConstants(pipeline->Layout(), "DirectionalLight", light);
 
         // trace rays
         const VkExtent3D& extent = gbuffer->albedoBuffer->GetImage()->GetExtent();

@@ -8,8 +8,10 @@ SurfelManager::SurfelManager(Device* device) : device(device) {
     InitSurfelCellBuffer();
     InitSurfelStatBuffer();
     InitSurfelIndirectBuffer();
+    #ifdef ENABLE_RAY_TRACING
     InitSurfelAabbBuffer();
     InitSurfelAabbAccelStructure();
+    #endif
 }
 
 void SurfelManager::InitSurfelBuffer() {
@@ -121,18 +123,11 @@ void SurfelManager::InitSurfelAabbAccelStructure() {
     // tlas, use hit group 2 for surfel
     accelBuilder->AddNode(aabbNode, 1, 0x2);
     accelBuilder->BuildTlas();
-
-    uint32_t maxScratchSize = max(accelBuilder->GetTlasBuildSize(),
-                                  accelBuilder->GetTlasUpdateSize());
-    accelScratchBuffer = SlimPtr<Buffer>(device,
-        maxScratchSize,
-        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
 void SurfelManager::UpdateAABB() const {
-    accelBuilder->UpdateBlas();
+    device->WaitIdle();
+    accelBuilder->BuildBlas();
 }
 
 void AddSurfelPass(RenderGraph& renderGraph,
@@ -141,25 +136,11 @@ void AddSurfelPass(RenderGraph& renderGraph,
                    GBuffer* gbuffer,
                    Visualize* visualize,
                    SurfelManager* surfel,
-                   DirectionalLight* light,
                    uint32_t frameId) {
 
     struct FrameInfo {
         glm::uvec2 size;
         uint32_t frameId;
-    };
-
-    struct CameraInfo {
-        glm::mat4 invVP;
-        glm::vec3 pos;
-        float zNear;
-        float zFar;
-        float zFarRcp;
-    };
-
-    struct LightInfo {
-        glm::vec4 direction;
-        glm::vec4 color;
     };
 
     // sampler
@@ -406,29 +387,13 @@ void AddSurfelPass(RenderGraph& renderGraph,
     surfelComputePass->SetTexture(gbuffer->depthBuffer);
     surfelComputePass->SetTexture(gbuffer->normalBuffer);
     surfelComputePass->SetTexture(gbuffer->objectBuffer);
-    surfelComputePass->SetStorage(surfel->surfelCovBuffer, RenderGraph::STORAGE_IMAGE_WRITE_ONLY);
-    surfelComputePass->SetStorage(visualize->surfelCovBuffer, RenderGraph::STORAGE_IMAGE_WRITE_ONLY);
+    surfelComputePass->SetStorage(surfel->surfelCovBuffer, RenderGraph::STORAGE_WRITE_ONLY);
+    surfelComputePass->SetStorage(visualize->surfelCovBuffer, RenderGraph::STORAGE_WRITE_ONLY);
+    surfelComputePass->SetStorage(scene->cameraResource, RenderGraph::STORAGE_READ_ONLY);
+    surfelComputePass->SetStorage(scene->lightResource, RenderGraph::STORAGE_READ_ONLY);
 
     // execute
     surfelComputePass->Execute([=](const RenderInfo& info) {
-        Camera* camera = scene->camera;
-
-        // prepare camera data
-        CameraInfo cameraData;
-        cameraData.invVP = glm::inverse(camera->GetProjection() * camera->GetView());
-        cameraData.pos = camera->GetPosition();
-        cameraData.zNear = camera->GetNear();
-        cameraData.zFar = camera->GetFar();
-        cameraData.zFarRcp = 1.0 / camera->GetFar();
-        auto cameraUniform = info.renderFrame->RequestUniformBuffer(cameraData);
-        cameraUniform->SetName("Camera Uniform");
-
-        // prepare light data
-        LightInfo lightInfo;
-        lightInfo.color = light->color;
-        lightInfo.direction = light->direction;
-        auto lightUniform = info.renderFrame->RequestUniformBuffer(lightInfo);
-        lightUniform->SetName("Light Uniform");
 
         // surfel indirect prepare
         // This step update the indirect draw buffer's dispatch count based on active surfel count
@@ -490,7 +455,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
             // bind descriptor
             auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-            descriptor->SetUniformBuffer("Camera", cameraUniform);
+            descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
             descriptor->SetStorageBuffer("Surfel", surfel->surfelBuffer);
             descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGridBuffer);
@@ -577,7 +542,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
             // bind descriptor
             auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-            descriptor->SetUniformBuffer("Camera", cameraUniform);
+            descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
             descriptor->SetStorageBuffer("Surfel", surfel->surfelBuffer);
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGridBuffer);
             descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCellBuffer);
@@ -606,7 +571,7 @@ void AddSurfelPass(RenderGraph& renderGraph,
 
             // bind descriptor
             auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-            descriptor->SetUniformBuffer("Camera", cameraUniform);
+            descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
             descriptor->SetStorageBuffer("Surfel", surfel->surfelBuffer);
             descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGridBuffer);
@@ -659,8 +624,8 @@ void AddSurfelPass(RenderGraph& renderGraph,
             auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
             descriptor->SetAccelStruct("Scene Accel", scene->GetTlas());
             descriptor->SetAccelStruct("Surfel Accel", surfel->GetTlas());
-            descriptor->SetUniformBuffer("Camera", cameraUniform);
-            descriptor->SetUniformBuffer("Light", lightUniform);
+            descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
+            descriptor->SetUniformBuffer("Light", scene->lightBuffer);
             descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStatBuffer);
             descriptor->SetStorageBuffer("SurfelData", surfel->surfelDataBuffer);
             descriptor->SetStorageBuffer("Surfel",     surfel->surfelBuffer);

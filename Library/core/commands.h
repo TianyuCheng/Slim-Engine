@@ -27,12 +27,16 @@ namespace slim {
         virtual ~CommandBuffer();
 
         void SetName(const std::string& name) const;
+        void InsertMarker(const std::string& marker) const;
         void BeginRegion(const std::string& name) const;
         void EndRegion() const;
-        void InsertMarker(const std::string& marker) const;
 
         void Begin();
         void End();
+
+        void BeginRenderPass(const VkRenderPassBeginInfo& beginInfo) const;
+        void EndRenderPass() const;
+
         void Submit();
         void Wait(Semaphore *semaphore, VkPipelineStageFlags stages);
         void Signal(Semaphore *semaphore);

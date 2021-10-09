@@ -37,9 +37,15 @@ int main() {
 
         // copy from buffer 1 to buffer 2
         commandBuffer->CopyBufferToBuffer(buffer1, 0, buffer2, 0, 256);
+        commandBuffer->PrepareForBuffer(buffer2,
+                                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 
         // copy from buffer 2 to buffer 3
         commandBuffer->CopyBufferToBuffer(buffer2, 0, buffer3, 0, 256);
+        commandBuffer->PrepareForBuffer(buffer3,
+                                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
 
     }, VK_QUEUE_TRANSFER_BIT);
 

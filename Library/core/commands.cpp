@@ -53,6 +53,14 @@ void CommandBuffer::End() {
     ErrorCheck(vkEndCommandBuffer(handle), "end command buffer")
 }
 
+void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo& beginInfo) const {
+    DeviceDispatch(vkCmdBeginRenderPass(handle, &beginInfo, VK_SUBPASS_CONTENTS_INLINE));
+}
+
+void CommandBuffer::EndRenderPass() const {
+    DeviceDispatch(vkCmdEndRenderPass(handle));
+}
+
 void CommandBuffer::NextSubpass(VkSubpassContents contents) {
     DeviceDispatch(vkCmdNextSubpass(handle, contents));
 }
@@ -130,6 +138,7 @@ void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, si
 
     // buffer update
     // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/vkCmdUpdateBuffer.html
+    // vkCmdUpdateBuffer cannot be called within a render pass
     else if (size <= 65536 && size % 4 == 0 && offset % 4 == 0) {
         DeviceDispatch(vkCmdUpdateBuffer(handle, *buffer, offset, size, data));
     }

@@ -50,12 +50,6 @@ int main() {
     // scene
     auto scene = MainScene(device);
 
-    // light
-    auto dirLight = DirectionalLight {
-        glm::vec4(0.0, -1.0, 0.0, 0.0), // direction
-        glm::vec4(1.0, 1.0, 1.0, 1.0),  // light color
-    };
-
     // surfel
     auto surfel = SurfelManager(device);
 
@@ -89,6 +83,10 @@ int main() {
 
             auto colorBuffer       = renderGraph.CreateResource(frame->GetBackBuffer());
 
+            // scene resources
+            scene.lightResource   = renderGraph.CreateResource(scene.lightBuffer);
+            scene.cameraResource   = renderGraph.CreateResource(scene.cameraBuffer);
+
             // surfel resources
             surfel.surfelCovBuffer = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
@@ -108,14 +106,17 @@ int main() {
             vis.surfelGridBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
             vis.surfelAllocBuffer  = renderGraph.CreateResource(barExtent,   VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
 
+            // prepare
+            AddScenePreparePass(renderGraph, &scene);
+
             // draw gbuffer
-            AddGBufferPass(renderGraph, pool, scene.camera, &gbuffer, &scene);
+            AddGBufferPass(renderGraph, pool, &gbuffer, &scene);
 
             // spawn surfels based on iterative hole filling algorithm
-            AddSurfelPass(renderGraph, pool, &scene, &gbuffer, &vis, &surfel, &dirLight, frameId);
+            AddSurfelPass(renderGraph, pool, &scene, &gbuffer, &vis, &surfel, frameId);
 
             // compose
-            AddComposerPass(renderGraph, pool, colorBuffer, &gbuffer, &dirLight);
+            AddComposerPass(renderGraph, pool, colorBuffer, &gbuffer, &scene);
 
             // debug and ui passes
             if (1) {
@@ -123,10 +124,10 @@ int main() {
                 AddObjectVisPass(renderGraph, pool, vis.objectBuffer, gbuffer.objectBuffer);
 
                 // visualize linear depth
-                AddLinearDepthVisPass(renderGraph, pool, scene.camera, vis.depthBuffer, gbuffer.depthBuffer);
+                AddLinearDepthVisPass(renderGraph, pool, &scene, vis.depthBuffer, gbuffer.depthBuffer);
 
                 // surfel grid vis
-                AddSurfelGridVisPass(renderGraph, pool, scene.camera, vis.surfelGridBuffer, gbuffer.depthBuffer);
+                AddSurfelGridVisPass(renderGraph, pool, &scene, vis.surfelGridBuffer, gbuffer.depthBuffer);
 
                 // surfel alloc vis
                 AddSurfelAllocVisPass(renderGraph, pool, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
@@ -135,11 +136,12 @@ int main() {
                 AddOverlayPass(renderGraph, colorBuffer, &gbuffer, &vis, &surfel, ui);
             }
         }
-        // renderGraph.Print();
         renderGraph.Execute();
 
+        #ifdef ENABLE_RAY_TRACING
         // update surfel aabbs
         surfel.UpdateAABB();
+        #endif
 
         input->Reset();
         frameId++;

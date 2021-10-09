@@ -37,7 +37,6 @@ private:
     SmartPtr<scene::Node> aabbNode;
     SmartPtr<scene::Mesh> aabbMesh;
     SmartPtr<accel::Builder> accelBuilder;
-    SmartPtr<Buffer> accelScratchBuffer;
 
     void InitSurfelBuffer();
     void InitSurfelDataBuffer();
@@ -70,7 +69,6 @@ void AddSurfelPass(RenderGraph& renderGraph,
                    GBuffer* gbuffer,
                    Visualize* visualize,
                    SurfelManager* surfel,
-                   DirectionalLight* light,
                    uint32_t frameId);
 
 #endif // SLIM_EXAMPLE_SURFEL_H

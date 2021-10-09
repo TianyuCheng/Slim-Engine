@@ -3,7 +3,12 @@
 
 #include "camera.h"
 
-layout(push_constant) uniform Camera {
+// camera information
+layout(set = 0, binding = 1) uniform Camera {
+    mat4 V;
+    mat4 P;
+    mat4 invVP; // inverse(P * V) for world position reconstruction
+    vec3 pos;
     float zNear;
     float zFar;
     float zFarRcp;

@@ -3,7 +3,6 @@
 
 void AddGBufferPass(RenderGraph& renderGraph,
                     AutoReleasePool& pool,
-                    Camera* camera,
                     GBuffer* gbuffer,
                     MainScene* scene) {
 
@@ -57,6 +56,7 @@ void AddGBufferPass(RenderGraph& renderGraph,
     gbufferPass->SetColor(gbuffer->normalBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     gbufferPass->SetColor(gbuffer->objectBuffer,   ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     gbufferPass->SetDepth(gbuffer->depthBuffer,    ClearValue(1.0f, 0));
+    gbufferPass->SetStorage(scene->cameraResource, RenderGraph::STORAGE_READ_ONLY);
 
     // execute
     gbufferPass->Execute([=](const RenderInfo& info) {
@@ -68,14 +68,9 @@ void AddGBufferPass(RenderGraph& renderGraph,
                 .SetViewport(info.renderFrame->GetExtent()));
         info.commandBuffer->BindPipeline(pipeline);
 
-        // prepare camera data
-        MeshRenderer::CameraData cameraData;
-        cameraData.view = camera->GetView();
-        cameraData.proj = camera->GetProjection();
-
         // bind camera uniform
         auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-        descriptor->SetUniformBuffer("Camera", info.renderFrame->RequestUniformBuffer(cameraData));
+        descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
         descriptor->SetStorageBuffer("Transforms", scene->transformBuffer);
         descriptor->SetSampledImages("Images", scene->images);
         descriptor->SetSamplers("Samplers", scene->samplers);

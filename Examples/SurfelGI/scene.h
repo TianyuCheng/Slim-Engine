@@ -13,6 +13,21 @@ struct ObjectProperties {
     uint32_t baseColorSamplerID;
 };
 
+struct LightInfo {
+    glm::vec4 direction;
+    glm::vec4 color;
+};
+
+struct CameraInfo {
+    glm::mat4 V;
+    glm::mat4 P;
+    glm::mat4 invVP;
+    glm::vec3 pos;
+    float zNear;
+    float zFar;
+    float zFarRcp;
+};
+
 class MainScene {
 public:
     MainScene(Device* device);
@@ -41,10 +56,31 @@ public:
         #endif
     }
 
+    void UpdateCamera(CommandBuffer* commandBuffer) {
+        CameraInfo info;
+        info.P = camera->GetProjection();
+        info.V = camera->GetView();
+        info.pos = camera->GetPosition();
+        info.invVP = glm::inverse(info.P * info.V);
+        info.zNear = GetNear();
+        info.zFar = GetFar();
+        info.zFarRcp = 1.0 / GetFar();
+        commandBuffer->CopyDataToBuffer(info, cameraBuffer);
+    }
+
+    void UpdateLight(CommandBuffer* commandBuffer) {
+        LightInfo info;
+        info.color = dirLight.color;
+        info.direction = dirLight.direction;
+        commandBuffer->CopyDataToBuffer(info, lightBuffer);
+    }
+
 private:
     void PrepareScene();
     void PrepareCamera();
     void PrepareTransformBuffer();
+    void PrepareLightBuffer();
+    void PrepareCameraBuffer();
 
 private:
     SmartPtr<Device>                  device;
@@ -55,10 +91,21 @@ public:
     SmartPtr<Flycam>                  camera;
     gltf::Model                       model;
 
+    // light
+    DirectionalLight                  dirLight;
+
     // other scene data
     SmartPtr<Buffer>                  transformBuffer;
     std::vector<Image*>               images;
     std::vector<Sampler*>             samplers;
+
+    SmartPtr<Buffer>                  cameraBuffer;
+    RenderGraph::Resource*            cameraResource;
+
+    SmartPtr<Buffer>                  lightBuffer;
+    RenderGraph::Resource*            lightResource;
 };
+
+void AddScenePreparePass(RenderGraph& renderGraph, MainScene* scene);
 
 #endif // SLIM_EXAMPLE_SCENE_H

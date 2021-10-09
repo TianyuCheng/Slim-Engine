@@ -15,6 +15,8 @@ layout(set = 0, binding = 1) uniform accelerationStructureEXT surfelAS;
 
 // camera information
 layout(set = 0, binding = 2) uniform Camera {
+    mat4 V;
+    mat4 P;
     mat4 invVP; // inverse(P * V) for world position reconstruction
     vec3 pos;
     float zNear;
@@ -85,8 +87,7 @@ void main() {
                 tMin,               // ray min range
                 rayDirection,       // ray direction
                 tMax,               // ray max range
-                0                   // payload (location = 0)
-                );
+                0);                 // payload (location = 0)
 
         irradiance += shadowHitPayload.occlusionFactor * dirLight.color;
     }
@@ -110,8 +111,7 @@ void main() {
                 tMin,               // ray min range
                 rayDirection,       // ray direction
                 tMax,               // ray max range
-                1                   // payload (location = 1)
-                );
+                1);                 // payload (location = 1)
         irradiance += surfelHitPayload.color;   // no light attenuation for now
     }
     #endif

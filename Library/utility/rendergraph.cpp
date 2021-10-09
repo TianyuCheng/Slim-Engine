@@ -1,12 +1,13 @@
-#include <numeric>
 #include <imgui.h>
 #include "core/debug.h"
 #include "core/vkutils.h"
 #include "utility/rendergraph.h"
 
-#define SLIM_DEBUG_RENDERGRAPH 0
-
 using namespace slim;
+
+RenderGraph::Resource::Resource(Buffer* buffer)
+    : buffer(buffer), retained(true) {
+}
 
 RenderGraph::Resource::Resource(GPUImage* image)
     : image(image), retained(true) {
@@ -21,13 +22,146 @@ RenderGraph::Resource::Resource(VkFormat format, VkExtent2D extent, VkSampleCoun
 }
 
 void RenderGraph::Resource::Allocate(RenderFrame* renderFrame) {
-    if (!image.get()) {
+    if (!image.get() && !buffer) {
         image = renderFrame->RequestGPUImage(format, extent, mipLevels, 1, samples, usages);
     }
 }
 
 void RenderGraph::Resource::Deallocate() {
     image.Reset();
+}
+
+void RenderGraph::Resource::ShaderReadBarrier(CommandBuffer* commandBuffer, RenderGraph::Pass* nextPass) {
+    image->layouts[0][0] = currentLayout;
+
+    // prepare layout transition
+    VkImageLayout srcLayout = image->layouts[0][0];
+    VkImageLayout dstLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    // prepare src stages
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (!currentPass) {
+        srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    } else {
+        if (currentPass->IsCompute()) {
+        srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        } else {
+            srcStageMask = IsDepthStencil(format)
+                         ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                         : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        }
+    }
+
+    // prepare dst stages
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (nextPass->IsCompute()) {
+        dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    } else {
+        dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    }
+
+    // transit dst image layout
+    PrepareLayoutTransition(commandBuffer,
+        image,
+        srcLayout, dstLayout,
+        srcStageMask, dstStageMask,
+        0, image->Layers(),
+        0, image->MipLevels());
+
+    // update next pass
+    currentPass = nextPass;
+    currentLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+}
+
+void RenderGraph::Resource::StorageBarrier(CommandBuffer* commandBuffer, RenderGraph::Pass* nextPass) {
+    if (buffer) {
+        StorageBufferBarrier(commandBuffer, nextPass);
+    } else {
+        StorageImageBarrier(commandBuffer, nextPass);
+    }
+}
+
+void RenderGraph::Resource::StorageImageBarrier(CommandBuffer* commandBuffer, RenderGraph::Pass* nextPass) {
+    image->layouts[0][0] = currentLayout;
+
+    // prepare layout transition
+    VkImageLayout srcLayout = image->layouts[0][0];
+    VkImageLayout dstLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    // prepare src stages
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (!currentPass) {
+        srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    } else if (currentPass->IsCompute()) {
+        srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    } else {
+        srcStageMask = IsDepthStencil(format)
+                     ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                     : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    }
+
+    // prepare dst stages
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (nextPass->IsCompute()) {
+        dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    } else {
+        dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    }
+
+    // transit dst image layout
+    PrepareLayoutTransition(commandBuffer,
+        image,
+        srcLayout, dstLayout,
+        srcStageMask, dstStageMask,
+        0, image->Layers(),
+        0, image->MipLevels());
+
+    // update next pass
+    currentPass = nextPass;
+    currentLayout = VK_IMAGE_LAYOUT_GENERAL;
+}
+
+void RenderGraph::Resource::StorageBufferBarrier(CommandBuffer* commandBuffer, RenderGraph::Pass* nextPass) {
+    Device* device = commandBuffer->GetDevice();
+
+    // prepare src stages
+    VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (!currentPass) {
+        srcStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    } else if (currentPass->IsCompute()) {
+        srcStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    } else {
+        srcStageMask = IsDepthStencil(format)
+                     ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
+                     : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    }
+
+    // prepare dst stages
+    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_NONE_KHR;
+    if (nextPass->IsCompute()) {
+        dstStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    } else {
+        dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+    }
+
+    VkBufferMemoryBarrier barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    barrier.pNext = nullptr;
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.buffer = *buffer;
+    barrier.offset = 0;
+    barrier.size = buffer->Size();
+    DeviceDispatch(vkCmdPipelineBarrier(
+        *commandBuffer,
+        srcStageMask, dstStageMask,
+        0,
+        0, nullptr,  // memory barriers
+        1, &barrier, // buffer memory barriers
+        0, nullptr   // image memory barriers
+    ));
 }
 
 RenderGraph::Subpass::Subpass(RenderGraph::Pass* parent) : parent(parent) {
@@ -120,10 +254,15 @@ void RenderGraph::Subpass::SetTexture(RenderGraph::Resource* resource) {
 void RenderGraph::Subpass::SetStorage(RenderGraph::Resource* resource, uint32_t usage) {
     uint32_t storageId = parent->AddStorage(resource);
     // a storage resource could both be read and written
-    if (usage & STORAGE_IMAGE_READ_BIT)  resource->readers.push_back(parent);
-    if (usage & STORAGE_IMAGE_WRITE_BIT) resource->writers.push_back(parent);
-    usedAsStorageImage.push_back(storageId);
-    resource->UseAsStorageImage();
+    if (usage & STORAGE_READ_BIT)  resource->readers.push_back(parent);
+    if (usage & STORAGE_WRITE_BIT) resource->writers.push_back(parent);
+
+    if (resource->GetBuffer()) {
+        usedAsStorageBuffer.push_back(storageId);
+    } else {
+        usedAsStorageImage.push_back(storageId);
+        resource->UseAsStorageImage();
+    }
 }
 
 void RenderGraph::Subpass::Execute(std::function<void(const RenderInfo& renderInfo)> callback) {
@@ -230,12 +369,6 @@ uint32_t RenderGraph::Pass::AddTexture(Resource* resource) {
 }
 
 uint32_t RenderGraph::Pass::AddStorage(Resource* resource) {
-    #ifndef NDEBUG
-    if (!compute) {
-        throw std::runtime_error("AddStorage should only be used for compute passes");
-    }
-    #endif
-
     // find the resource
     auto it = storageMap.find(resource);
     if (it == storageMap.end()) {
@@ -261,8 +394,20 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     for (auto& attachment : attachments) {
         attachment.resource->Allocate(renderFrame);
     }
+
+    // allocate storage images if necessary
     for (auto& storage : storages) {
         storage->Allocate(renderFrame);
+    }
+
+    // wait for texture resources
+    for (auto& texture : textures) {
+        texture->ShaderReadBarrier(commandBuffer, this);
+    }
+
+    // wait for storage resources
+    for (auto& storage : storages) {
+        storage->StorageBarrier(commandBuffer, this);
     }
 
     commandBuffer->BeginRegion(name);
@@ -294,58 +439,8 @@ void RenderGraph::Pass::Execute(CommandBuffer* commandBuffer) {
     }
 }
 
-void RenderGraph::Pass::TransitTextureLayout(RenderGraph::Resource* resource) {
-    resource->image->layouts[0][0] = resource->layout;
-    resource->layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    VkImageLayout srcLayout = resource->image->layouts[0][0];
-    VkImageLayout dstLayout = resource->layout;
-    VkPipelineStageFlags srcStageMask = IsDepthStencil(resource->format)
-                                      ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
-                                      : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage texture is used
-
-    // transit dst image layout
-    PrepareLayoutTransition(commandBuffer,
-        resource->image,
-        srcLayout, dstLayout,
-        srcStageMask, dstStageMask,
-        0, resource->image->Layers(),
-        0, resource->image->MipLevels());
-}
-
-void RenderGraph::Pass::TransitStorageLayout(RenderGraph::Resource* resource) {
-    resource->image->layouts[0][0] = resource->layout;
-    resource->layout = VK_IMAGE_LAYOUT_GENERAL;
-    VkImageLayout srcLayout = resource->image->layouts[0][0];
-    VkImageLayout dstLayout = resource->layout;
-    VkPipelineStageFlags srcStageMask = IsDepthStencil(resource->format)
-                                      ? VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT
-                                      : VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT; // missing the information which stage storage is used
-
-    // transit dst image layout
-    PrepareLayoutTransition(commandBuffer,
-        resource->image,
-        srcLayout, dstLayout,
-        srcStageMask, dstStageMask,
-        0, resource->image->Layers(),
-        0, resource->image->MipLevels());
-}
-
 void RenderGraph::Pass::ExecuteCompute(CommandBuffer* commandBuffer) {
     assert(useDefaultSubpass && "ComputePass only support the default subpass");
-
-    // texture layout transition
-    for (auto &id : defaultSubpass->usedAsTexture) {
-        TransitTextureLayout(textures[id]);
-    }
-
-    // storage layout transition
-    for (auto &id : defaultSubpass->usedAsStorageImage) {
-        TransitStorageLayout(storages[id]);
-    }
-
-    // TODO: add other types of resources which needs layout transition
 
     // execute compute callback
     RenderInfo info;
@@ -365,7 +460,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     auto inferLoadOp = [](const ResourceMetadata &attachment) -> VkAttachmentLoadOp {
         if (attachment.clearValue.has_value()) {
             return VK_ATTACHMENT_LOAD_OP_CLEAR;
-        } if (attachment.resource->layout == VK_IMAGE_LAYOUT_UNDEFINED) {
+        } if (attachment.resource->currentLayout == VK_IMAGE_LAYOUT_UNDEFINED) {
             return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         }
         return VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -400,11 +495,12 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
                 break;
             case ResourceType::PreserveAttachment:
                 // preserve attachment does not need to be specified in the framebuffer creation
-                // attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
                 break;
             case ResourceType::InputAttachment:
                 // input attachment does not need to be specified in the framebuffer creation
-                // attachmentId = renderPassDesc.AddAttachment(resource->format, resource->samples, load, store, load, store);
+                break;
+            case ResourceType::StorageBuffer:
+                // input attachment does not need to be specified in the framebuffer creation
                 break;
         }
         if (attachment.clearValue.has_value()) {
@@ -413,16 +509,6 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
             clearValues.push_back(ClearValue(1.0, 1.0, 1.0, 1.0));
         }
         attachmentIds.push_back(attachmentId);
-    }
-
-    // texture layout transition
-    for (auto &id : defaultSubpass->usedAsTexture) {
-        TransitTextureLayout(textures[id]);
-    }
-
-    // storage layout transition
-    for (auto &id : defaultSubpass->usedAsStorageImage) {
-        TransitStorageLayout(storages[id]);
     }
 
     // update render pass subpasses
@@ -436,45 +522,45 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
         SubpassDesc& subpassDesc = renderPassDesc.AddSubpass();
         for (uint32_t attachment : subpass->usedAsColorAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             subpassDesc.AddColorAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsColorResolveAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             subpassDesc.AddResolveAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsDepthAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddDepthAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsStencilAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddStencilAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsDepthStencilAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
             VkImageLayout finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
             subpassDesc.AddDepthStencilAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsInputAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
-            VkImageLayout initialLayout = attachments[attachment].resource->layout;
-            VkImageLayout finalLayout = attachments[attachment].resource->layout;
+            VkImageLayout initialLayout = attachments[attachment].resource->currentLayout;
+            VkImageLayout finalLayout = attachments[attachment].resource->currentLayout;
             subpassDesc.AddInputAttachment(attachmentId, initialLayout, finalLayout);
-            attachments[attachment].resource->layout = finalLayout;
+            attachments[attachment].resource->currentLayout = finalLayout;
         }
         for (uint32_t attachment : subpass->usedAsPreserveAttachment) {
             uint32_t attachmentId = attachmentIds[attachment];
@@ -508,7 +594,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     beginInfo.clearValueCount = clearValues.size();
     beginInfo.pClearValues = clearValues.data();
     beginInfo.pNext = nullptr;
-    DeviceDispatch(vkCmdBeginRenderPass(*commandBuffer, &beginInfo, VK_SUBPASS_CONTENTS_INLINE));
+    commandBuffer->BeginRenderPass(beginInfo);
 
     RenderInfo info;
     info.renderGraph = graph;
@@ -525,7 +611,7 @@ void RenderGraph::Pass::ExecuteGraphics(CommandBuffer* commandBuffer) {
     }
 
     // end render pass
-    DeviceDispatch(vkCmdEndRenderPass(*commandBuffer));
+    commandBuffer->EndRenderPass();
 }
 
 RenderGraph::RenderGraph(RenderFrame *frame)
@@ -557,6 +643,11 @@ RenderGraph::Pass* RenderGraph::CreateRenderPass(const std::string& name) {
 RenderGraph::Pass* RenderGraph::CreateComputePass(const std::string& name) {
     passes.push_back(SlimPtr<Pass>(name, this, true));
     return passes.back().get();
+}
+
+RenderGraph::Resource* RenderGraph::CreateResource(Buffer* buffer) {
+    resources.push_back(SlimPtr<Resource>(buffer));
+    return resources.back().get();
 }
 
 RenderGraph::Resource* RenderGraph::CreateResource(GPUImage* image) {
@@ -610,9 +701,6 @@ void RenderGraph::CompilePass(Pass* pass) {
     // any texture used by this pass should be retained
     for (auto &texture : pass->textures) CompileResource(texture);
     for (auto &storage : pass->storages) CompileResource(storage);
-
-    // adding this pass in a post-order
-    timeline.push_back(pass);
 }
 
 std::unordered_set<RenderGraph::Pass*> RenderGraph::FindPassDependencies(Pass* pass) {
@@ -641,173 +729,54 @@ void RenderGraph::Execute() {
     // For dependency synchronization, any draw pass that needs input from compute pass
     // would require separate command buffer;
 
-    CommandBuffer* lastGraphicsCommandBuffer = nullptr;
-    std::vector<CommandBuffer*> uniqueCommandBuffers = {};
+    CommandBuffer* commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_GRAPHICS_BIT);
+    commandBuffer->Begin();
+    commandBuffer->BeginRegion("RenderGraph");
 
-    #if SLIM_DEBUG_RENDERGRAPH
-    for (Pass* pass : timeline) {
-        auto dependencies = FindPassDependencies(pass);
-        std::cout << "Pass [" << pass->name << "] depends on" << std::endl;
-        for (auto& dep : dependencies) {
-            std::cout << " - " << dep->name << std::endl;
-        }
-    }
-    #endif
-
-    for (Pass* pass : timeline) {
-        // don't execute a pass if it is executed
-        // theoretically it should have been taken care of by Compile step
-        #ifndef NDEBUG
-        assert(!pass->visited);
-        assert(pass->retained);
-        #endif
-
-        // assume all dependencies should have been processed
-        auto dependencies = FindPassDependencies(pass);
-
-        // figure out semaphores to wait for
-        std::unordered_set<Semaphore*> waitSemaphores = {};
-        for (const auto& dep : dependencies) {
-            #ifndef NDEBUG
-            if (dep->signalSemaphore.get() == nullptr) {
-                std::cerr << "Pass[" << pass->name << "] detects a dependency from pass["
-                          << dep->name << "], but the dependency pass has a null signal semaphore"
-                          << std::endl;
-                throw std::runtime_error("[RenderGraph] internal error");
-            }
-            #endif
-            waitSemaphores.insert(dep->signalSemaphore);
-        }
-
-        if (pass->compute) {
-            // all compute passes use separate command buffer
-            pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
-            pass->signalSemaphore = renderFrame->RequestSemaphore();
-            pass->commandBuffer->Signal(pass->signalSemaphore);
-            for (auto& semaphore : waitSemaphores) {
-                pass->commandBuffer->Wait(semaphore, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-            }
-            pass->commandBuffer->Begin();
-            uniqueCommandBuffers.push_back(pass->commandBuffer);
-        } else {
-            bool newCommandBuffer = true;
-
-            // special case:
-            // when there is exactly one dependency, and the dependency is also a render pass,
-            // use the same command buffer as the last one
-            if (dependencies.size() == 1) {
-                auto& dep = *dependencies.begin();
-                if (!dep->compute) {
-                    newCommandBuffer = false;
-                    pass->commandBuffer = dep->commandBuffer;
-                    pass->signalSemaphore = dep->signalSemaphore;
-                }
-            }
-
-            // create a new command buffer
-            if (newCommandBuffer) {
-                pass->commandBuffer = renderFrame->RequestCommandBuffer(VK_QUEUE_COMPUTE_BIT);
-                pass->signalSemaphore = renderFrame->RequestSemaphore();
-                pass->commandBuffer->Signal(pass->signalSemaphore);
-                for (auto& semaphore : waitSemaphores) {
-                    pass->commandBuffer->Wait(semaphore, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT);
-                }
-                pass->commandBuffer->Begin();
-                lastGraphicsCommandBuffer = pass->commandBuffer;
-                uniqueCommandBuffers.push_back(pass->commandBuffer);
-            }
-        }
+    // execute
+    for (auto& pass : passes) {
+        // don't execute culled passes
+        if (!pass->retained) return;
 
         // execute the pass
-        pass->Execute(pass->commandBuffer);
+        pass->Execute(commandBuffer);
         pass->visited = true;
-
-        // debug info
-        #if SLIM_DEBUG_RENDERGRAPH
-        std::cout << "Pass: " << pass->name << std::endl;
-        std::cout << "Command Buffer: " << *pass->commandBuffer << std::endl;
-        std::cout << "Signal Semaphore: " << *pass->signalSemaphore << std::endl;
-        std::cout << "Dependencies: " << std::endl;
-        for (const auto& dep : dependencies) {
-            std::cout << "- " << dep->name << std::endl;
-        }
-        std::cout << "--------------------------------" << std::endl;
-        #endif
     }
 
-    #if SLIM_DEBUG_RENDERGRAPH
-    if (lastGraphicsCommandBuffer) {
-        std::cout << "* last graphics command buffer: " << *lastGraphicsCommandBuffer << std::endl;
-    }
-
-    for (Pass* pass : timeline) {
-        if (pass->commandBuffer != lastGraphicsCommandBuffer) {
-            auto info = pass->commandBuffer->GetSubmitInfo();
-            std::cout << "Pass Submit Info [Name] = " << pass->name << std::endl;
-            std::cout << "Wait Semaphore Count: " << info.waitSemaphoreCount << std::endl;
-            for (uint32_t i = 0; i < info.waitSemaphoreCount; i++) {
-                std::cout << " - " << info.pWaitSemaphores[i] << std::endl;
-            }
-            std::cout << "Signal Semaphore Count: " << info.signalSemaphoreCount << std::endl;
-            for (uint32_t i = 0; i < info.signalSemaphoreCount; i++) {
-                std::cout << " - " << info.pSignalSemaphores[i] << std::endl;
-            }
-        }
-    }
-    #endif
-
-    // adding a layout transition
-    if (lastGraphicsCommandBuffer) {
-        // present src layout transition
-        GPUImage* backBuffer = renderFrame->GetBackBuffer();
+    // present src layout transition
+    GPUImage* backBuffer = renderFrame->GetBackBuffer();
+    if (backBuffer) {
         VkImageLayout layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         for (const auto& resource : resources) {
             if (resource->image.get() == backBuffer) {
-                layout = resource->layout;
+                layout = resource->currentLayout;
                 break;
             }
         }
         backBuffer->layouts[0][0] = layout;
         if (renderFrame->Presentable()) {
-            lastGraphicsCommandBuffer->PrepareForPresentSrc(backBuffer);
+            commandBuffer->PrepareForPresentSrc(backBuffer);
         }
     }
 
-    // stop command buffer recording for all
-    for (auto& commandBuffer : uniqueCommandBuffers) {
-        commandBuffer->End();
-    }
-
-    // submit all command buffers (except for the last)
-    for (auto& commandBuffer : uniqueCommandBuffers) {
-        if (commandBuffer != lastGraphicsCommandBuffer) {
-            commandBuffer->Submit();
-        }
-    }
+    // stop command buffer recording
+    commandBuffer->EndRegion();
+    commandBuffer->End();
 
     // submit the last graphics command buffer for presentation
-    if (lastGraphicsCommandBuffer) {
-        if (renderFrame->Presentable()) {
-            renderFrame->Present(lastGraphicsCommandBuffer);
-        } else {
-            renderFrame->Draw(lastGraphicsCommandBuffer);
-        }
+    if (renderFrame->Presentable()) {
+        renderFrame->Present(commandBuffer);
+    } else {
+        renderFrame->Draw(commandBuffer);
     }
 }
 
 void RenderGraph::Visualize() {
     if (!compiled) Compile();
-
-    for (auto pass : timeline) {
-        ImGui::Text("Execute Pass: %s\n", pass->name.c_str());
-    }
+    // dothing for now
 }
 
 void RenderGraph::Print() {
     if (!compiled) Compile();
-
-    for (auto pass : timeline) {
-        std::cout << "Execute Pass: " << pass->name << std::endl;
-    }
-    std::cout << "---------------" << std::endl;
+    // dothing for now
 }

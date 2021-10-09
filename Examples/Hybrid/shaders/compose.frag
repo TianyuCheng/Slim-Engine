@@ -1,15 +1,15 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-// light information
-layout(push_constant) uniform DirectionalLight {
-    vec4 direction;
-    vec4 color;
-} dirLight;
-
 layout(set = 0, binding = 0) uniform sampler2D imageAlbedo;
 layout(set = 0, binding = 1) uniform sampler2D imageNormalShadow;
 layout(set = 0, binding = 2) uniform sampler2D imagePosition;
+
+// light information
+layout(set = 1, binding = 0) uniform DirectionalLight {
+    vec4 direction;
+    vec4 color;
+} dirLight;
 
 layout(location = 0) in vec2 inUV;
 

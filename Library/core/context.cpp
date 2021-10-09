@@ -162,6 +162,9 @@ ContextDesc& ContextDesc::EnableRayQuery() {
 }
 
 ContextDesc& ContextDesc::EnableBufferDeviceAddress() {
+    // add instance extension
+    instanceExtensions.insert(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+
     // add device extension
     deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 

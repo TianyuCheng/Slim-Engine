@@ -75,15 +75,9 @@ void AddObjectVisPass(RenderGraph& renderGraph,
 
 void AddLinearDepthVisPass(RenderGraph& renderGraph,
                            AutoReleasePool& pool,
-                           Camera* camera,
+                           MainScene* scene,
                            RenderGraph::Resource* targetBuffer,
                            RenderGraph::Resource* depthBuffer) {
-
-    struct CameraInfo {
-        float zNear;
-        float zFar;
-        float zFarRcp;
-    };
 
     // sampler
     static auto sampler = pool.FetchOrCreate(
@@ -117,8 +111,8 @@ void AddLinearDepthVisPass(RenderGraph& renderGraph,
         .SetCullMode(VK_CULL_MODE_BACK_BIT)
         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
         .SetPipelineLayout(PipelineLayoutDesc()
-            .AddPushConstant("Camera", Range { 0, sizeof(CameraInfo) }, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Depth",   SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding("Camera",  SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
         );
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -145,14 +139,8 @@ void AddLinearDepthVisPass(RenderGraph& renderGraph,
         // bind descriptor
         auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
         descriptor->SetTexture("Depth", depthBuffer->GetImage(), sampler);
+        descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-
-        // push constant
-        CameraInfo camInfo;
-        camInfo.zNear = camera->GetNear();
-        camInfo.zFar = camera->GetFar();
-        camInfo.zFarRcp = 1.0 / camInfo.zFar;
-        info.commandBuffer->PushConstants(pipeline->Layout(), "Camera", &camInfo);
 
         // draw
         info.commandBuffer->Draw(6, 1, 0, 0);
@@ -225,17 +213,9 @@ void AddSurfelAllocVisPass(RenderGraph& renderGraph,
 
 void AddSurfelGridVisPass(RenderGraph& renderGraph,
                           AutoReleasePool& pool,
-                          Camera* camera,
+                          MainScene* scene,
                           RenderGraph::Resource* targetBuffer,
                           RenderGraph::Resource* depthBuffer) {
-
-    struct CameraInfo {
-        glm::mat4 invVP;
-        glm::vec3 pos;
-        float zNear;
-        float zFar;
-        float zFarRcp;
-    };
 
     struct FrameInfo {
         glm::uvec2 size;
@@ -300,19 +280,9 @@ void AddSurfelGridVisPass(RenderGraph& renderGraph,
         // bind pipeline
         info.commandBuffer->BindPipeline(pipeline);
 
-        // prepare camera data
-        CameraInfo cameraData;
-        cameraData.invVP = glm::inverse(camera->GetProjection() * camera->GetView());
-        cameraData.pos = camera->GetPosition();
-        cameraData.zNear = camera->GetNear();
-        cameraData.zFar = camera->GetFar();
-        cameraData.zFarRcp = 1.0 / camera->GetFar();
-        auto cameraUniform = info.renderFrame->RequestUniformBuffer(cameraData);
-        cameraUniform->SetName("Camera Uniform");
-
         // bind descriptor
         auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-        descriptor->SetUniformBuffer("Camera", cameraUniform);
+        descriptor->SetUniformBuffer("Camera", scene->cameraBuffer);
         descriptor->SetTexture("Depth", depthBuffer->GetImage(), sampler);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 

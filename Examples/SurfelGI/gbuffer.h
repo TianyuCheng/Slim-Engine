@@ -17,7 +17,6 @@ struct GBuffer {
 
 void AddGBufferPass(RenderGraph& renderGraph,
                     AutoReleasePool& bundle,
-                    Camera* camera,
                     GBuffer* gbuffer,
                     MainScene* scene);
 

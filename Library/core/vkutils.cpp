@@ -416,7 +416,7 @@ namespace slim {
                 break;
             default:
                 std::cerr << "src layout: " << srcLayout << std::endl;
-                throw std::runtime_error("unimplemented image layout transition");
+                throw std::runtime_error("unimplemented image src layout transition");
         }
 
         switch (dstLayout) {
@@ -426,8 +426,18 @@ namespace slim {
             case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
                 dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
                 break;
-            default:
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
                 break;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                break;
+            default:
+                std::cerr << "dst layout: " << dstLayout << std::endl;
+                throw std::runtime_error("unimplemented image dst layout transition");
         }
 
         LayoutTransition(cmdbuffer, image,

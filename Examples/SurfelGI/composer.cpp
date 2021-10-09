@@ -4,7 +4,7 @@ void AddComposerPass(RenderGraph& renderGraph,
                      AutoReleasePool& pool,
                      RenderGraph::Resource* colorBuffer,
                      GBuffer* gbuffer,
-                     DirectionalLight* light) {
+                     MainScene* scene) {
 
     // sampler
     static auto sampler = pool.FetchOrCreate(
@@ -35,10 +35,10 @@ void AddComposerPass(RenderGraph& renderGraph,
         .SetCullMode(VK_CULL_MODE_BACK_BIT)
         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
         .SetPipelineLayout(PipelineLayoutDesc()
-            .AddPushConstant("DirectionalLight", Range { 0, sizeof(DirectionalLight) }, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Albedo",   SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Normal",   SetBinding { 0, 1 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Position", SetBinding { 0, 2 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding("Light",    SetBinding { 1, 0 }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_FRAGMENT_BIT)
         );
 
     // ------------------------------------------------------------------------------------------------------------------
@@ -50,9 +50,10 @@ void AddComposerPass(RenderGraph& renderGraph,
     auto composerPass = renderGraph.CreateRenderPass("composer");
     composerPass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     composerPass->SetTexture(gbuffer->albedoBuffer);
-    composerPass->SetTexture(gbuffer->normalBuffer);
     composerPass->SetTexture(gbuffer->positionBuffer);
+    composerPass->SetTexture(gbuffer->normalBuffer);
     composerPass->SetTexture(gbuffer->depthBuffer);
+    composerPass->SetStorage(scene->lightResource, RenderGraph::STORAGE_READ_BIT);
 
     // execute
     composerPass->Execute([=](const RenderInfo& info) {
@@ -70,8 +71,8 @@ void AddComposerPass(RenderGraph& renderGraph,
         descriptor->SetTexture("Albedo", gbuffer->albedoBuffer->GetImage(), sampler);
         descriptor->SetTexture("Normal", gbuffer->normalBuffer->GetImage(), sampler);
         descriptor->SetTexture("Position", gbuffer->positionBuffer->GetImage(), sampler);
+        descriptor->SetUniformBuffer("Light", scene->lightBuffer);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-        info.commandBuffer->PushConstants(pipeline->Layout(), "DirectionalLight", light);
 
         // draw
         info.commandBuffer->Draw(6, 1, 0, 0);

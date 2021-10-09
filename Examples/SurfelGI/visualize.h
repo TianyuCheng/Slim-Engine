@@ -2,6 +2,7 @@
 #define SLIM_EXAMPLE_VISUALIZE_H
 
 #include <slim/slim.hpp>
+#include "scene.h"
 
 using namespace slim;
 
@@ -20,7 +21,7 @@ void AddObjectVisPass(RenderGraph& renderGraph,
 
 void AddLinearDepthVisPass(RenderGraph& renderGraph,
                            AutoReleasePool& pool,
-                           Camera* camera,
+                           MainScene* scene,
                            RenderGraph::Resource* targetBuffer,
                            RenderGraph::Resource* depthBuffer);
 
@@ -31,7 +32,7 @@ void AddSurfelAllocVisPass(RenderGraph& renderGraph,
 
 void AddSurfelGridVisPass(RenderGraph& renderGraph,
                           AutoReleasePool& pool,
-                          Camera* camera,
+                          MainScene* scene,
                           RenderGraph::Resource* targetBuffer,
                           RenderGraph::Resource* depthBuffer);
 

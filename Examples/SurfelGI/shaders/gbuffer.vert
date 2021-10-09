@@ -10,6 +10,11 @@ layout(push_constant) uniform Object {
 layout(set = 0, binding = 0) uniform Camera {
     mat4 V;
     mat4 P;
+    mat4 invVP; // inverse(P * V) for world position reconstruction
+    vec3 pos;
+    float zNear;
+    float zFar;
+    float zFarRcp;
 } camera;
 
 layout(set = 0, binding = 1) buffer Transforms {

@@ -152,6 +152,7 @@ int main() {
     }
     sceneRoot->ApplyTransform();
     sceneBuilder->Build();
+    sceneBuilder->GetAccelBuilder()->GetTlas()->SetName("SceneTLAS");
 
     // prepare material buffer
     std::vector<RayTracingMaterial> materials;

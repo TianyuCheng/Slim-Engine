@@ -2,7 +2,10 @@
 
 MainScene::MainScene(Device* device) : device(device) {
     PrepareScene();
+    PrepareCamera();
     PrepareTransformBuffer();
+    PrepareLightBuffer();
+    PrepareCameraBuffer();
 }
 
 void MainScene::PrepareScene() {
@@ -28,6 +31,13 @@ void MainScene::PrepareScene() {
     for (auto& sampler : model.samplers) samplers.push_back(sampler);
 }
 
+void MainScene::PrepareCamera() {
+    // camera
+    camera = SlimPtr<Flycam>("camera");
+    camera->SetWalkSpeed(100.0f);
+    camera->LookAt(glm::vec3(3.0, 135.0, 0.0), glm::vec3(0.0, 135.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+}
+
 void MainScene::PrepareTransformBuffer() {
     // initialize transform data
     std::vector<glm::mat4> transforms;
@@ -48,5 +58,35 @@ void MainScene::PrepareTransformBuffer() {
     // copy transforms to buffer
     device->Execute([&](CommandBuffer* commandBuffer) {
         commandBuffer->CopyDataToBuffer(transforms, transformBuffer);
+    });
+}
+
+void MainScene::PrepareLightBuffer() {
+    dirLight = DirectionalLight {
+        glm::vec4(0.0, -1.0, 0.0, 0.0), // direction
+        glm::vec4(1.0, 1.0, 1.0, 1.0),  // light color
+    };
+
+    lightBuffer = SlimPtr<Buffer>(device, sizeof(LightInfo),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    lightBuffer->SetName("Light Buffer");
+}
+
+void MainScene::PrepareCameraBuffer() {
+    cameraBuffer = SlimPtr<Buffer>(device, sizeof(CameraInfo),
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    cameraBuffer->SetName("Camera Buffer");
+}
+
+void AddScenePreparePass(RenderGraph& renderGraph, MainScene* scene) {
+    // compile
+    auto preparePass = renderGraph.CreateComputePass("prepare");
+    preparePass->SetStorage(scene->lightResource, RenderGraph::STORAGE_WRITE_BIT);
+    preparePass->SetStorage(scene->cameraResource, RenderGraph::STORAGE_WRITE_BIT);
+
+    // execute
+    preparePass->Execute([=](const RenderInfo& info) {
+        scene->UpdateLight(info.commandBuffer);
+        scene->UpdateCamera(info.commandBuffer);
     });
 }
