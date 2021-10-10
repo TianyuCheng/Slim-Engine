@@ -26,7 +26,7 @@ uint32_t accel::Builder::AddMesh(scene::Mesh* mesh) {
     auto [vBuffer, vOffset] = mesh->GetVertexBuffer(0);
     auto [iBuffer, iOffset] = mesh->GetIndexBuffer();
     geometry->AddTriangles(iBuffer, iOffset, mesh->GetIndexCount(), mesh->GetIndexType(),
-                           vBuffer, vOffset, mesh->GetVertexStride());
+                           vBuffer, vOffset, mesh->GetVertexCount(), mesh->GetVertexStride());
 
     uint32_t index = blas.size();
     blas.push_back(geometry);
@@ -135,9 +135,10 @@ void accel::Builder::CreateTlas(CommandBuffer* commandBuffer,
     barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
     barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
     barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-    DeviceDispatch(vkCmdPipelineBarrier(*commandBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
-                                        &barrier, 0, nullptr, 0, nullptr));
+    DeviceDispatch(vkCmdPipelineBarrier(*commandBuffer,
+                                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                        0, 1, &barrier, 0, nullptr, 0, nullptr));
 }
 
 void accel::Builder::CreateBlas(CommandBuffer* commandBuffer,
@@ -174,9 +175,10 @@ void accel::Builder::CreateBlas(CommandBuffer* commandBuffer,
         barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
         barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
         barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-        DeviceDispatch(vkCmdPipelineBarrier(*commandBuffer, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                                            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1,
-                                            &barrier, 0, nullptr, 0, nullptr));
+        DeviceDispatch(vkCmdPipelineBarrier(*commandBuffer,
+                                            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                            VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                            0, 1, &barrier, 0, nullptr, 0, nullptr));
 
         // 4. update query pool
         if (queryPool) {

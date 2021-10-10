@@ -183,7 +183,7 @@ accel::Geometry::Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR 
 }
 
 void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
-                                   Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
+                                   Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexCount, uint64_t vertexStride,
                                    Buffer* transformBuffer, uint64_t transformOffset,
                                    VkFormat vertexFormat) {
 
@@ -197,9 +197,10 @@ void accel::Geometry::AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, ui
     geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
     geometry.geometry.triangles.indexType = indexType;
     geometry.geometry.triangles.indexData.deviceAddress = device->GetDeviceAddress(indexBuffer) + indexOffset;      // NOTE: This is probably wrong
-    geometry.geometry.triangles.vertexData.deviceAddress = device->GetDeviceAddress(vertexBuffer) + vertexOffset;   // NOTE: This is probably wrong
     geometry.geometry.triangles.vertexStride = vertexStride;
     geometry.geometry.triangles.vertexFormat = vertexFormat;
+    geometry.geometry.triangles.maxVertex = vertexCount;
+    geometry.geometry.triangles.vertexData.deviceAddress = device->GetDeviceAddress(vertexBuffer) + vertexOffset;   // NOTE: This is probably wrong
     geometry.geometry.triangles.transformData.deviceAddress = transformBuffer ? device->GetDeviceAddress(transformBuffer) : 0;
 
     // prepare geometry offsets

@@ -4,8 +4,12 @@
 #include "glsl.hpp"
 
 struct AABB {
-    vec3 minBound;
-    vec3 maxBound;
+    float minX;
+    float minY;
+    float minZ;
+    float maxX;
+    float maxY;
+    float maxZ;
 };
 
 #endif // SLIM_SHADER_LIB_AABB_H

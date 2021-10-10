@@ -70,7 +70,7 @@ namespace slim::accel {
     public:
         explicit Geometry(Device* device, VkAccelerationStructureCreateFlagsKHR createFlags = 0);
         void AddTriangles(Buffer* indexBuffer, uint64_t indexOffset, uint64_t indexCount, VkIndexType indexType,
-                          Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexStride,
+                          Buffer* vertexBuffer, uint64_t vertexOffset, uint64_t vertexCount, uint64_t vertexStride,
                           Buffer* transformBuffer = nullptr, uint64_t transformOffset = 0,
                           VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT);
         void AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);

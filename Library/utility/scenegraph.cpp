@@ -194,6 +194,7 @@ void scene::Builder::AddAABBs(const BoundingBox& aaBox, uint32_t count) {
 VkBufferUsageFlags scene::Builder::GetCommonBufferUsages() const {
     VkBufferUsageFlags commonBufferUsageFlags = 0;
     if (accelBuilder) {
+        commonBufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
         commonBufferUsageFlags |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
         commonBufferUsageFlags |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
     }

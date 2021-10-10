@@ -195,9 +195,9 @@ void Device::InitMemoryAllocator() {
     allocatorInfo.pVulkanFunctions = (const VmaVulkanFunctions*) &vulkanFunctions;
 
     // enable buffer device address capability for vma allocator
-    if (context->GetDescription().deviceFeatures.bufferDeviceAddress) {
+    // if (context->GetDescription().deviceFeatures.bufferDeviceAddress) {
         allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    }
+    // }
 
     ErrorCheck(vmaCreateAllocator(&allocatorInfo, &allocator), "create vma allocator");
 }

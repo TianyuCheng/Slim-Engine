@@ -12,16 +12,12 @@
 
 using namespace slim;
 
-template <typename T>
-void AddToFeatures(VkPhysicalDeviceFeatures2* features, T* object) {
+// #define SLIM_USE_VK_FEATURES
+
+template <typename T1, typename T2>
+void AddToFeatures(T1* features, T2* object) {
     object->pNext = features->pNext;
     features->pNext = object;
-}
-
-template <typename T>
-void AddToProperties(VkPhysicalDeviceProperties2* properties, T* object) {
-    object->pNext = properties->pNext;
-    properties->pNext = object;
 }
 
 ContextDesc::ContextDesc() {
@@ -29,6 +25,21 @@ ContextDesc::ContextDesc() {
     features.reset(new VkPhysicalDeviceFeatures2{ });
     features->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features->pNext = nullptr;
+
+    #ifdef SLIM_USE_VK_FEATURES
+    // initialize vulkan 1.1 features
+    vk11features.reset(new VkPhysicalDeviceVulkan11Features());
+    vk11features->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+    vk11features->pNext = nullptr;
+    AddToFeatures(features.get(), vk11features.get());
+
+    // initialize vulkan 1.2 features
+    vk12features.reset(new VkPhysicalDeviceVulkan12Features());
+    vk12features->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vk12features->pNext = nullptr;
+    AddToFeatures(features.get(), vk12features.get());
+    #endif
+
     // debug extensions
     debugExtensions.insert(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
 }
@@ -72,6 +83,9 @@ ContextDesc& ContextDesc::EnableNonSolidPolygonMode() {
 }
 
 ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
+    #ifdef SLIM_USE_VK_FEATURES
+    vk12features->separateDepthStencilLayouts = VK_TRUE;
+    #else
     // enable separate depth stencil layout
     if (!deviceFeatures.separateDepthStencilLayout.get()) {
         deviceFeatures.separateDepthStencilLayout.reset(new VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures { });
@@ -80,10 +94,18 @@ ContextDesc& ContextDesc::EnableSeparateDepthStencilLayout() {
         deviceFeatures.separateDepthStencilLayout->pNext = nullptr;
         AddToFeatures(features.get(), deviceFeatures.separateDepthStencilLayout.get());
     }
+    #endif
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableDescriptorIndexing() {
+    #ifdef SLIM_USE_VK_FEATURES
+    vk12features->descriptorIndexing                        = VK_TRUE;
+    vk12features->shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+    vk12features->runtimeDescriptorArray                    = VK_TRUE;
+    vk12features->descriptorBindingVariableDescriptorCount  = VK_TRUE;
+    vk12features->descriptorBindingPartiallyBound           = VK_TRUE;
+    #else
     // add instance extensions
     instanceExtensions.insert(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
@@ -102,16 +124,17 @@ ContextDesc& ContextDesc::EnableDescriptorIndexing() {
         deviceFeatures.descriptorIndexing->pNext = nullptr;
         AddToFeatures(features.get(), deviceFeatures.descriptorIndexing.get());
     }
+    #endif
     return *this;
 }
 
 ContextDesc& ContextDesc::EnableRayTracing() {
     // adding required device extensions
-    deviceExtensions.insert(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
-    deviceExtensions.insert(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
     deviceExtensions.insert(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+    deviceExtensions.insert(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
 
     // adding acceleration structure feature
     if (!deviceFeatures.accelerationStructure.get()) {
@@ -132,6 +155,9 @@ ContextDesc& ContextDesc::EnableRayTracing() {
         AddToFeatures(features.get(), deviceFeatures.rayTracingPipeline.get());
     }
 
+    #ifdef SLIM_USE_VK_FEATURES
+    vk12features->hostQueryReset = VK_TRUE;
+    #else
     // adding host query reset features
     if (!deviceFeatures.hostQueryReset.get()) {
         deviceFeatures.hostQueryReset.reset(new VkPhysicalDeviceHostQueryResetFeatures { });
@@ -140,7 +166,7 @@ ContextDesc& ContextDesc::EnableRayTracing() {
         deviceFeatures.hostQueryReset->pNext = nullptr;
         AddToFeatures(features.get(), deviceFeatures.hostQueryReset.get());
     }
-
+    #endif
     return *this;
 }
 
@@ -165,16 +191,18 @@ ContextDesc& ContextDesc::EnableBufferDeviceAddress() {
     // add instance extension
     instanceExtensions.insert(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
-    // add device extension
-    deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
-
+    #ifdef SLIM_USE_VK_FEATURES
+    vk12features->bufferDeviceAddress = VK_TRUE;
+    #else
     // adding buffer device address features
+    deviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
     if (!deviceFeatures.bufferDeviceAddress.get()) {
         deviceFeatures.bufferDeviceAddress.reset(new VkPhysicalDeviceBufferDeviceAddressFeatures { });
         deviceFeatures.bufferDeviceAddress->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
         deviceFeatures.bufferDeviceAddress->bufferDeviceAddress = VK_TRUE;
         AddToFeatures(features.get(), deviceFeatures.bufferDeviceAddress.get());
     }
+    #endif
 
     return *this;
 }

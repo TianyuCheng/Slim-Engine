@@ -15,6 +15,9 @@ namespace slim {
     class Device;
     class Context;
 
+    enum class VulkanVersion {
+    };
+
     // ContextDesc should hold the data for all configurations needed for context.
     // When context is initialized, nothing should be changeable.
     class ContextDesc final {
@@ -44,15 +47,9 @@ namespace slim {
         ContextDesc& EnableMultiDraw();
 
         // allow finer-grain tuning by users
-        VkPhysicalDeviceFeatures& GetDeviceFeatures() {
-            return features->features;
-        }
-        VkPhysicalDeviceDescriptorIndexingFeatures& GetDescriptorIndexingFeatures() {
-            return *deviceFeatures.descriptorIndexing;
-        }
-        VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures& GetSeparateDepthStencilLayoutFeatures() {
-            return *deviceFeatures.separateDepthStencilLayout;
-        }
+        VkPhysicalDeviceFeatures&         GetVulkan10Features() { return features->features; }
+        VkPhysicalDeviceVulkan11Features& GetVulkan11Features() { return *vk11features;      }
+        VkPhysicalDeviceVulkan12Features& GetVulkan12Features() { return *vk12features;      }
 
     private:
         void PrepareForGlfw();
@@ -70,6 +67,8 @@ namespace slim {
         // physical device features
         std::shared_ptr<VkPhysicalDeviceFeatures2> features = {};
         std::shared_ptr<VkPhysicalDeviceProperties2> properties = {};
+        std::shared_ptr<VkPhysicalDeviceVulkan11Features> vk11features = {};
+        std::shared_ptr<VkPhysicalDeviceVulkan12Features> vk12features = {};
         struct {
             std::shared_ptr<VkPhysicalDeviceSeparateDepthStencilLayoutsFeatures> separateDepthStencilLayout;
             std::shared_ptr<VkPhysicalDeviceDescriptorIndexingFeatures> descriptorIndexing;
