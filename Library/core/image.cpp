@@ -280,7 +280,7 @@ VkImageView Image::AsDepthStencilBuffer() const {
 
 VkImageView Image::AsAutomaticView() const {
     bool isDepthOnly = IsDepthOnly(GetFormat());
-    bool isDepthStencil = IsDepthOnly(GetFormat());
+    bool isDepthStencil = IsDepthStencil(GetFormat());
 
     if (isDepthOnly) {
         return AsDepthBuffer();

@@ -1,15 +1,125 @@
 #include <slim/slim.hpp>
-#include "config.h"
-#include "scene.h"
-#include "surfel.h"
-#include "gbuffer.h"
-#include "visualize.h"
-#include "composer.h"
-#include "overlay.h"
-
 using namespace slim;
 
+#include "config.h"
+#include "scene.h"
+#include "render.h"
+#include "update.h"
+#include "debug.h"
+#include "gbuffer.h"
+#include "overlay.h"
+
+int3 compute_surfel_grid(const CameraInfo &cam, const vec3& worldPos) {
+    vec3 grid = (worldPos / SURFEL_GRID_SIZE) - floor(cam.position / SURFEL_GRID_SIZE);
+
+    int3 innerGrid = int3(floor(grid));
+    int3 innerBound = int3(SURFEL_GRID_INNER_DIMS.x / 2,
+                           SURFEL_GRID_INNER_DIMS.y / 2,
+                           SURFEL_GRID_INNER_DIMS.z / 2);
+    // std::cout << "inner bound: " << glm::to_string(innerGrid) << std::endl;
+    // std::cout << "inner bound: " << glm::to_string(innerBound) << std::endl;
+    glm::bvec3 valid = lessThanEqual(abs(innerGrid), innerBound);
+    if (all(valid)) {
+        // std::cout << "in linear grids" << std::endl;
+        return innerGrid;
+    }
+
+    float maxDimValue = std::max(std::max(abs(grid.x), abs(grid.y)), abs(grid.z));
+
+    // if (maxDimValue == abs(grid.z)) {
+    //     if (grid.z > 0) {
+    //         vec4 tmp0 = cam.surfelGridFrustumPosX * vec4(worldPos, 1.0);
+    //         vec3 tmp1 = vec3(tmp0) / tmp0.w;
+    //         tmp1.z = tmp1.z * 0.5 + 0.5;
+    //         int3 tmp2 = int3(floor(tmp1 * vec3(SURFEL_GRID_OUTER_DIMS)));
+    //         // std::cout << "in non-linear grids + Z" << std::endl;
+    //         // std::cout << "tmp1: " << glm::to_string(tmp1) << std::endl;
+    //         // std::cout << "depth: " << (tmp1.z * 0.5 + 0.5) << std::endl;
+    //         // std::cout << "tmp2: " << glm::to_string(tmp2) << std::endl;
+    //         return tmp2 + int3(0, 0, SURFEL_GRID_INNER_DIMS.x / 2);
+    //     } else {
+    //         vec4 tmp0 = cam.surfelGridFrustumNegX * vec4(worldPos, 1.0);
+    //         vec3 tmp1 = vec3(tmp0) / tmp0.w;
+    //         tmp1.z = tmp1.z * 0.5 + 0.5;
+    //         int3 tmp2 = int3(floor(tmp1 * vec3(SURFEL_GRID_OUTER_DIMS)));
+    //         // std::cout << "in non-linear grids - Z" << std::endl;
+    //         // std::cout << "tmp1: " << glm::to_string(tmp1) << std::endl;
+    //         // std::cout << "depth: " << (tmp1.z * 0.5 + 0.5) << std::endl;
+    //         // std::cout << "tmp2: " << glm::to_string(tmp2) << std::endl;
+    //         return -tmp2 - int3(0, 0, SURFEL_GRID_INNER_DIMS.x / 2);
+    //     }
+    // }
+
+    if (maxDimValue == abs(grid.z)) {
+        if (grid.z > 0) {
+            vec4 tmp0 = cam.surfelGridFrustumPosX * vec4(worldPos, 1.0);
+            vec3 tmp1 = vec3(tmp0) / tmp0.w;
+            // tmp1.z = tmp1.z * 0.5 + 0.5;
+            int3 tmp2 = int3(floor(tmp1 * vec3(SURFEL_GRID_OUTER_DIMS)));
+            // std::cout << "in non-linear grids + Z" << std::endl;
+            // std::cout << "tmp1: " << glm::to_string(tmp1) << std::endl;
+            // std::cout << "depth: " << (tmp1.z * 0.5 + 0.5) << std::endl;
+            // std::cout << "tmp2: " << glm::to_string(tmp2) << std::endl;
+            return tmp2 + int3(0, 0, SURFEL_GRID_INNER_DIMS.x / 2);
+        } else {
+            vec4 tmp0 = cam.surfelGridFrustumNegX * vec4(worldPos, 1.0);
+            vec3 tmp1 = vec3(tmp0) / tmp0.w;
+            // tmp1.z = tmp1.z * 0.5 + 0.5;
+            int3 tmp2 = int3(floor(tmp1 * vec3(SURFEL_GRID_OUTER_DIMS)));
+            // std::cout << "in non-linear grids - Z" << std::endl;
+            // std::cout << "tmp1: " << glm::to_string(tmp1) << std::endl;
+            // std::cout << "depth: " << (tmp1.z * 0.5 + 0.5) << std::endl;
+            // std::cout << "tmp2: " << glm::to_string(tmp2) << std::endl;
+            return -tmp2 - int3(0, 0, SURFEL_GRID_INNER_DIMS.x / 2);
+        }
+    }
+
+    return int3(SURFEL_GRID_DIMS);
+}
+
 int main() {
+
+#if 0
+    auto camera = Camera("test");
+    camera.LookAt(glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, 1.0, 0.0));
+    camera.Perspective(1.05, 960.0 / 720.0, 0.1, 3000);
+
+    CameraInfo cameraInfo = {};
+    cameraInfo.P = camera.GetProjection();
+    cameraInfo.V = camera.GetView();
+    cameraInfo.invVP = glm::inverse(cameraInfo.P * cameraInfo.V);
+    cameraInfo.position = camera.GetPosition();
+    cameraInfo.zNear = camera.GetNear();
+    cameraInfo.zFar = camera.GetFar();
+    cameraInfo.zFarRcp = 1.0f / camera.GetFar();
+
+    glm::mat4 xform = mat4(1.0);
+    xform[2][2] = 0.5;
+    xform[3][2] = 0.5;
+
+    // transform for non-linear surfel grid transform
+    float x = (SURFEL_GRID_INNER_DIMS.x / 2.0);
+    float y = (SURFEL_GRID_INNER_DIMS.y / 2.0);
+    float z = (SURFEL_GRID_INNER_DIMS.z / 2.0);
+    float zFar = cameraInfo.zFar;
+    cameraInfo.surfelGridFrustumPosX = xform * glm::frustum(-x, x, -y, y, z, zFar)
+                                     * glm::lookAt(camera.GetPosition(),
+                                                   camera.GetPosition() + glm::vec3(0.0, 0.0, 1.0),
+                                                   glm::vec3(0.0, 1.0, 0.0));
+    cameraInfo.surfelGridFrustumNegX = xform * glm::frustum(-x, x, -y, y, z, zFar)
+                                     * glm::lookAt(camera.GetPosition(),
+                                                   camera.GetPosition() + glm::vec3(0.0, 0.0, -1.0),
+                                                   glm::vec3(0.0, 1.0, 0.0));
+
+    for (int i = -10; i <= 10; i++) {
+        vec3 worldPos = vec3(0.0, 0.0, 0.0 + 0.5 * i);
+        std::cout << "world pos: " << glm::to_string(worldPos) << std::endl;
+        std::cout << "grid  pos: " << glm::to_string(compute_surfel_grid(cameraInfo, worldPos)) << std::endl;
+        std::cout << "-----------" << std::endl;
+    }
+#endif
+
+#if 1
     slim::Initialize();
 
     // create a slim device
@@ -21,12 +131,9 @@ int main() {
             .EnableValidation(true)
             .EnableGLFW(true)
             .EnableDescriptorIndexing()
-            .EnableMultiDraw()
-            .EnableShaderInt64()
-            #ifdef ENABLE_RAY_TRACING
             .EnableBufferDeviceAddress()
+            .EnableShaderInt64()
             .EnableRayTracing()
-            #endif
     );
 
     // create a slim device
@@ -36,27 +143,30 @@ int main() {
     auto window = SlimPtr<Window>(
         device,
         WindowDesc()
-            .SetResolution(640, 480)
+            .SetResolution(960, 720)
             .SetResizable(true)
-            .SetTitle("SurfelGI")
+            .SetTitle("Surfel GI")
             .EnableFPS(true)
     );
 
-    // ui and input control
-    auto ui = SlimPtr<DearImGui>(device, window);
+    // create ui handle
+    auto ui = SlimPtr<DearImGui>(device, window, []() {
+        DearImGui::EnableDocking();
+        DearImGui::EnableMultiview();
+    });
+
+    // input control
     auto input = SlimPtr<Input>(window);
     auto time = SlimPtr<Time>();
 
+    // resources
+    auto pool = AutoReleasePool(device);
+
     // scene
-    auto scene = MainScene(device);
+    auto scene = Scene(device);
 
-    // surfel
-    auto surfel = SurfelManager(device);
-
-    // resource pool
-    AutoReleasePool pool(device);
-
-    int frameId = 0;
+    // build ui dockspace
+    BuildOverlayUI(ui);
 
     // render
     while (window->IsRunning()) {
@@ -66,7 +176,7 @@ int main() {
         auto frame = window->AcquireNext();
 
         // configure camera
-        scene.camera->Perspective(1.05, frame->GetAspectRatio(), scene.GetNear(), scene.GetFar());
+        scene.camera->Perspective(1.05, frame->GetAspectRatio(), scene.Near(), scene.Far());
         scene.camera->SetExtent(frame->GetExtent());
         scene.camera->Update(input, time);
 
@@ -74,79 +184,64 @@ int main() {
         time->Update();
 
         // rendergraph-based design
-        RenderGraph renderGraph(frame);
+        RenderGraph graph(frame);
         {
-            VkExtent2D frameExtent = frame->GetExtent();
+            auto backBuffer             = graph.CreateResource(frame->GetBackBuffer());
 
-            VkExtent2D barExtent = frameExtent;
-            barExtent.height = 20;
-
-            auto colorBuffer       = renderGraph.CreateResource(frame->GetBackBuffer());
-
-            // scene resources
-            scene.lightResource   = renderGraph.CreateResource(scene.lightBuffer);
-            scene.cameraResource   = renderGraph.CreateResource(scene.cameraBuffer);
-
-            // surfel resources
-            surfel.surfelCovBuffer = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
+            render::SceneData sceneData = {};
+            sceneData.camera            = graph.CreateResource(scene.cameraBuffer);
+            sceneData.lights            = graph.CreateResource(scene.lightBuffer);
+            sceneData.frame             = graph.CreateResource(scene.frameInfoBuffer);
 
             // gbuffer resources
-            GBuffer gbuffer = {};
-            gbuffer.albedoBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.normalBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_SNORM,      VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.positionBuffer = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.objectBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R32_UINT,            VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.depthBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_D32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
+            render::GBuffer gbuffer     = {};
+            gbuffer.albedo              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.normal              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
 
-            // debug resources
-            Visualize vis = {};
-            vis.objectBuffer       = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.depthBuffer        = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.surfelCovBuffer    = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.surfelGridBuffer   = renderGraph.CreateResource(frameExtent, VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
-            vis.surfelAllocBuffer  = renderGraph.CreateResource(barExtent,   VK_FORMAT_R8G8B8A8_UNORM,      VK_SAMPLE_COUNT_1_BIT);
+            // surfel resources
+            render::Surfel surfel       = {};
+            surfel.surfelBuffer         = graph.CreateResource(scene.surfelBuffer);
+            surfel.surfelLiveBuffer     = graph.CreateResource(scene.surfelLiveBuffer);
+            surfel.surfelFreeBuffer     = graph.CreateResource(scene.surfelFreeBuffer);
+            surfel.surfelDataBuffer     = graph.CreateResource(scene.surfelDataBuffer);
+            surfel.surfelGridBuffer     = graph.CreateResource(scene.surfelGridBuffer);
+            surfel.surfelCellBuffer     = graph.CreateResource(scene.surfelCellBuffer);
+            surfel.surfelStatBuffer     = graph.CreateResource(scene.surfelStatBuffer);
+            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
 
-            // prepare
-            AddScenePreparePass(renderGraph, &scene);
+            // visualize resources
+            render::Debug debug         = {};
+            debug.depth                 = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
+            debug.object                = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelGrid            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelDebug           = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelRayBudget       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelAllocation      = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
 
-            // draw gbuffer
-            AddGBufferPass(renderGraph, pool, &gbuffer, &scene);
+            AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
 
-            // spawn surfels based on iterative hole filling algorithm
-            AddSurfelPass(renderGraph, pool, &scene, &gbuffer, &vis, &surfel, frameId);
+            #ifdef ENABLE_GBUFFER_VISUALIZATION
+            AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            AddObjectVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            #endif
 
-            // compose
-            AddComposerPass(renderGraph, pool, colorBuffer, &gbuffer, &scene);
+            #ifdef ENABLE_GRID_VISUALIZATION
+            AddGridVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            #endif
 
-            // debug and ui passes
-            if (1) {
-                // visualize object ID
-                AddObjectVisPass(renderGraph, pool, vis.objectBuffer, gbuffer.objectBuffer);
-
-                // visualize linear depth
-                AddLinearDepthVisPass(renderGraph, pool, &scene, vis.depthBuffer, gbuffer.depthBuffer);
-
-                // surfel grid vis
-                AddSurfelGridVisPass(renderGraph, pool, &scene, vis.surfelGridBuffer, gbuffer.depthBuffer);
-
-                // surfel alloc vis
-                AddSurfelAllocVisPass(renderGraph, pool, surfel.surfelStatBuffer, vis.surfelAllocBuffer);
-
-                // overlay
-                AddOverlayPass(renderGraph, colorBuffer, &gbuffer, &vis, &surfel, ui);
-            }
+            // ui pass
+            AddOverlayPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, ui, backBuffer);
         }
-        renderGraph.Execute();
+        graph.Execute();
 
-        #ifdef ENABLE_RAY_TRACING
-        // update surfel aabbs
-        surfel.UpdateAABB();
-        #endif
-
+        // input reset
         input->Reset();
-        frameId++;
     }
 
     device->WaitIdle();
+#endif
     return EXIT_SUCCESS;
 }

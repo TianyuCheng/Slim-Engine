@@ -71,7 +71,13 @@ PipelineLayout::PipelineLayout(Device *device, const PipelineLayoutDesc &desc) :
 void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings) {
     hashValue = 0x0;
 
-    std::vector<VkDescriptorSetLayout> descriptorSetLayoutHandles = {};
+    uint32_t maxSet = 0;
+    for (auto &kv : bindings) {
+        maxSet = std::max(kv.first, maxSet);
+    }
+
+    descriptorSetLayouts.resize(maxSet + 1);
+    std::vector<VkDescriptorSetLayout> descriptorSetLayoutHandles(maxSet + 1);
 
     // iteratively create descriptor set layouts
     for (auto &kv : bindings) {
@@ -81,6 +87,7 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
 
         bool needDescriptorFlags = false;
 
+        uint32_t setIndex = kv.first;
         const std::vector<DescriptorSetLayoutBinding>& setBindings = kv.second;
 
         // prepare descriptor set layout
@@ -121,13 +128,12 @@ void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t
                 "create descriptor set layout");
 
         // create a set layout from device
-        descriptorSetLayoutHandles.push_back(layout);
-        descriptorSetLayouts.push_back(DescriptorSetLayout {
+        descriptorSetLayoutHandles[setIndex] = layout;
+        descriptorSetLayouts[setIndex] = DescriptorSetLayout {
             layout, setBindings
-        });
+        };
 
         // create a mapping from resource name to descriptor set layout and binding
-        uint32_t setIndex = descriptorSetLayouts.size() - 1;
         for (uint32_t bindingIndex = 0; bindingIndex < setBindings.size(); bindingIndex++) {
             this->bindings.insert(std::make_pair(
                     setBindings[bindingIndex].name,

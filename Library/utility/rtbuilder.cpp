@@ -43,6 +43,14 @@ uint32_t accel::Builder::AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t 
     return index;
 }
 
+void accel::Builder::ResetTlas() {
+    tlas = nullptr;
+}
+
+void accel::Builder::ResetBlas() {
+    blas.clear();
+}
+
 void accel::Builder::BuildTlas() {
     // prepare acceleration structure input
     tlas->Prepare(false);   // build mode
@@ -115,6 +123,24 @@ void accel::Builder::BuildBlas() {
         } // end of batch size or end of inputs
 
     } // end of inputs for loop
+}
+
+void accel::Builder::BuildBlas(uint32_t index) {
+    auto as = blas[index];
+    as->Prepare(false);
+
+    uint32_t maxScratchSize = as->sizeInfo.buildScratchSize;
+
+    // scratch buffer
+    VmaMemoryUsage memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY;
+    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    auto scratchBuffer = SlimPtr<Buffer>(device, maxScratchSize, bufferUsage, memoryUsage);
+    VkDeviceAddress scratchAddress = device->GetDeviceAddress(scratchBuffer);
+
+    // build blas
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        CreateBlas(commandBuffer, { index }, scratchAddress, VK_NULL_HANDLE);
+    });
 }
 
 void accel::Builder::CreateTlas(CommandBuffer* commandBuffer,

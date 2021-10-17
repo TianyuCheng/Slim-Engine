@@ -2,18 +2,22 @@
 #define SLIM_EXAMPLE_OVERLAY_H
 
 #include <slim/slim.hpp>
-#include "surfel.h"
-#include "gbuffer.h"
-#include "visualize.h"
-
 using namespace slim;
 
-void AddOverlayPass(RenderGraph& renderGraph,
-                    RenderGraph::Resource* colorBuffer,
-                    GBuffer* gbuffer,
-                    Visualize* visualize,
-                    SurfelManager* surfel,
-                    DearImGui* ui);
+#include "render.h"
 
+class Scene;
 
-#endif // SLIM_EXAMPLE_OVERLAY_H
+void BuildOverlayUI(DearImGui* ui);
+
+void AddOverlayPass(RenderGraph&           graph,
+                    AutoReleasePool&       pool,
+                    render::GBuffer*       gbuffer,
+                    render::SceneData*     sceneData,
+                    render::Surfel*        surfel,
+                    render::Debug*         debug,
+                    Scene*                 scene,
+                    DearImGui*             ui,
+                    RenderGraph::Resource* colorAttachment);
+
+#endif // SLIM_EXAMPLE_DEBUG_H

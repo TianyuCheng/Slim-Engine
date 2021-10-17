@@ -116,6 +116,7 @@ namespace slim::scene {
         Device*         GetDevice()       const { return device;       }
         accel::Builder* GetAccelBuilder() const { return accelBuilder; }
         Buffer*         GetAABBsBuffer()  const { return aabbsBuffer;  }
+        uint32_t        GetAABBsIndex()   const { return aabbsIndex;   }
 
         template <typename T>
         void ForEachNode(std::vector<T>& data, std::function<void(T&, Node*)> callback) {
@@ -183,6 +184,7 @@ namespace slim::scene {
         SmartPtr<accel::Builder> accelBuilder;
 
         // Experimental: adding bounding box support for procedural generation
+        uint32_t                        aabbsIndex;
         SmartPtr<Node>                  aabbsNode;
         SmartPtr<Buffer>                aabbsBuffer;
         SmartPtr<Mesh>                  aabbsMesh;

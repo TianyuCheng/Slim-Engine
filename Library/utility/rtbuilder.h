@@ -23,8 +23,12 @@ namespace slim::accel {
         uint32_t AddAABBs(Buffer* aabbsBuffer, uint32_t count, uint32_t stride);
         void     AddNode(scene::Node* node, uint32_t sbtRecordOffset = 0, uint32_t mask = 0xff);
 
+        void ResetTlas();
+        void ResetBlas();
+
         void BuildTlas();
         void BuildBlas();
+        void BuildBlas(uint32_t index);
 
         AccelStruct* GetTlas()               const { return tlas->accel;        }
         AccelStruct* GetBlas(uint32_t index) const { return blas[index]->accel; }

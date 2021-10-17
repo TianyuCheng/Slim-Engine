@@ -1,49 +1,98 @@
+#include "config.h"
+#include "scene.h"
 #include "overlay.h"
 
-void AddOverlayPass(RenderGraph& renderGraph,
-                    RenderGraph::Resource* colorBuffer,
-                    GBuffer* gbuffer,
-                    Visualize* visualize,
-                    SurfelManager* surfel,
-                    DearImGui* ui) {
+void BuildOverlayUI(DearImGui *ui) {
+    ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+    ui->Begin();
+    {
+        ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoResize   |
+                                      ImGuiWindowFlags_NoMove     |
+                                      ImGuiWindowFlags_NoCollapse |
+                                      ImGuiWindowFlags_NoTitleBar);
+        {
+            ImGuiID dockspaceId = ImGui::GetID("Main");
+            ImGui::DockSpace(dockspaceId, ImVec2(0.0, 0.0), dockspaceFlags);
+            ImGui::DockBuilderRemoveNode(dockspaceId);
+            ImGui::DockBuilderAddNode(dockspaceId, dockspaceFlags | ImGuiDockNodeFlags_DockSpace);
+            ImGui::DockBuilderSetNodeSize(dockspaceId, ImVec2(960, 720));
 
-    RenderFrame* frame = renderGraph.GetRenderFrame();
+            // split into 2 nodes
+            auto leftDockId = ImGui::DockBuilderSplitNode(dockspaceId, ImGuiDir_Left, 0.2f, nullptr, &dockspaceId);
 
-    // resources
-    // NOTE: no additional resources created
+            ImGui::DockBuilderDockWindow("Debug", leftDockId);
+            ImGui::DockBuilderFinish(dockspaceId);
+        }
+        ImGui::End();
+    }
+    ui->End();
+}
 
-    // compile
-    auto overlayPass = renderGraph.CreateRenderPass("overlay");
-    overlayPass->SetColor(colorBuffer);
-    overlayPass->SetTexture(gbuffer->albedoBuffer);
-    overlayPass->SetTexture(gbuffer->normalBuffer);
-    overlayPass->SetTexture(visualize->depthBuffer);
-    overlayPass->SetTexture(visualize->objectBuffer);
-    overlayPass->SetTexture(visualize->surfelCovBuffer);
-    overlayPass->SetTexture(visualize->surfelAllocBuffer);
-    overlayPass->SetTexture(visualize->surfelGridBuffer);
+void AddOverlayPass(RenderGraph&           graph,
+                    AutoReleasePool&       pool,
+                    render::GBuffer*       gbuffer,
+                    render::SceneData*     sceneData,
+                    render::Surfel*        surfel,
+                    render::Debug*         debug,
+                    Scene*                 scene,
+                    DearImGui*             ui,
+                    RenderGraph::Resource* colorAttachment) {
 
-    // execute
-    overlayPass->Execute([=](const RenderInfo& info) {
-        ImTextureID albedo      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->albedoBuffer->GetImage()->AsTexture());
-        ImTextureID normal      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normalBuffer->GetImage()->AsTexture());
-        ImTextureID depth       = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->depthBuffer->GetImage()->AsTexture());
-        ImTextureID object      = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->objectBuffer->GetImage()->AsTexture());
-        ImTextureID surfelCov   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelCovBuffer->GetImage()->AsTexture());
-        ImTextureID surfelAlloc = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelAllocBuffer->GetImage()->AsTexture());
-        ImTextureID surfelGrid  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), visualize->surfelGridBuffer->GetImage()->AsTexture());
+    auto overlayPass = graph.CreateRenderPass("overlay");
+    overlayPass->SetColor(colorAttachment, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    #ifdef ENABLE_GBUFFER_VISUALIZATION
+    overlayPass->SetTexture(gbuffer->albedo);
+    overlayPass->SetTexture(gbuffer->normal);
+    overlayPass->SetTexture(debug->depth);
+    #endif
+    #ifdef ENABLE_OBJECT_VISUALIZATION
+    overlayPass->SetTexture(debug->object);
+    #endif
+    #ifdef ENABLE_GRID_VISUALIZATION
+    overlayPass->SetTexture(debug->surfelGrid);
+    #endif
+    overlayPass->Execute([=](const RenderInfo &info) {
+        ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+
+        #ifdef ENABLE_GBUFFER_VISUALIZATION
+        ImTextureID albedo = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->albedo->GetImage()->AsTexture());
+        ImTextureID normal = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normal->GetImage()->AsTexture());
+        ImTextureID depth  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->depth->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_OBJECT_VISUALIZATION
+        ImTextureID object = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->object->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_GRID_VISUALIZATION
+        ImTextureID grid   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelGrid->GetImage()->AsTexture());
+        #endif
+
         ui->Begin();
         {
-            // visualize gbuffer
-            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
-            ImGui::Begin("GBuffer");
+            ImGuiViewport* viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowViewport(viewport->ID);
+            ImGui::SetNextWindowPos(viewport->Pos, ImGuiCond_Always);
+            ImGui::SetNextWindowSize(viewport->Size, ImGuiCond_Always);
+            ImGui::Begin("Main", nullptr, ImGuiWindowFlags_NoResize   |
+                                          ImGuiWindowFlags_NoMove     |
+                                          ImGuiWindowFlags_NoCollapse |
+                                          ImGuiWindowFlags_NoTitleBar);
+            {
+                ImGuiID dockspaceId = ImGui::GetID("Main");
+                ImGui::DockSpace(dockspaceId, ImVec2(0.0, 0.0), dockspaceFlags);
+            }
+            ImGui::End();
+
+            ImGui::Begin("Debug");
             {
                 ImVec2 region = ImGui::GetContentRegionAvail();
-                ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
+                ImVec2 size = ImVec2(region.x, region.x / info.renderFrame->GetAspectRatio());
 
                 ImGui::BeginTabBar("##GBuffer");
                 {
 
+                    #ifdef ENABLE_GBUFFER_VISUALIZATION
                     if (ImGui::BeginTabItem("Albedo")) {
                         ImGui::Image(albedo, size);
                         ImGui::EndTabItem();
@@ -58,51 +107,21 @@ void AddOverlayPass(RenderGraph& renderGraph,
                         ImGui::Image(depth, size);
                         ImGui::EndTabItem();
                     }
-                }
-                ImGui::EndTabBar();
-            }
-            ImGui::End();
+                    #endif
 
-            // visualize surfel
-            ImGui::SetNextWindowSize(ImVec2(200, 230), ImGuiCond_Once);
-            ImGui::Begin("Surfel");
-            {
-                ImVec2 region = ImGui::GetContentRegionAvail();
-                ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
-                ImVec2 barSize = ImVec2(size.x, 10);
-
-                ImGui::BeginTabBar("##Surfel");
-                {
-                    if (ImGui::BeginTabItem("Coverage")) {
-                        ImGui::Image(surfelCov, size);
-                        ImGui::EndTabItem();
-                    }
-
+                    #ifdef ENABLE_OBJECT_VISUALIZATION
                     if (ImGui::BeginTabItem("Object")) {
                         ImGui::Image(object, size);
                         ImGui::EndTabItem();
                     }
+                    #endif
 
-                    ImGui::Image(surfelAlloc, barSize);
-                }
-                ImGui::EndTabBar();
-            }
-            ImGui::End();
-
-            // visualize grid
-            ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_Once);
-            ImGui::Begin("Grid");
-            {
-                ImVec2 region = ImGui::GetContentRegionAvail();
-                ImVec2 size = ImVec2(region.x, region.x / frame->GetAspectRatio());
-                ImVec2 barSize = ImVec2(size.x, 10);
-
-                ImGui::BeginTabBar("##Grid");
-                {
+                    #ifdef ENABLE_GRID_VISUALIZATION
                     if (ImGui::BeginTabItem("Grid")) {
-                        ImGui::Image(surfelGrid, size);
+                        ImGui::Image(grid, size);
                         ImGui::EndTabItem();
                     }
+                    #endif
                 }
                 ImGui::EndTabBar();
             }

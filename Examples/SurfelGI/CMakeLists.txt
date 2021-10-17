@@ -4,51 +4,47 @@ add_slim_project(
 
     SOURCES
         main.cpp
-        light.h
         config.h
 
         scene.h
         scene.cpp
 
+        update.h
+        update.cpp
+
+        debug.h
+        debug.cpp
+
         gbuffer.h
         gbuffer.cpp
-
-        composer.h
-        composer.cpp
-
-        overlay.h
-        overlay.cpp
-
-        visualize.h
-        visualize.cpp
 
         surfel.h
         surfel.cpp
 
+        overlay.h
+        overlay.cpp
+
+        render.h
+        render.cpp
+
     SHADERS
-        shaders/fullscreen.vert
-        shaders/compose.frag
-        shaders/objectvis.frag
-        shaders/lineardepth.frag
-        shaders/surfelallocvis.frag
-        shaders/surfelgridvis.frag
+        shaders/gbuffer/gbuffer.vert
+        shaders/gbuffer/gbuffer.frag
 
-        shaders/gbuffer.frag
-        shaders/gbuffer.vert
+        shaders/debug/depthvis.comp
+        shaders/debug/objectvis.comp
+        shaders/debug/gridvis.comp
 
-        shaders/raytrace.rgen
-        shaders/shadow.rchit
-        shaders/shadow.rmiss
-        shaders/surfel.rchit
-        shaders/surfel.rmiss
-        shaders/surfel.rint
-
-        shaders/surfelprepare.comp          # prepare for indirect call
-        shaders/surfelgridreset.comp        # reset grid
-        shaders/surfelupdate.comp           # update grid/cell count
-        shaders/surfelgridoffset.comp       # recompute grid offset
-        shaders/surfelbinning.comp          # fill grid cells
-        shaders/surfelcov.comp              # coverage, allocate new surfels
+        # shaders/surfel/reset.comp
+        # shaders/surfel/offset.comp
+        # shaders/surfel/prepare.comp
+        # shaders/surfel/update.comp
+        # shaders/surfel/binning.comp
+        # shaders/surfel/coverage.comp
+        #
+        # shaders/raytrace/raytrace.rgen
+        # shaders/raytrace/raytrace.rchit
+        # shaders/raytrace/raytrace.rchit
 
     SPV
         vulkan1.2

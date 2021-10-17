@@ -1,12 +1,11 @@
 #ifndef SLIM_EXAMPLE_CONFIG_H
 #define SLIM_EXAMPLE_CONFIG_H
 
-#include <cstdint>
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
-// This knob controls whether we turn on ray tracing at all.
-#define ENABLE_RAY_TRACING
-
-// This knob controls whehter we scale the whole scene down for smaller grid testing.
-#define MINUSCALE_SCENE
+#define ENABLE_GBUFFER_VISUALIZATION
+#define ENABLE_OBJECT_VISUALIZATION
+#define ENABLE_GRID_VISUALIZATION
+#define ENABLE_MINUSCALE_SCENE
 
 #endif // SLIM_EXAMPLE_CONFIG_H

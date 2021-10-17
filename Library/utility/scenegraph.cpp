@@ -123,7 +123,7 @@ void scene::Builder::Build() {
 
     // build acceleration structure if needed to
     if (accelBuilder.get()) {
-        uint32_t aabbsGeometryIndex = 0;
+        aabbsIndex = 0;
 
         // add mesh-based blas
         for (auto& mesh : meshes) {
@@ -131,7 +131,7 @@ void scene::Builder::Build() {
         }
         // add aabb-based blas
         if (aabbsBuffer) {
-            aabbsGeometryIndex = accelBuilder->AddAABBs(aabbsBuffer, aabbs.size(), sizeof(VkAabbPositionsKHR));
+            aabbsIndex = accelBuilder->AddAABBs(aabbsBuffer, aabbs.size(), sizeof(VkAabbPositionsKHR));
         }
         // build blas
         accelBuilder->BuildBlas();
@@ -143,7 +143,7 @@ void scene::Builder::Build() {
         // add aabb-based tlas
         if (aabbsBuffer) {
             // update blas geometry
-            aabbsMesh->SetBlasGeometry(accelBuilder->GetBlasGeometry(aabbsGeometryIndex));
+            aabbsMesh->SetBlasGeometry(accelBuilder->GetBlasGeometry(aabbsIndex));
             accelBuilder->AddNode(aabbsNode, 1, 0x2);  // use sbt record 1 (for procedural)
         }
         accelBuilder->BuildTlas();

@@ -26,6 +26,7 @@ using mat4    = glm::mat4;
 
 #define SLIM_ATTR inline
 #define MEDIUMP_FLT_MAX    65504.0f
+#define HIGHP_FLT_MAX      3.40282e+038f
 #define saturate_mediump(x) std::min(x, MEDIUMP_FLT_MAX)
 #define highp
 #define mediump
@@ -37,6 +38,7 @@ using mat4    = glm::mat4;
 
 #define SLIM_ATTR
 #define MEDIUMP_FLT_MAX    65504.0
+#define HIGHP_FLT_MAX      3.40282e+038f
 #define saturate_mediump(x) min(x, MEDIUMP_FLT_MAX)
 
 #endif

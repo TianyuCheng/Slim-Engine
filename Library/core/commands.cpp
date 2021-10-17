@@ -130,6 +130,8 @@ VkSubmitInfo CommandBuffer::GetSubmitInfo() const {
 }
 
 void CommandBuffer::CopyDataToBuffer(void *data, size_t size, Buffer *buffer, size_t offset) {
+    if (size == 0) return;
+
     // host visible
     // memory mapped
     if (buffer->HostVisible()) {

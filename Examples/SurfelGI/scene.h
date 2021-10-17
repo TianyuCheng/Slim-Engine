@@ -2,110 +2,49 @@
 #define SLIM_EXAMPLE_SCENE_H
 
 #include <slim/slim.hpp>
-#include "config.h"
-#include "light.h"
-
 using namespace slim;
 
-struct ObjectProperties {
-    uint32_t instanceID;
-    uint32_t baseColorTextureID;
-    uint32_t baseColorSamplerID;
-};
+#include "shaders/common.h"
 
-struct LightInfo {
-    glm::vec4 direction;
-    glm::vec4 color;
-};
-
-struct CameraInfo {
-    glm::mat4 V;
-    glm::mat4 P;
-    glm::mat4 invVP;
-    glm::vec3 pos;
-    float zNear;
-    float zFar;
-    float zFarRcp;
-};
-
-class MainScene {
-public:
-    MainScene(Device* device);
-
-    scene::Node* GetRootNode() const {
-        return model.GetScene(0);
-    }
-
-    accel::AccelStruct* GetTlas() const {
-        return builder->GetAccelBuilder()->GetTlas();
-    }
-
-    float GetNear() const {
-        #ifdef MINUSCALE_SCENE
-        return 0.001;
-        #else
-        return 0.1;
-        #endif
-    }
-
-    float GetFar() const {
-        #ifdef MINUSCALE_SCENE
-        return 30.0;
-        #else
-        return 3000.0;
-        #endif
-    }
-
-    void UpdateCamera(CommandBuffer* commandBuffer) {
-        CameraInfo info;
-        info.P = camera->GetProjection();
-        info.V = camera->GetView();
-        info.pos = camera->GetPosition();
-        info.invVP = glm::inverse(info.P * info.V);
-        info.zNear = GetNear();
-        info.zFar = GetFar();
-        info.zFarRcp = 1.0 / GetFar();
-        commandBuffer->CopyDataToBuffer(info, cameraBuffer);
-    }
-
-    void UpdateLight(CommandBuffer* commandBuffer) {
-        LightInfo info;
-        info.color = dirLight.color;
-        info.direction = dirLight.direction;
-        commandBuffer->CopyDataToBuffer(info, lightBuffer);
-    }
-
+class Scene {
 private:
-    void PrepareScene();
-    void PrepareCamera();
-    void PrepareTransformBuffer();
-    void PrepareLightBuffer();
-    void PrepareCameraBuffer();
-
-private:
-    SmartPtr<Device>                  device;
+    SmartPtr<Device>         device;
+    gltf::Model              model;
 
 public:
-    // scene/models
-    SmartPtr<scene::Builder>          builder;
-    SmartPtr<Flycam>                  camera;
-    gltf::Model                       model;
+    // scene data
+    SmartPtr<scene::Builder> builder;
+    SmartPtr<Flycam>         camera;
+    std::vector<Image*>      images;
+    std::vector<Sampler*>    samplers;
+    std::vector<LightInfo>   lights;
 
-    // light
-    DirectionalLight                  dirLight;
+    SmartPtr<Buffer>         lightBuffer;
+    SmartPtr<Buffer>         cameraBuffer;
+    SmartPtr<Buffer>         materialBuffer;
+    SmartPtr<Buffer>         instanceBuffer;
+    SmartPtr<Buffer>         frameInfoBuffer;
 
-    // other scene data
-    SmartPtr<Buffer>                  transformBuffer;
-    std::vector<Image*>               images;
-    std::vector<Sampler*>             samplers;
+    // surfel data
+    SmartPtr<Buffer>         surfelBuffer;
+    SmartPtr<Buffer>         surfelLiveBuffer;  // indices for living surfels
+    SmartPtr<Buffer>         surfelFreeBuffer;  // indices for available surfels
+    SmartPtr<Buffer>         surfelDataBuffer;  // raw surfel data
+    SmartPtr<Buffer>         surfelGridBuffer;  // surfel grid acceleration structure
+    SmartPtr<Buffer>         surfelCellBuffer;  // offset + count for grid cell into surfelLiveBuffer
+    SmartPtr<Buffer>         surfelStatBuffer;  // global surfel status
 
-    SmartPtr<Buffer>                  cameraBuffer;
-    RenderGraph::Resource*            cameraResource;
+    explicit Scene(Device* device);
 
-    SmartPtr<Buffer>                  lightBuffer;
-    RenderGraph::Resource*            lightResource;
+    float Near() const;
+    float Far() const;
+
+private:
+    void InitScene();
+    void InitFrame();
+    void InitCamera();
+    void InitLights();
+    void InitSurfels();
 };
-
-void AddScenePreparePass(RenderGraph& renderGraph, MainScene* scene);
 
 #endif // SLIM_EXAMPLE_SCENE_H

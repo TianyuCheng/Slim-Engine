@@ -2,22 +2,17 @@
 #define SLIM_EXAMPLE_GBUFFER_H
 
 #include <slim/slim.hpp>
-
 using namespace slim;
 
-class MainScene;
+#include "render.h"
+#include "scene.h"
 
-struct GBuffer {
-    RenderGraph::Resource* albedoBuffer;
-    RenderGraph::Resource* normalBuffer;
-    RenderGraph::Resource* positionBuffer;
-    RenderGraph::Resource* objectBuffer;
-    RenderGraph::Resource* depthBuffer;
-};
-
-void AddGBufferPass(RenderGraph& renderGraph,
-                    AutoReleasePool& bundle,
-                    GBuffer* gbuffer,
-                    MainScene* scene);
+void AddGBufferPass(RenderGraph&       graph,
+                    AutoReleasePool&   pool,
+                    render::GBuffer*   gbuffer,
+                    render::SceneData* sceneData,
+                    render::Surfel*    surfel,
+                    render::Debug*     debug,
+                    Scene*             scene);
 
 #endif // SLIM_EXAMPLE_GBUFFER_H
