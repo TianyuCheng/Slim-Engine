@@ -8,7 +8,7 @@ void AddUpdatePass(RenderGraph&       graph,
                    render::Debug*     debug,
                    Scene*             scene) {
 
-    static uint32_t frameId = 0;
+    static uint32_t frameID = 0;
 
     auto pass = graph.CreateComputePass("scene-update");
     pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_WRITE_ONLY);
@@ -66,7 +66,7 @@ void AddUpdatePass(RenderGraph&       graph,
                                                          glm::vec3(0.0, 0.0, 1.0));
 
         FrameInfo frameInfo = {};
-        frameInfo.frameId = frameId;
+        frameInfo.frameID = frameID;
         frameInfo.resolution.x = info.renderFrame->GetExtent().width;
         frameInfo.resolution.y = info.renderFrame->GetExtent().height;
 
@@ -75,5 +75,5 @@ void AddUpdatePass(RenderGraph&       graph,
         info.commandBuffer->CopyDataToBuffer(frameInfo, scene->frameInfoBuffer);
     });
 
-    frameId++;
+    frameID++;
 }

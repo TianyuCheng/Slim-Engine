@@ -100,13 +100,6 @@ int3 compute_surfel_grid(in CameraInfo cam, vec3 worldPos, out bool inner, out v
     return int3(SURFEL_GRID_DIMS);
 }
 
-uint compute_surfel_cell(int3 gridPos) {
-    gridPos += int3(SURFEL_GRID_DIMS) / 2;
-    return gridPos.x * SURFEL_GRID_DIMS.y * SURFEL_GRID_DIMS.z +
-           gridPos.y * SURFEL_GRID_DIMS.z +
-           gridPos.z;
-}
-
 void main() {
     uvec2 pixel = gl_GlobalInvocationID.xy;
     uvec2 resolution = frame.data.resolution;

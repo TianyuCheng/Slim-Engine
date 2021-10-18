@@ -27,17 +27,23 @@ public:
 
     // surfel data
     SmartPtr<Buffer>         surfelBuffer;
-    SmartPtr<Buffer>         surfelLiveBuffer;  // indices for living surfels
-    SmartPtr<Buffer>         surfelFreeBuffer;  // indices for available surfels
+    SmartPtr<Buffer>         surfelLiveBuffer;  // stack for living and free surfels
     SmartPtr<Buffer>         surfelDataBuffer;  // raw surfel data
     SmartPtr<Buffer>         surfelGridBuffer;  // surfel grid acceleration structure
     SmartPtr<Buffer>         surfelCellBuffer;  // offset + count for grid cell into surfelLiveBuffer
     SmartPtr<Buffer>         surfelStatBuffer;  // global surfel status
 
+    // control
+    float                    walkSpeed;
+
     explicit Scene(Device* device);
 
     float Near() const;
     float Far() const;
+
+    void ResetSurfels();
+    void PauseSurfels();
+    void ResumeSurfels();
 
 private:
     void InitScene();

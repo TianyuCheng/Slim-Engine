@@ -4,4 +4,15 @@
 #include <slim/slim.hpp>
 using namespace slim;
 
+#include "render.h"
+#include "scene.h"
+
+void AddSurfelPass(RenderGraph&       graph,
+                   AutoReleasePool&   pool,
+                   render::GBuffer*   gbuffer,
+                   render::SceneData* sceneData,
+                   render::Surfel*    surfel,
+                   render::Debug*     debug,
+                   Scene*             scene);
+
 #endif // SLIM_EXAMPLE_SURFEL_H

@@ -1,0 +1,219 @@
+#version 450
+#extension GL_ARB_separate_shader_objects                : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+
+#include "pack.h"
+#include "unpack.h"
+#include "camera.h"
+#include "random.h"
+#include "colors.h"
+#include "../common.h"
+
+layout(local_size_x = SURFEL_TILE_X,
+       local_size_y = SURFEL_TILE_Y,
+       local_size_z = 1) in;
+
+// frame information
+layout(set = 0, binding = SCENE_FRAME_BINDING) uniform
+Frame { FrameInfo data; } frame;
+
+// camera information
+layout(set = 0, binding = SCENE_CAMERA_BINDING) uniform
+Camera { CameraInfo data; } camera;
+
+// surfel information
+layout(set = 1, binding = SURFEL_BINDING) buffer
+SurfelBuffer { Surfel data[]; } surfels;
+
+// surfel alive
+layout(set = 1, binding = SURFEL_LIVE_BINDING) buffer
+SurfelLiveBuffer { uint data[]; } surfelLive;
+
+// surfel alive
+layout(set = 1, binding = SURFEL_DATA_BINDING) buffer
+SurfelDataBuffer { SurfelData data[]; } surfelData;
+
+// surfel grids
+layout(set = 1, binding = SURFEL_GRID_BINDING) buffer
+SurfelGridBuffer { SurfelGridCell data[]; } surfelGrids;
+
+// surfel cells
+layout(set = 1, binding = SURFEL_CELL_BINDING) buffer
+SurfelCellBuffer { uint data[]; } surfelCells;
+
+// surfel stat
+layout(set = 1, binding = SURFEL_STAT_BINDING) buffer
+SurfelStatBuffer { SurfelStat data; } surfelStat;
+
+// surfel coverage
+layout(set = 1, binding = SURFEL_COVERAGE_BINDING, r32f) uniform
+image2D coverageImage;
+
+// surfel debug
+layout(set = 1, binding = SURFEL_DEBUG_BINDING, rgba8) uniform
+image2D debugImage;
+
+// surfel diffuse
+layout(set = 1, binding = SURFEL_DIFFUSE_BINDING, rgba8) uniform
+image2D diffuseImage;
+
+// gbuffer depth
+layout(set = 2, binding = GBUFFER_ALBEDO_BINDING) uniform
+sampler2D albedoImage;
+
+// gbuffer depth
+layout(set = 2, binding = GBUFFER_DEPTH_BINDING) uniform
+sampler2D depthImage;
+
+// gbuffer object/instance
+layout(set = 2, binding = GBUFFER_OBJECT_BINDING) uniform
+usampler2D objectImage;
+
+// gbuffer normal
+layout(set = 2, binding = GBUFFER_NORMAL_BINDING) uniform
+sampler2D normalImage;
+
+shared uint groupMinSurfelCount;
+shared uint groupMaxSurfelCount;
+
+/**
+ * This compute shader performs the following:
+ * 1. compute coverage for each pixel
+ * 2. iteratively spawn new surfel based based on low coverage
+ * 3. recycle surfels on high coverage
+ */
+void main() {
+    ivec2 resolution = ivec2(frame.data.resolution);
+
+    // dimension check
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (any(greaterThanEqual(pixel, resolution))) {
+        return;
+    }
+
+    // calculate basic information
+    float depth  = texelFetch(depthImage,  pixel, 0).x;
+    uint  primID = texelFetch(objectImage, pixel, 0).x;
+    vec3  N      = texelFetch(normalImage, pixel, 0).xyz;
+    vec2  uv     = (vec2(pixel) + vec2(0.5)) / vec2(resolution);
+    vec3  P      = compute_world_position(uv, depth, camera.data.invVP);
+
+    // fetch surfel grid
+    int3 gridIndex = compute_surfel_grid(camera.data, P);
+    uint cellIndex = compute_surfel_cell(gridIndex);
+    SurfelGridCell cell = surfelGrids.data[cellIndex];
+
+    float coverage = 0.0;
+    vec4 color = vec4(0.0);
+    vec4 debug = vec4(0.0);
+
+    // iterate through all surfels in this grid cell
+    for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
+        uint cellIndex = surfelCells.data[i];
+        Surfel surfel = surfels.data[cellIndex];
+
+        // apply surfel coverage
+        vec3 L = surfel.position - P;
+        float d2 = dot(L, L);
+        float r2 = surfel.radius * surfel.radius;
+
+        if (d2 < r2) {
+            vec3 surfelN = unpack_unitvec3(surfel.normal) * 2.0 - 1.0;
+            float dotN = dot(surfelN, N);
+            if (dotN > 0) {
+                float dist = sqrt(d2);
+
+                float contribution = 1.0;
+                contribution *= clamp(dotN, 0.0, 1.0);
+                contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
+                // TODO: compute contribution by surfel moment
+                // surfel moment helps prevent incorrect color bleeding.
+                contribution = smoothstep(0.0, 1.0, contribution);
+
+                coverage += contribution;
+                color += vec4(surfel.color, 1.0) * contribution;
+                debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
+            }
+        }
+        // end of pixel coverage check
+    }
+
+    // normalize color
+    if (color.a > 0.0) {
+        color.rgb /= color.a;
+        color.a = clamp(color.a, 0.0, 1.0);
+    }
+
+    // normalize debug color
+    if (debug.a > 0.0) {
+        debug.rgb /= debug.a;
+        debug.a = clamp(debug.a, 0.0, 1.0);
+    }
+
+    // output
+    imageStore(debugImage, pixel, debug);
+    imageStore(diffuseImage, pixel, color);
+    imageStore(coverageImage, pixel, vec4(coverage));
+
+    // spawn new surfels based on coverage
+    if (surfelStat.data.pause != 0) {
+        return;
+    }
+
+    // rng state
+    RNGState rng = init_rng(uint2(pixel), resolution, frame.data.frameID);
+
+    // find minimum surfel coverage
+    uint2 localID = gl_LocalInvocationID.xy;
+    uint coverageHash = (uint(coverage)  & 0xff  ) << 24 // top bits matters the most
+                      | (uint(rand(rng)) & 0xffff) << 8  // shuffles pixels around
+                      | (     localID.x  & 0xf   ) << 4
+                      | (     localID.y  & 0xf   ) << 0;
+    if (cell.count < SURFEL_CELL_CAPACITY) {
+        atomicMin(groupMinSurfelCount, coverageHash);
+        atomicMax(groupMaxSurfelCount, coverageHash);
+    }
+    memoryBarrierShared();
+
+    // spawn surfel
+    uint surfelCoverage = groupMinSurfelCount;
+    if (coverageHash == surfelCoverage && coverage < 0.01) {
+        float chance = rand(rng);
+
+        // need to spawn a new surfel
+        float zNear = camera.data.zNear;
+        float zFar = camera.data.zFar;
+        float zFarRcp = camera.data.zFarRcp;
+        float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
+        float threshold = rand(rng) * 0.1;
+
+        // stochastically spawn surfel
+        if (chance < threshold) {
+            // request an available surfel
+            uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+            uint surfelID = surfelLive.data[availableSurfelID];
+
+            // allocate new surfel
+            SurfelData data;
+            data.position = P;
+            data.normal = pack_unitvec3(N * 0.5 + 0.5);
+            data.life = 0;
+            data.recycle = 0;
+            data.vbbr = vec3(0.0);
+            data.inconsistency = 1.0;
+            data.mean = vec3(0.0);
+            data.albedo = texelFetch(albedoImage, pixel, 0).xyz;
+            data.instanceID = primID;
+            data.surfelID = surfelID;
+
+            surfelData.data[surfelID] = data;
+        }
+    }
+
+    // recycle surfel
+    #if 0
+    uint surfelCoverage = groupMaxSurfelCount;
+    if (coverageHash == surfelCoverage && coverage > SURFEL_HIGH_COVERAGE) {
+    }
+    #endif // end of recycle surfel
+}

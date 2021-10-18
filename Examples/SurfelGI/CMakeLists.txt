@@ -34,14 +34,15 @@ add_slim_project(
         shaders/debug/depthvis.comp
         shaders/debug/objectvis.comp
         shaders/debug/gridvis.comp
+        shaders/debug/allocvis.comp
 
-        # shaders/surfel/reset.comp
-        # shaders/surfel/offset.comp
-        # shaders/surfel/prepare.comp
-        # shaders/surfel/update.comp
-        # shaders/surfel/binning.comp
-        # shaders/surfel/coverage.comp
-        #
+        shaders/surfel/reset.comp
+        shaders/surfel/offset.comp
+        shaders/surfel/prepare.comp
+        shaders/surfel/update.comp
+        shaders/surfel/binning.comp
+        shaders/surfel/coverage.comp
+
         # shaders/raytrace/raytrace.rgen
         # shaders/raytrace/raytrace.rchit
         # shaders/raytrace/raytrace.rchit

@@ -20,16 +20,17 @@ namespace render {
     };
 
     struct Surfel {
-        RenderGraph::Resource* surfelBuffer;
-        RenderGraph::Resource* surfelLiveBuffer;
-        RenderGraph::Resource* surfelFreeBuffer;
-        RenderGraph::Resource* surfelDataBuffer;
-        RenderGraph::Resource* surfelGridBuffer;
-        RenderGraph::Resource* surfelCellBuffer;
-        RenderGraph::Resource* surfelStatBuffer;
+        RenderGraph::Resource* surfels;
+        RenderGraph::Resource* surfelLive;
+        RenderGraph::Resource* surfelData;
+        RenderGraph::Resource* surfelGrid;
+        RenderGraph::Resource* surfelCell;
+        RenderGraph::Resource* surfelStat;
+        RenderGraph::Resource* surfelDebug;
+        RenderGraph::Resource* surfelMoment;
+        RenderGraph::Resource* surfelDiffuse;
         RenderGraph::Resource* surfelCoverage;
         RenderGraph::Resource* surfelRayGuide;
-        RenderGraph::Resource* surfelRadialDepth;
     };
 
     struct Debug {
@@ -37,8 +38,7 @@ namespace render {
         RenderGraph::Resource* object;
         RenderGraph::Resource* surfelGrid;
         RenderGraph::Resource* surfelDebug;
-        RenderGraph::Resource* surfelRayBudget;
-        RenderGraph::Resource* surfelAllocation;
+        RenderGraph::Resource* surfelBudget;
     };
 
 } // end of render namespace

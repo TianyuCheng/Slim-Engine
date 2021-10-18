@@ -1,0 +1,85 @@
+#version 450
+#extension GL_ARB_separate_shader_objects                : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
+
+#include "camera.h"
+#include "../common.h"
+
+layout(local_size_x = SURFEL_UPDATE_GROUP_SIZE,
+       local_size_y = 1,
+       local_size_z = 1) in;
+
+// camera information
+layout(set = 0, binding = SCENE_CAMERA_BINDING) uniform
+Camera { CameraInfo data; } camera;
+
+// surfel information
+layout(set = 1, binding = SURFEL_BINDING) buffer
+SurfelBuffer { Surfel data[]; } surfels;
+
+// surfel alive
+layout(set = 1, binding = SURFEL_LIVE_BINDING) buffer
+SurfelLiveBuffer { uint data[]; } surfelLive;
+
+// surfel metadata
+layout(set = 1, binding = SURFEL_DATA_BINDING) buffer
+SurfelDataBuffer { SurfelData data[]; } surfelData;
+
+// surfel grids
+layout(set = 1, binding = SURFEL_GRID_BINDING) buffer
+SurfelGridBuffer { SurfelGridCell data[]; } surfelGrids;
+
+// surfel stat
+layout(set = 1, binding = SURFEL_STAT_BINDING) buffer
+SurfelStatBuffer { SurfelStat data; } surfelStat;
+
+/**
+ * This compute shader performs the following:
+ * 1. copy active surfel data
+ * 2. accumulate cell count from surfel
+ */
+void main() {
+    // check surfel availability
+    uint currentSurfelID = gl_GlobalInvocationID.x;
+    uint currentSurfelCount = surfelStat.data.count;
+    if (currentSurfelID >= currentSurfelCount) {
+        return;
+    }
+
+    // find current live surfel ID
+    uint liveSurfelID = surfelLive.data[currentSurfelID];
+    SurfelData surfelData = surfelData.data[liveSurfelID];
+
+    // copy surfel data over
+    Surfel surfel;
+    surfel.position = surfelData.position;
+    surfel.normal = surfelData.normal;
+    surfel.color = surfelData.mean;
+
+    // surfel
+    if (in_uniform_surfel_grid(camera.data, surfel.position)) {
+        float dist = length(surfel.position - camera.data.position);
+        float ratio = dist / camera.data.zFar;
+        surfel.radius = mix(SURFEL_MIN_RADIUS, SURFEL_MAX_RADIUS, ratio);
+    } else {
+        surfel.radius = 0.0;
+    }
+
+    // update surfel data
+    surfels.data[currentSurfelID] = surfel;
+
+    // update grid cell count
+    vec3 minBound = surfel.position - surfel.radius;
+    vec3 maxBound = surfel.position + surfel.radius;
+    int3 cell0 = compute_surfel_grid(camera.data, minBound);
+    int3 cell1 = compute_surfel_grid(camera.data, maxBound);
+    for (int i = cell0.x; i <= cell1.x; i++) {
+        for (int j = cell0.y; j <= cell1.y; j++) {
+            for (int k = cell0.z; k <= cell1.z; k++) {
+                int3 gridIndex = int3(i, j, k);
+                uint cellIndex = compute_surfel_cell(gridIndex);
+                atomicAdd(surfelGrids.data[cellIndex].count, 1);
+            }
+        }
+    }
+}

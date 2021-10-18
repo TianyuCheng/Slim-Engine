@@ -51,6 +51,7 @@ void Scene::InitScene() {
     materialBuffer = SlimPtr<Buffer>(device, sizeof(MaterialInfo) * materials.size(),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    materialBuffer->SetName("Materials");
 
     // instances
     std::vector<InstanceInfo> instances;
@@ -67,6 +68,7 @@ void Scene::InitScene() {
     instanceBuffer = SlimPtr<Buffer>(device, sizeof(InstanceInfo) * instances.size(),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    instanceBuffer->SetName("Instances");
 
     // copy data
     device->Execute([&](CommandBuffer* commandBuffer) {
@@ -80,24 +82,27 @@ void Scene::InitFrame() {
         sizeof(FrameInfo),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    frameInfoBuffer->SetName("FrameInfo");
 }
 
 void Scene::InitCamera() {
     // camera
     camera = SlimPtr<Flycam>("camera");
     #ifdef ENABLE_MINUSCALE_SCENE
-    camera->SetWalkSpeed(1.0f);
+    walkSpeed = 1.0f;
     camera->LookAt(glm::vec3(0.03, 1.35, 0.0), glm::vec3(0.0, 1.35, 0.0), glm::vec3(0.0, 1.0, 0.0));
     #else
-    camera->SetWalkSpeed(10.0f);
+    walkSpeed = 10.0f;
     camera->LookAt(glm::vec3(3.0, .135, 0.0), glm::vec3(0.0, 0.135, 0.0), glm::vec3(0.0, 1.0, 0.0));
     #endif
+    camera->SetWalkSpeed(walkSpeed);
 
     // create camera buffer
     cameraBuffer = SlimPtr<Buffer>(device,
         sizeof(CameraInfo),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    cameraBuffer->SetName("Camera");
 }
 
 void Scene::InitLights() {
@@ -106,6 +111,7 @@ void Scene::InitLights() {
         sizeof(LightInfo) * 10,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    lightBuffer->SetName("LightInfo");
 }
 
 void Scene::InitSurfels() {
@@ -114,63 +120,44 @@ void Scene::InitSurfels() {
         sizeof(Surfel) * SURFEL_CAPACITY,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelBuffer->SetName("Surfel");
 
     // init surfel live buffer
     surfelLiveBuffer = SlimPtr<Buffer>(device,
         sizeof(uint32_t) * SURFEL_CAPACITY,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
-
-    // init surfel free buffer
-    surfelFreeBuffer = SlimPtr<Buffer>(device,
-        sizeof(uint32_t) * SURFEL_CAPACITY,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelLiveBuffer->SetName("SurfelAlive");
 
     // init surfel data buffer
     surfelDataBuffer = SlimPtr<Buffer>(device,
         sizeof(SurfelData) * SURFEL_CAPACITY,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelDataBuffer->SetName("SurfelData");
 
     // init surfel grid buffer
     surfelGridBuffer = SlimPtr<Buffer>(device,
         sizeof(SurfelGridCell) * SURFEL_GRID_COUNT,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelGridBuffer->SetName("SurfelGrid");
 
     // init surfel cell buffer
     surfelCellBuffer = SlimPtr<Buffer>(device,
         sizeof(uint32_t) * SURFEL_GRID_COUNT * SURFEL_CELL_CAPACITY,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelCellBuffer->SetName("SurfelCell");
 
     // init surfel stat buffer
     surfelStatBuffer = SlimPtr<Buffer>(device,
         sizeof(SurfelStat),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelStatBuffer->SetName("SurfelStat");
 
-    // copy data over
-    device->Execute([&](CommandBuffer* commandBuffer) {
-        SurfelStat stat = {};
-        stat.count = 0;
-        stat.stack = 0;
-        stat.alloc = 0;
-        commandBuffer->CopyDataToBuffer(stat, surfelStatBuffer);
-
-        std::vector<uint32_t> freeSurfels(SURFEL_CAPACITY);
-        for (uint32_t i = 0; i < SURFEL_CAPACITY; i++) {
-            freeSurfels[i] = i;
-        }
-        commandBuffer->CopyDataToBuffer(freeSurfels, surfelFreeBuffer);
-
-        std::vector<SurfelData> surfelData(SURFEL_CAPACITY);
-        for (uint32_t i = 0; i < SURFEL_CAPACITY; i++) {
-            surfelData[i].surfelId = i;
-        }
-        commandBuffer->CopyDataToBuffer(surfelData, surfelDataBuffer);
-    });
+    ResetSurfels();
 }
 
 float Scene::Near() const {
@@ -187,4 +174,44 @@ float Scene::Far() const {
     #else
     return 3000.0;
     #endif
+}
+
+void Scene::ResetSurfels() {
+    // copy data over
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        SurfelStat stat = {};
+        stat.count = 0;
+        stat.alloc = 0;
+        stat.pause = 0;
+        stat.x = 1;
+        stat.y = 1;
+        stat.z = 1;
+        commandBuffer->CopyDataToBuffer(stat, surfelStatBuffer);
+
+        std::vector<uint32_t> freeSurfels(SURFEL_CAPACITY);
+        for (uint32_t i = 0; i < SURFEL_CAPACITY; i++) {
+            freeSurfels[i] = i;
+        }
+        commandBuffer->CopyDataToBuffer(freeSurfels, surfelLiveBuffer);
+
+        std::vector<SurfelData> surfelData(SURFEL_CAPACITY);
+        for (uint32_t i = 0; i < SURFEL_CAPACITY; i++) {
+            surfelData[i].surfelID = i;
+        }
+        commandBuffer->CopyDataToBuffer(surfelData, surfelDataBuffer);
+    });
+}
+
+void Scene::PauseSurfels() {
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        uint32_t pause = 1;
+        commandBuffer->CopyDataToBuffer(pause, surfelStatBuffer, offsetof(SurfelStat, pause));
+    });
+}
+
+void Scene::ResumeSurfels() {
+    device->Execute([&](CommandBuffer* commandBuffer) {
+        uint32_t pause = 0;
+        commandBuffer->CopyDataToBuffer(pause, surfelStatBuffer, offsetof(SurfelStat, pause));
+    });
 }

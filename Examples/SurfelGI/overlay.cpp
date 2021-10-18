@@ -51,6 +51,13 @@ void AddOverlayPass(RenderGraph&           graph,
     #ifdef ENABLE_GRID_VISUALIZATION
     overlayPass->SetTexture(debug->surfelGrid);
     #endif
+    #ifdef ENABLE_COVERAGE_VISUALIZATION
+    overlayPass->SetTexture(surfel->surfelDebug);
+    overlayPass->SetTexture(surfel->surfelCoverage);
+    #endif
+    #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
+    overlayPass->SetTexture(debug->surfelBudget);
+    #endif
     overlayPass->Execute([=](const RenderInfo &info) {
         ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
 
@@ -66,6 +73,15 @@ void AddOverlayPass(RenderGraph&           graph,
 
         #ifdef ENABLE_GRID_VISUALIZATION
         ImTextureID grid   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelGrid->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_COVERAGE_VISUALIZATION
+        ImTextureID debugcov = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDebug->GetImage()->AsTexture());
+        ImTextureID coverage = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelCoverage->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
+        ImTextureID alloc    = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelBudget->GetImage()->AsTexture());
         #endif
 
         ui->Begin();
@@ -88,6 +104,7 @@ void AddOverlayPass(RenderGraph&           graph,
             {
                 ImVec2 region = ImGui::GetContentRegionAvail();
                 ImVec2 size = ImVec2(region.x, region.x / info.renderFrame->GetAspectRatio());
+                ImVec2 barSize = ImVec2(size.x, 10);
 
                 ImGui::BeginTabBar("##GBuffer");
                 {
@@ -122,8 +139,44 @@ void AddOverlayPass(RenderGraph&           graph,
                         ImGui::EndTabItem();
                     }
                     #endif
+
+                    #ifdef ENABLE_COVERAGE_VISUALIZATION
+                    if (ImGui::BeginTabItem("Debug")) {
+                        ImGui::Image(debugcov, size);
+                        ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("Coverage")) {
+                        ImGui::Image(coverage, size);
+                        ImGui::EndTabItem();
+                    }
+                    #endif
                 }
                 ImGui::EndTabBar();
+
+                #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
+                ImGui::Separator();
+                ImGui::Image(alloc, barSize);
+                #endif
+
+                ImGui::Separator();
+
+                // controller for camera walk speed
+                if (ImGui::InputFloat("Walk Speed", &scene->walkSpeed)) {
+                    scene->camera->SetWalkSpeed(scene->walkSpeed);
+                }
+
+                if (ImGui::Button("Reset Surfels")) {
+                    scene->ResetSurfels();
+                }
+
+                if (ImGui::Button("Pause Surfels")) {
+                    scene->PauseSurfels();
+                }
+
+                if (ImGui::Button("Resume Surfels")) {
+                    scene->ResumeSurfels();
+                }
             }
             ImGui::End();
         }
