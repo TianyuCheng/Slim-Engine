@@ -5,20 +5,22 @@
 
 #ifndef __cplusplus
 
-SLIM_ATTR vec3 sample_hemisphere(float u1, float u2, inout float pdf) {
-	float r = sqrt(u1);
-	float theta = 2.0 * PI * u2;
-	float x = r * cos(theta);
-	float y = r * sin(theta);
-	vec3 dir = vec3(x, y, sqrt(max(0.0, 1.0 - u1)));
-    pdf = dir.z / PI;
-    return dir;
+// [u, v] in range [0, 1]
+SLIM_ATTR vec3 uniform_sample_hemisphere(float u, float v) {
+    float phi = v * 2.0 * PI;
+    float cosTheta = 1.0 - u;
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    return vec3(cos(phi) * sinTheta, sin(phi) * cosTheta, cosTheta);
 }
 
-SLIM_ATTR vec3 sample_hemisphere(float u1, float u2) {
-    float pdf;
-    return sample_hemisphere(u1, u2, pdf);
+// [u, v] in range [0, 1]
+SLIM_ATTR vec3 cosine_sample_hemisphere(float u, float v) {
+    float phi = v * 2.0 * PI;
+    float cosTheta = sqrt(1.0 - u);
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+    return vec3(cos(phi) * sinTheta, sin(phi) * cosTheta, cosTheta);
 }
+
 
 #endif
 #endif // SLIM_SHADER_LIB_SAMPLING_H

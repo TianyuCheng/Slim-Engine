@@ -61,9 +61,9 @@ struct CameraInfo {
 };
 
 // Lights
-#define TYPE_POINT       0
-#define TYPE_SPOTLIGHT   1
-#define TYPE_DIRECTIONAL 2
+#define LIGHT_TYPE_POINT       0
+#define LIGHT_TYPE_SPOTLIGHT   1
+#define LIGHT_TYPE_DIRECTIONAL 2
 struct LightInfo {
     vec3 position;
     float padding0;
@@ -75,12 +75,19 @@ struct LightInfo {
     float padding2;
 
     float intensity;                    // light strength or intensity
-    float distance;                     // maximum range of light, 0 for infinity
+    float range;                        // maximum range of light, 0 for infinity
     float decay;                        // the amount the light dims along the distance
     float angle;                        // spot-light opening angle
-    float penumbra;                     // percent of spotlight cone attenuated due to penumbra.
 
+    float penumbra;                     // percent of spotlight cone attenuated due to penumbra.
     uint  type;
+    uint  padding3;
+    uint  padding4;
+};
+
+struct SkyInfo {
+    vec3 color;
+    uint paddig0;
 };
 
 // Materials
@@ -116,6 +123,15 @@ struct VertexType {
     vec4 weights0;
 };
 
+// Hit Info
+struct HitInfo {
+    vec3  position;
+    vec3  normal;
+    vec3  albedo;
+    vec3  emissive;
+    float distance;
+};
+
 // Surfels
 const uint  SURFEL_CAPACITY         = 250000;
 const uint  SURFEL_CAPACITY_SQRT    = 500;
@@ -131,6 +147,7 @@ const uint3 SURFEL_GRID_OUTER_DIMS  = SURFEL_GRID_DIMS - SURFEL_GRID_INNER_DIMS;
 const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.y
                                     * SURFEL_GRID_DIMS.z;
+const uint SURFEL_MOMENT_TEXELS     = 4 + 2;
 const uint SURFEL_UPDATE_GROUP_SIZE = 32;
 const float SURFEL_LOW_COVERAGE     = 0.25;
 const float SURFEL_HIGH_COVERAGE    = 1.25;
@@ -151,16 +168,19 @@ struct SurfelData {
     vec3  mean;
     uint  instanceID;
 
-    vec3  albedo;   // record albedo at the surfel location
+    vec3  shortMean;
     uint  surfelID;
 
-    vec3  vbbr;
-    float inconsistency;
+    vec3  variance;
+    float padding0;
 
+    vec3  albedo;   // record albedo at the surfel location
+    float padding1;
+
+    float vbbr;
+    float inconsistency;
     uint  life;
     uint  recycle;
-    uint  padding0;
-    uint  padding1;
 };
 
 struct SurfelStat {
@@ -185,6 +205,7 @@ struct SurfelGridCell {
 #define SCENE_INSTANCE_BINDING      3
 #define SCENE_MATERIAL_BINDING      4
 #define SCENE_ACCEL_BINDING         5
+#define SCENE_SKY_BINDING           6
 
 // Descriptor Set
 #define SCENE_IMAGES_BINDING        0
@@ -201,16 +222,15 @@ struct SurfelGridCell {
 // Descriptor Set
 #define SURFEL_BINDING              0
 #define SURFEL_LIVE_BINDING         1
-#define SURFEL_FREE_BINDING         2
-#define SURFEL_DATA_BINDING         3
-#define SURFEL_GRID_BINDING         4
-#define SURFEL_CELL_BINDING         5
-#define SURFEL_STAT_BINDING         6
-#define SURFEL_DEBUG_BINDING        7
-#define SURFEL_DIFFUSE_BINDING      8
-#define SURFEL_COVERAGE_BINDING     9
-#define SURFEL_RAYGUIDE_BINDING     10
-#define SURFEL_MOMENT_BINDING       11
+#define SURFEL_DATA_BINDING         2
+#define SURFEL_GRID_BINDING         3
+#define SURFEL_CELL_BINDING         4
+#define SURFEL_STAT_BINDING         5
+#define SURFEL_DEBUG_BINDING        6
+#define SURFEL_DIFFUSE_BINDING      7
+#define SURFEL_COVERAGE_BINDING     8
+#define SURFEL_RAYGUIDE_BINDING     9
+#define SURFEL_MOMENT_BINDING       10
 
 // Descriptor Set
 #define DEBUG_DEPTH_BINDING         0
@@ -302,6 +322,17 @@ uint compute_surfel_cell(int3 gridIndex) {
          + cellIndex.y * SURFEL_GRID_DIMS.z
          + cellIndex.z;
 }
+
+// compute 1d index given dimension and 2d index
+uint flatten_2d(uint2 coord, uint2 dim) {
+    return coord.x + coord.y * dim.x;
+}
+
+// compute 2d index given dimension and 1d index
+uint2 unflatten_2d(uint index, uint2 dim) {
+    return uint2(index % dim.x, index / dim.x);
+}
+
 #endif
 
 #endif

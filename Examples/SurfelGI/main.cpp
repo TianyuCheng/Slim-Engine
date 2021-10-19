@@ -8,6 +8,7 @@ using namespace slim;
 #include "debug.h"
 #include "surfel.h"
 #include "gbuffer.h"
+#include "compose.h"
 #include "overlay.h"
 
 int main() {
@@ -55,6 +56,15 @@ int main() {
 
     // scene
     auto scene = Scene(device);
+    {
+        LightInfo light = {};
+        light.type = LIGHT_TYPE_POINT;
+        light.color = vec3(1.0, 1.0, 1.0);
+        light.intensity = 3.0;
+        light.range = 40.0;
+        light.position = vec3(0.0, 10.0, 0.0);
+        scene.lights.push_back(light);
+    }
 
     // build ui dockspace
     BuildOverlayUI(ui);
@@ -85,6 +95,7 @@ int main() {
 
             render::SceneData sceneData = {};
             sceneData.camera            = graph.CreateResource(scene.cameraBuffer);
+            sceneData.sky               = graph.CreateResource(scene.skyBuffer);
             sceneData.lights            = graph.CreateResource(scene.lightBuffer);
             sceneData.frame             = graph.CreateResource(scene.frameInfoBuffer);
 
@@ -118,6 +129,7 @@ int main() {
             AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddSurfelPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             #ifdef ENABLE_GBUFFER_VISUALIZATION
             AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);

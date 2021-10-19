@@ -19,4 +19,9 @@ SLIM_ATTR vec3 rotate_point(vec4 q, vec3 v) {
     return qAxis * 2.0f * dot(qAxis, v) + (q.w * q.w - dot(qAxis, qAxis)) * v + 2.0f * q.w * cross(qAxis, v);
 }
 
+SLIM_ATTR vec3 to_tangent_space(vec3 v, vec3 normal) {
+    vec4 q = invert_rotation(compute_rotation_to_z_axis(normal));
+    return rotate_point(q, v);
+}
+
 #endif // SLIM_SHADER_LIB_TRANSFORM_H

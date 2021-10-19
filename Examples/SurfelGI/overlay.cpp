@@ -39,7 +39,7 @@ void AddOverlayPass(RenderGraph&           graph,
                     RenderGraph::Resource* colorAttachment) {
 
     auto overlayPass = graph.CreateRenderPass("overlay");
-    overlayPass->SetColor(colorAttachment, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    overlayPass->SetColor(colorAttachment);
     #ifdef ENABLE_GBUFFER_VISUALIZATION
     overlayPass->SetTexture(gbuffer->albedo);
     overlayPass->SetTexture(gbuffer->normal);
@@ -54,6 +54,7 @@ void AddOverlayPass(RenderGraph&           graph,
     #ifdef ENABLE_COVERAGE_VISUALIZATION
     overlayPass->SetTexture(surfel->surfelDebug);
     overlayPass->SetTexture(surfel->surfelCoverage);
+    overlayPass->SetTexture(surfel->surfelDiffuse);
     #endif
     #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
     overlayPass->SetTexture(debug->surfelBudget);
@@ -78,6 +79,7 @@ void AddOverlayPass(RenderGraph&           graph,
         #ifdef ENABLE_COVERAGE_VISUALIZATION
         ImTextureID debugcov = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDebug->GetImage()->AsTexture());
         ImTextureID coverage = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelCoverage->GetImage()->AsTexture());
+        ImTextureID diffuse  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDiffuse->GetImage()->AsTexture());
         #endif
 
         #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
@@ -148,6 +150,11 @@ void AddOverlayPass(RenderGraph&           graph,
 
                     if (ImGui::BeginTabItem("Coverage")) {
                         ImGui::Image(coverage, size);
+                        ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("Diffuse")) {
+                        ImGui::Image(diffuse, size);
                         ImGui::EndTabItem();
                     }
                     #endif

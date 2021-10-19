@@ -102,13 +102,24 @@ void Scene::InitCamera() {
         sizeof(CameraInfo),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
-    cameraBuffer->SetName("Camera");
+    cameraBuffer->SetName("CameraInfo");
 }
 
 void Scene::InitLights() {
+    sky = SkyInfo {
+        vec3(1.0, 1.0, 1.0)
+    };
+
+    // init sky buffer
+    skyBuffer = SlimPtr<Buffer>(device,
+        sizeof(SkyInfo),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+    skyBuffer->SetName("SkyInfo");
+
     // init light buffer
     lightBuffer = SlimPtr<Buffer>(device,
-        sizeof(LightInfo) * 10,
+        sizeof(LightInfo) * 20,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
     lightBuffer->SetName("LightInfo");
@@ -170,9 +181,9 @@ float Scene::Near() const {
 
 float Scene::Far() const {
     #ifdef ENABLE_MINUSCALE_SCENE
-    return 30.0;
+    return 40.0;
     #else
-    return 3000.0;
+    return 4000.0;
     #endif
 }
 

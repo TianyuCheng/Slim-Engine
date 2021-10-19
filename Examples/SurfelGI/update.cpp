@@ -10,9 +10,10 @@ void AddUpdatePass(RenderGraph&       graph,
 
     static uint32_t frameID = 0;
 
-    auto pass = graph.CreateComputePass("scene-update");
+    auto pass = graph.CreateComputePass("update");
     pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(sceneData->lights, RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(sceneData->sky, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(sceneData->frame, RenderGraph::STORAGE_WRITE_ONLY);
     pass->Execute([=](const RenderInfo &info) {
 
@@ -73,6 +74,7 @@ void AddUpdatePass(RenderGraph&       graph,
         info.commandBuffer->CopyDataToBuffer(scene->lights, scene->lightBuffer);
         info.commandBuffer->CopyDataToBuffer(cameraInfo, scene->cameraBuffer);
         info.commandBuffer->CopyDataToBuffer(frameInfo, scene->frameInfoBuffer);
+        info.commandBuffer->CopyDataToBuffer(scene->sky, scene->skyBuffer);
     });
 
     frameID++;

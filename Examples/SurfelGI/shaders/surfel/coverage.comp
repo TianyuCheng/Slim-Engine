@@ -122,14 +122,12 @@ void main() {
             float dotN = dot(surfelN, N);
             if (dotN > 0) {
                 float dist = sqrt(d2);
-
                 float contribution = 1.0;
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
                 // TODO: compute contribution by surfel moment
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
-
                 coverage += contribution;
                 color += vec4(surfel.color, 1.0) * contribution;
                 debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
@@ -137,6 +135,17 @@ void main() {
         }
         // end of pixel coverage check
     }
+
+    // light apply: if irradiance weight < 1, add weighted average cell irradiance
+    #if 0
+    if (color.a < 1.0) {
+        for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
+            uint cellIndex = surfelCells.data[i];
+            Surfel surfel = surfels.data[cellIndex];
+            color += vec4(surfel.color, 1.0);
+        }
+    }
+    #endif
 
     // normalize color
     if (color.a > 0.0) {
@@ -199,7 +208,7 @@ void main() {
             data.normal = pack_unitvec3(N * 0.5 + 0.5);
             data.life = 0;
             data.recycle = 0;
-            data.vbbr = vec3(0.0);
+            data.vbbr = 0.0;
             data.inconsistency = 1.0;
             data.mean = vec3(0.0);
             data.albedo = texelFetch(albedoImage, pixel, 0).xyz;

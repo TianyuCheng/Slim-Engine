@@ -7,6 +7,7 @@ using namespace slim;
 namespace render {
 
     struct SceneData {
+        RenderGraph::Resource* sky;
         RenderGraph::Resource* lights;
         RenderGraph::Resource* camera;
         RenderGraph::Resource* frame;

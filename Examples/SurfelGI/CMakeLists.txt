@@ -21,6 +21,9 @@ add_slim_project(
         surfel.h
         surfel.cpp
 
+        compose.h
+        compose.cpp
+
         overlay.h
         overlay.cpp
 
@@ -43,9 +46,14 @@ add_slim_project(
         shaders/surfel/binning.comp
         shaders/surfel/coverage.comp
 
-        # shaders/raytrace/raytrace.rgen
-        # shaders/raytrace/raytrace.rchit
-        # shaders/raytrace/raytrace.rchit
+        shaders/raytrace/ray.rgen
+        shaders/raytrace/scene.rchit
+        shaders/raytrace/scene.rmiss
+        shaders/raytrace/shadow.rahit
+        shaders/raytrace/shadow.rmiss
+
+        shaders/post/fullscreen.vert
+        shaders/post/compose.frag
 
     SPV
         vulkan1.2

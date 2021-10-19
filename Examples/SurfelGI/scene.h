@@ -18,7 +18,9 @@ public:
     std::vector<Image*>      images;
     std::vector<Sampler*>    samplers;
     std::vector<LightInfo>   lights;
+    SkyInfo                  sky;
 
+    SmartPtr<Buffer>         skyBuffer;
     SmartPtr<Buffer>         lightBuffer;
     SmartPtr<Buffer>         cameraBuffer;
     SmartPtr<Buffer>         materialBuffer;
