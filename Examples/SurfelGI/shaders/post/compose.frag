@@ -18,5 +18,9 @@ void main() {
     vec4 diffuse = texture(diffuseImage, inUV);
 
     // final contribution
-    outColor = albedo * diffuse;
+    outColor = diffuse * albedo;
+
+    // apply gamma correction
+    float gamma = 2.2;
+    outColor.rgb = pow(outColor.rgb, vec3(1.0/gamma));
 }

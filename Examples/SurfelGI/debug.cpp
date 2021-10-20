@@ -124,6 +124,44 @@ Pipeline* PrepareSurfelAllocVisPass(AutoReleasePool& pool) {
     return pipeline;
 }
 
+GraphicsPipelineDesc PrepareLightVisPass(AutoReleasePool& pool) {
+    // vertex shader
+    auto vShader = pool.FetchOrCreate(
+        "geometry.vertex.shader",
+        [](Device* device) {
+            return new spirv::VertexShader(device, "main", "shaders/debug/geometry.vert.spv");
+        });
+
+    // fragment shader
+    auto fShader = pool.FetchOrCreate(
+        "light.fragment.shader",
+        [](Device* device) {
+            return new spirv::FragmentShader(device, "main", "shaders/debug/light.frag.spv");
+        });
+
+    // pipeline
+    auto pipelineDesc = GraphicsPipelineDesc()
+        .SetName("lightvis")
+        .AddVertexBinding(0, sizeof(GeometryData::Vertex), VK_VERTEX_INPUT_RATE_VERTEX, {
+            { 0, VK_FORMAT_R32G32B32_SFLOAT, static_cast<uint32_t>(offsetof(GeometryData::Vertex, position)) },
+         })
+        .SetVertexShader(vShader)
+        .SetFragmentShader(fShader)
+        .SetCullMode(VK_CULL_MODE_BACK_BIT)
+        .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .SetDepthTest(VK_COMPARE_OP_LESS)
+        .SetDepthWrite(VK_FALSE)
+        .SetDefaultBlendState(0)
+        .SetPipelineLayout(PipelineLayoutDesc()
+            .AddPushConstant("LightID",    Range      { 0, sizeof(uint32_t)          },                                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding     ("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING      }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+            .AddBinding     ("Lights",     SetBinding { 0, SCENE_LIGHT_BINDING       }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding     ("LightXform", SetBinding { 0, SCENE_LIGHT_XFORM_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+        );
+
+    return pipelineDesc;
+}
+
 void AddLinearDepthPass(RenderGraph&       graph,
                         AutoReleasePool&   pool,
                         render::GBuffer*   gbuffer,
@@ -136,8 +174,8 @@ void AddLinearDepthPass(RenderGraph&       graph,
     static auto pipeline = PrepareLinearDepthPass(pool);
 
     auto pass = graph.CreateComputePass("linear-depth");
-    pass->SetStorage(sceneData->frame,  RenderGraph::STORAGE_READ_ONLY);
-    pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_READ_ONLY);
+    pass->SetStorage(sceneData->lights, RenderGraph::STORAGE_READ_ONLY);
+    pass->SetStorage(sceneData->lightXform, RenderGraph::STORAGE_READ_ONLY);
     pass->SetStorage(debug->depth, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->depth);
     pass->Execute([=](const RenderInfo &info) {
@@ -266,4 +304,55 @@ void AddSurfelAllocVisPass(RenderGraph&       graph,
         // dispatch compute
         info.commandBuffer->Dispatch(20, 1, 1);
     });
+}
+
+void AddLightVisPass(RenderGraph&           graph,
+                     AutoReleasePool&       pool,
+                     render::GBuffer*       gbuffer,
+                     render::SceneData*     sceneData,
+                     render::Surfel*        surfel,
+                     render::Debug*         debug,
+                     Scene*                 scene,
+                     RenderGraph::Resource* colorAttachment) {
+
+    static auto pipelineDesc = PrepareLightVisPass(pool);
+
+    auto pass = graph.CreateRenderPass("lightvis");
+    pass->SetColor(colorAttachment);
+    pass->SetDepth(gbuffer->depth);
+    pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_READ_ONLY);
+    pass->SetStorage(sceneData->lights, RenderGraph::STORAGE_READ_ONLY);
+    pass->SetStorage(sceneData->lightXform, RenderGraph::STORAGE_READ_ONLY);
+    pass->Execute([=](const RenderInfo &info) {
+
+        // bind pipeline
+        auto pipeline = info.renderFrame->RequestPipeline(
+            pipelineDesc
+                .SetRenderPass(info.renderPass)
+                .SetViewport(info.renderFrame->GetExtent()));
+
+        info.commandBuffer->BindPipeline(pipeline);
+
+        // bind camera uniform
+        auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+        descriptor->SetUniformBuffer("Camera", sceneData->camera->GetBuffer());
+        descriptor->SetStorageBuffer("Lights", sceneData->lights->GetBuffer());
+        descriptor->SetStorageBuffer("LightXform", sceneData->lightXform->GetBuffer());
+        info.commandBuffer->BindDescriptor(descriptor, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+        // draw each instance
+        for (uint32_t i = 0; i < scene->lights.size(); i++) {
+            scene::Mesh* mesh = nullptr;
+            switch (scene->lights[i].type) {
+                case LIGHT_TYPE_POINT:       mesh = scene->sphereMesh;   break;
+                case LIGHT_TYPE_SPOTLIGHT:   mesh = scene->coneMesh;     break;
+                case LIGHT_TYPE_DIRECTIONAL: mesh = scene->cylinderMesh; break;
+                default: break;
+            }
+            mesh->Bind(info.commandBuffer);
+            info.commandBuffer->PushConstants(pipeline->Layout(), "LightID", &i);
+            info.commandBuffer->DrawIndexed(mesh->GetIndexCount(), 1, 0, 0, 0);
+        }
+    });
+
 }

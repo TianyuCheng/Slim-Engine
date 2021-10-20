@@ -17,6 +17,7 @@ void AddUpdatePass(RenderGraph&       graph,
     pass->SetStorage(sceneData->frame, RenderGraph::STORAGE_WRITE_ONLY);
     pass->Execute([=](const RenderInfo &info) {
 
+        // camera
         CameraInfo cameraInfo = {};
         cameraInfo.P = scene->camera->GetProjection();
         cameraInfo.V = scene->camera->GetView();
@@ -66,11 +67,22 @@ void AddUpdatePass(RenderGraph&       graph,
                                                        + glm::vec3(0.0, -1.0, 0.0),
                                                          glm::vec3(0.0, 0.0, 1.0));
 
+        // frame
         FrameInfo frameInfo = {};
         frameInfo.frameID = frameID;
         frameInfo.resolution.x = info.renderFrame->GetExtent().width;
         frameInfo.resolution.y = info.renderFrame->GetExtent().height;
 
+        // lights
+        std::vector<glm::mat4> lightXform;
+        for (const auto& light : scene->lights) {
+            glm::mat4 xform(1.0);
+            xform = glm::translate(xform, light.position);  // apply translation
+            xform = glm::scale(xform, glm::vec3(0.1));      // apply scale
+            lightXform.push_back(xform);
+        }
+
+        info.commandBuffer->CopyDataToBuffer(lightXform, scene->lightXformBuffer);
         info.commandBuffer->CopyDataToBuffer(scene->lights, scene->lightBuffer);
         info.commandBuffer->CopyDataToBuffer(cameraInfo, scene->cameraBuffer);
         info.commandBuffer->CopyDataToBuffer(frameInfo, scene->frameInfoBuffer);

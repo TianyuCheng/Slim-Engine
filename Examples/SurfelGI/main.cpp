@@ -56,13 +56,13 @@ int main() {
 
     // scene
     auto scene = Scene(device);
-    {
+    if (1) {
         LightInfo light = {};
         light.type = LIGHT_TYPE_POINT;
         light.color = vec3(1.0, 1.0, 1.0);
-        light.intensity = 3.0;
-        light.range = 40.0;
-        light.position = vec3(0.0, 10.0, 0.0);
+        light.intensity = 10.0;
+        light.range = 5.0;
+        light.position = vec3(-5.0, 1.0, 0.0);
         scene.lights.push_back(light);
     }
 
@@ -98,6 +98,7 @@ int main() {
             sceneData.sky               = graph.CreateResource(scene.skyBuffer);
             sceneData.lights            = graph.CreateResource(scene.lightBuffer);
             sceneData.frame             = graph.CreateResource(scene.frameInfoBuffer);
+            sceneData.lightXform        = graph.CreateResource(scene.lightXformBuffer);
 
             // gbuffer resources
             render::GBuffer gbuffer     = {};
@@ -114,9 +115,8 @@ int main() {
             surfel.surfelGrid           = graph.CreateResource(scene.surfelGridBuffer);
             surfel.surfelCell           = graph.CreateResource(scene.surfelCellBuffer);
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
-            surfel.surfelDebug          = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            surfel.surfelDiffuse        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelDiffuse        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
 
             // visualize resources
             render::Debug debug         = {};
@@ -125,18 +125,20 @@ int main() {
             debug.surfelGrid            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
             debug.surfelDebug           = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
             debug.surfelBudget          = graph.CreateResource(barExtent,          VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelVariance        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
 
             AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddSurfelPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+            AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             #ifdef ENABLE_GBUFFER_VISUALIZATION
             AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddObjectVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             #endif
 
-            #ifdef ENABLE_GRID_VISUALIZATION
+            #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
             AddGridVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             #endif
 

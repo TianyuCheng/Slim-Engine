@@ -8,6 +8,7 @@ Scene::Scene(Device* device)
     InitCamera();
     InitLights();
     InitSurfels();
+    InitGeometry();
 }
 
 void Scene::InitScene() {
@@ -123,6 +124,13 @@ void Scene::InitLights() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
     lightBuffer->SetName("LightInfo");
+
+    // init light transform buffer
+    lightXformBuffer = SlimPtr<Buffer>(device,
+        sizeof(glm::mat4) * 20,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+    lightXformBuffer->SetName("LightXform");
 }
 
 void Scene::InitSurfels() {
@@ -169,6 +177,31 @@ void Scene::InitSurfels() {
     surfelStatBuffer->SetName("SurfelStat");
 
     ResetSurfels();
+}
+
+void Scene::InitGeometry() {
+    geometryBuilder = SlimPtr<scene::Builder>(device);
+
+    GeometryData cone = Cone { }.Create();
+    GeometryData sphere = Sphere { }.Create();
+    GeometryData cylinder = Cylinder { }.Create();
+
+    // cone mesh
+    coneMesh = geometryBuilder->CreateMesh();
+    coneMesh->SetIndexBuffer(cone.indices);
+    coneMesh->SetVertexBuffer(cone.vertices);
+
+    // sphere mesh
+    sphereMesh = geometryBuilder->CreateMesh();
+    sphereMesh->SetIndexBuffer(sphere.indices);
+    sphereMesh->SetVertexBuffer(sphere.vertices);
+
+    // cylinder mesh
+    cylinderMesh = geometryBuilder->CreateMesh();
+    cylinderMesh->SetIndexBuffer(cylinder.indices);
+    cylinderMesh->SetVertexBuffer(cylinder.vertices);
+
+    geometryBuilder->Build();
 }
 
 float Scene::Near() const {

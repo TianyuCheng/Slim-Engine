@@ -8,8 +8,8 @@
 
 #ifndef __cplusplus
 
-uvec4 pcg4d(uvec4 v) {
-    v = v * 1664525 + 1013904223;
+uvec4 pcg4d(inout uvec4 v) {
+    v = v * 1664525u + 1013904223u;
 
     v.x += v.y * v.w;
     v.y += v.z * v.x;
@@ -50,7 +50,9 @@ float uint_to_float(uint x) {
 #define RNGState uvec4
 
 RNGState init_rng(uvec2 pixel_coords, uvec2 resolution, uint frame) {
-    return RNGState(pixel_coords, frame, 0);
+    // seed forPCG uses a sequential sample number in 4th channel,
+    // which increments on every RNG call and starts from 0
+    return RNGState(pixel_coords.xy, frame, 0);
 }
 
 float rand(inout RNGState rng) {
@@ -63,7 +65,7 @@ float rand(inout RNGState rng) {
 #define RNGState uint
 
 RNGState init_rng(uvec2 pixel_coords, uvec2 resolution, uint frame) {
-    RNGState seed = dot(pixel_coords, uvec2(1, resolution.x)) ^ jenkinHash(frame);
+    RNGState seed = (pixel_coords.x + pixel_coords.y * resolution.x) ^ jenkins_hash(frame);
     return jenkins_hash(seed);
 }
 

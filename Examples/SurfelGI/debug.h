@@ -39,4 +39,13 @@ void AddSurfelAllocVisPass(RenderGraph&       graph,
                            render::Debug*     debug,
                            Scene*             scene);
 
+void AddLightVisPass(RenderGraph&           graph,
+                     AutoReleasePool&       pool,
+                     render::GBuffer*       gbuffer,
+                     render::SceneData*     sceneData,
+                     render::Surfel*        surfel,
+                     render::Debug*         debug,
+                     Scene*                 scene,
+                     RenderGraph::Resource* colorAttachment);
+
 #endif // SLIM_EXAMPLE_DEBUG_H

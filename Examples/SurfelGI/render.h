@@ -11,6 +11,7 @@ namespace render {
         RenderGraph::Resource* lights;
         RenderGraph::Resource* camera;
         RenderGraph::Resource* frame;
+        RenderGraph::Resource* lightXform;
     };
 
     struct GBuffer {
@@ -27,7 +28,6 @@ namespace render {
         RenderGraph::Resource* surfelGrid;
         RenderGraph::Resource* surfelCell;
         RenderGraph::Resource* surfelStat;
-        RenderGraph::Resource* surfelDebug;
         RenderGraph::Resource* surfelMoment;
         RenderGraph::Resource* surfelDiffuse;
         RenderGraph::Resource* surfelCoverage;
@@ -40,6 +40,7 @@ namespace render {
         RenderGraph::Resource* surfelGrid;
         RenderGraph::Resource* surfelDebug;
         RenderGraph::Resource* surfelBudget;
+        RenderGraph::Resource* surfelVariance;
     };
 
 } // end of render namespace

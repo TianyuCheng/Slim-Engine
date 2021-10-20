@@ -55,8 +55,7 @@ void main()
     vec3 bary = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
     // compute world position
-    vec3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
-    position = normalize(instance.M * vec4(position, 1.0)).xyz;
+    vec3 position = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
 
     // compute world normal at hit position
     vec3 normal = v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z;

@@ -54,7 +54,7 @@ void AddGBufferPass(RenderGraph&       graph,
                     render::Debug*     debug,
                     Scene*             scene) {
 
-    static auto pipelineLayout = PrepareGBufferPass(pool);
+    static auto pipelineDesc = PrepareGBufferPass(pool);
 
     auto pass = graph.CreateRenderPass("gbuffer");
     pass->SetColor(gbuffer->albedo, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
@@ -66,7 +66,7 @@ void AddGBufferPass(RenderGraph&       graph,
 
         // bind pipeline
         auto pipeline = info.renderFrame->RequestPipeline(
-            pipelineLayout
+            pipelineDesc
                 .SetRenderPass(info.renderPass)
                 .SetViewport(info.renderFrame->GetExtent()));
 

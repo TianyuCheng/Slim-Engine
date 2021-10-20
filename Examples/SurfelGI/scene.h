@@ -10,6 +10,7 @@ class Scene {
 private:
     SmartPtr<Device>         device;
     gltf::Model              model;
+    SmartPtr<scene::Builder> geometryBuilder;
 
 public:
     // scene data
@@ -26,6 +27,12 @@ public:
     SmartPtr<Buffer>         materialBuffer;
     SmartPtr<Buffer>         instanceBuffer;
     SmartPtr<Buffer>         frameInfoBuffer;
+    SmartPtr<Buffer>         lightXformBuffer;
+
+    // light geometry
+    SmartPtr<scene::Mesh>    coneMesh;
+    SmartPtr<scene::Mesh>    sphereMesh;
+    SmartPtr<scene::Mesh>    cylinderMesh;
 
     // surfel data
     SmartPtr<Buffer>         surfelBuffer;
@@ -53,6 +60,7 @@ private:
     void InitCamera();
     void InitLights();
     void InitSurfels();
+    void InitGeometry();
 };
 
 #endif // SLIM_EXAMPLE_SCENE_H

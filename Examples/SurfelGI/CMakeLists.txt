@@ -38,6 +38,8 @@ add_slim_project(
         shaders/debug/objectvis.comp
         shaders/debug/gridvis.comp
         shaders/debug/allocvis.comp
+        shaders/debug/geometry.vert
+        shaders/debug/light.frag
 
         shaders/surfel/reset.comp
         shaders/surfel/offset.comp
@@ -49,7 +51,6 @@ add_slim_project(
         shaders/raytrace/ray.rgen
         shaders/raytrace/scene.rchit
         shaders/raytrace/scene.rmiss
-        shaders/raytrace/shadow.rahit
         shaders/raytrace/shadow.rmiss
 
         shaders/post/fullscreen.vert

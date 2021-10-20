@@ -175,6 +175,7 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                     .AddBinding("SurfelGrid", SetBinding { 1, SURFEL_GRID_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Debug",      SetBinding { 1, SURFEL_DEBUG_BINDING    }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Variance",   SetBinding { 1, SURFEL_VARIANCE_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Diffuse",    SetBinding { 1, SURFEL_DIFFUSE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Albedo",     SetBinding { 2, GBUFFER_ALBEDO_BINDING  }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
@@ -207,12 +208,6 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
         [](Device* device) {
             return new spirv::MissShader(device, "main", "shaders/raytrace/scene.rmiss.spv");
         });
-    // shadow any hit shader
-    static auto shadowAnyHitShader = pool.FetchOrCreate(
-        "shadow.any.hit",
-        [](Device* device) {
-            return new spirv::AnyHitShader(device, "main", "shaders/raytrace/shadow.rahit.spv");
-        });
     // surfel ray intersection shader
     static auto shadowMissShader = pool.FetchOrCreate(
         "shadow.miss",
@@ -231,9 +226,8 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
                     .SetName("ray-tracing")
                     .SetRayGenShader(rayGenShader)
                     .SetMissShader(sceneMissShader)
-                    .SetClosestHitShader(sceneClosestHitShader)
                     .SetMissShader(shadowMissShader)
-                    .SetAnyHitShader(shadowAnyHitShader)
+                    .SetClosestHitShader(sceneClosestHitShader)
                     .SetMaxRayRecursionDepth(1)
                     .SetPipelineLayout(PipelineLayoutDesc()
                         .AddPushConstant("Info",       Range      { 0, sizeof(uint32_t)       },                                                      VK_SHADER_STAGE_RAYGEN_BIT_KHR)
@@ -292,9 +286,10 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelLive,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelStat,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelData,     RenderGraph::STORAGE_WRITE_ONLY);
-    pass->SetStorage(surfel->surfelDebug,    RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelDiffuse,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelCoverage, RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
@@ -426,50 +421,6 @@ void AddSurfelPass(RenderGraph&       graph,
 
         // ----------------------------------------------------------------------------------------------------
 
-        info.commandBuffer->BeginRegion("surfel-coverage");
-        {
-            auto pipeline = coveragePipeline;
-            info.commandBuffer->BindPipeline(pipeline);
-
-            // bind descriptor
-            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
-            descriptor->SetUniformBuffer("Frame", sceneData->frame->GetBuffer());
-            descriptor->SetUniformBuffer("Camera", sceneData->camera->GetBuffer());
-            descriptor->SetStorageBuffer("Surfel", surfel->surfels->GetBuffer());
-            descriptor->SetStorageBuffer("SurfelData", surfel->surfelData->GetBuffer());
-            descriptor->SetStorageBuffer("SurfelLive", surfel->surfelLive->GetBuffer());
-            descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStat->GetBuffer());
-            descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
-            descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
-            descriptor->SetStorageImage("Coverage", surfel->surfelCoverage->GetImage());
-            descriptor->SetStorageImage("Diffuse", surfel->surfelDiffuse->GetImage());
-            descriptor->SetStorageImage("Debug", surfel->surfelDebug->GetImage());
-            descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
-            descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
-            descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
-            descriptor->SetTexture("Object", gbuffer->object->GetImage(), sampler);
-            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
-
-            // issue compute call
-            uint32_t groupX = (info.renderFrame->GetExtent().width + SURFEL_TILE_X - 1) / SURFEL_TILE_X;
-            uint32_t groupY = (info.renderFrame->GetExtent().height + SURFEL_TILE_Y - 1) / SURFEL_TILE_Y;
-            info.commandBuffer->Dispatch(groupX, groupY, 1);
-
-            // barriers
-            info.commandBuffer->PrepareForBuffer(surfel->surfelStat->GetBuffer(),
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-            info.commandBuffer->PrepareForBuffer(surfel->surfelLive->GetBuffer(),
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-            info.commandBuffer->PrepareForBuffer(surfel->surfelData->GetBuffer(),
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-        }
-        info.commandBuffer->EndRegion();
-
-        // ----------------------------------------------------------------------------------------------------
-
         info.commandBuffer->BeginRegion("raytrace");
         {
             auto pipeline = raytracePipeline;
@@ -506,6 +457,51 @@ void AddSurfelPass(RenderGraph&       graph,
                               SURFEL_CAPACITY_SQRT, SURFEL_CAPACITY_SQRT, 1);
 
             // barriers
+            info.commandBuffer->PrepareForBuffer(surfel->surfelData->GetBuffer(),
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+        }
+        info.commandBuffer->EndRegion();
+
+        // ----------------------------------------------------------------------------------------------------
+
+        info.commandBuffer->BeginRegion("surfel-coverage");
+        {
+            auto pipeline = coveragePipeline;
+            info.commandBuffer->BindPipeline(pipeline);
+
+            // bind descriptor
+            auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+            descriptor->SetUniformBuffer("Frame", sceneData->frame->GetBuffer());
+            descriptor->SetUniformBuffer("Camera", sceneData->camera->GetBuffer());
+            descriptor->SetStorageBuffer("Surfel", surfel->surfels->GetBuffer());
+            descriptor->SetStorageBuffer("SurfelData", surfel->surfelData->GetBuffer());
+            descriptor->SetStorageBuffer("SurfelLive", surfel->surfelLive->GetBuffer());
+            descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStat->GetBuffer());
+            descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
+            descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
+            descriptor->SetStorageImage("Coverage", surfel->surfelCoverage->GetImage());
+            descriptor->SetStorageImage("Diffuse", surfel->surfelDiffuse->GetImage());
+            descriptor->SetStorageImage("Debug", debug->surfelDebug->GetImage());
+            descriptor->SetStorageImage("Variance", debug->surfelVariance->GetImage());
+            descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
+            descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
+            descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
+            descriptor->SetTexture("Object", gbuffer->object->GetImage(), sampler);
+            info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+            // issue compute call
+            uint32_t groupX = (info.renderFrame->GetExtent().width + SURFEL_TILE_X - 1) / SURFEL_TILE_X;
+            uint32_t groupY = (info.renderFrame->GetExtent().height + SURFEL_TILE_Y - 1) / SURFEL_TILE_Y;
+            info.commandBuffer->Dispatch(groupX, groupY, 1);
+
+            // barriers
+            info.commandBuffer->PrepareForBuffer(surfel->surfelStat->GetBuffer(),
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+            info.commandBuffer->PrepareForBuffer(surfel->surfelLive->GetBuffer(),
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
             info.commandBuffer->PrepareForBuffer(surfel->surfelData->GetBuffer(),
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);

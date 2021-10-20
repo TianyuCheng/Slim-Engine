@@ -174,9 +174,6 @@ struct SurfelData {
     vec3  variance;
     float padding0;
 
-    vec3  albedo;   // record albedo at the surfel location
-    float padding1;
-
     float vbbr;
     float inconsistency;
     uint  life;
@@ -206,6 +203,7 @@ struct SurfelGridCell {
 #define SCENE_MATERIAL_BINDING      4
 #define SCENE_ACCEL_BINDING         5
 #define SCENE_SKY_BINDING           6
+#define SCENE_LIGHT_XFORM_BINDING   7
 
 // Descriptor Set
 #define SCENE_IMAGES_BINDING        0
@@ -231,6 +229,7 @@ struct SurfelGridCell {
 #define SURFEL_COVERAGE_BINDING     8
 #define SURFEL_RAYGUIDE_BINDING     9
 #define SURFEL_MOMENT_BINDING       10
+#define SURFEL_VARIANCE_BINDING     11
 
 // Descriptor Set
 #define DEBUG_DEPTH_BINDING         0
