@@ -57,6 +57,10 @@ image2D debugImage;
 layout(set = 1, binding = SURFEL_VARIANCE_BINDING, rgba8) uniform
 image2D varianceImage;
 
+// surfel depth atlas texture
+layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
+image2D surfelDepth;
+
 // surfel diffuse
 layout(set = 1, binding = SURFEL_DIFFUSE_BINDING, rgba32f) uniform
 image2D diffuseImage;
@@ -131,7 +135,14 @@ void main() {
                 float contribution = 1.0;
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
-                // TODO: compute contribution by surfel moment
+
+                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+                // radial depth function
+                uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(cellIndex, L/dist, SURFEL_DEPTH_TEXELS));
+                vec2 radialDepth = imageLoad(surfelDepth, int2(radialDepthPixel)).xy;
+                contribution *= compute_surfel_radial_depth(radialDepth, dist);
+                #endif
+
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
                 coverage += contribution;
@@ -210,7 +221,7 @@ void main() {
         float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
 
         if (linear < 1.0) {
-            float threshold = rand(rng) * 0.5;
+            float threshold = rand(rng);
 
             // stochastically spawn surfel
             if (chance < threshold) {

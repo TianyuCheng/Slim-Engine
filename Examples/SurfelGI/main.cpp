@@ -85,6 +85,14 @@ int main() {
         barExtent.width = 320;
         barExtent.height = 2;
 
+        VkExtent2D radialDepthExtent = {};
+        radialDepthExtent.width = SURFEL_DEPTH_ATLAS_TEXELS;
+        radialDepthExtent.height = SURFEL_DEPTH_ATLAS_TEXELS;
+
+        VkExtent2D rayGuideExtent = {};
+        rayGuideExtent.width = SURFEL_RAYGUIDE_ATLAS_TEXELS;
+        rayGuideExtent.height = SURFEL_RAYGUIDE_ATLAS_TEXELS;
+
         // update time
         time->Update();
 
@@ -117,6 +125,8 @@ int main() {
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
             surfel.surfelDiffuse        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelDepth          = graph.CreateResource(radialDepthExtent,  VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelRayGuide       = graph.CreateResource(rayGuideExtent,     VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
 
             // visualize resources
             render::Debug debug         = {};

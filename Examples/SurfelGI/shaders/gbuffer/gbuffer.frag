@@ -41,4 +41,8 @@ void main() {
     if (outAlbedo.a <= 0.25) {
         discard;
     }
+
+    // // gamma correct
+    // const float gamma = 2.2;
+    // outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma));
 }

@@ -28,9 +28,9 @@ namespace render {
         RenderGraph::Resource* surfelGrid;
         RenderGraph::Resource* surfelCell;
         RenderGraph::Resource* surfelStat;
-        RenderGraph::Resource* surfelMoment;
         RenderGraph::Resource* surfelDiffuse;
         RenderGraph::Resource* surfelCoverage;
+        RenderGraph::Resource* surfelDepth;
         RenderGraph::Resource* surfelRayGuide;
     };
 

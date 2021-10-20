@@ -20,7 +20,7 @@ void main() {
     // final contribution
     outColor = diffuse * albedo;
 
-    // apply gamma correction
-    float gamma = 2.2;
-    outColor.rgb = pow(outColor.rgb, vec3(1.0/gamma));
+    // // gamma correct
+    // const float gamma = 2.2;
+    // outColor.rgb = pow(outColor.rgb, vec3(1.0/gamma));
 }

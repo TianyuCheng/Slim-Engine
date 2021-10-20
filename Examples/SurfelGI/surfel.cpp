@@ -174,6 +174,7 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                     .AddBinding("SurfelStat", SetBinding { 1, SURFEL_STAT_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("SurfelGrid", SetBinding { 1, SURFEL_GRID_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelDepth",SetBinding { 1, SURFEL_DEPTH_BINDING    }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Debug",      SetBinding { 1, SURFEL_DEBUG_BINDING    }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Variance",   SetBinding { 1, SURFEL_VARIANCE_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
@@ -244,6 +245,7 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
                         .AddBinding("SurfelGrid",      SetBinding { 1, SURFEL_GRID_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("SurfelCell",      SetBinding { 1, SURFEL_CELL_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("SurfelStat",      SetBinding { 1, SURFEL_STAT_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelDepth",     SetBinding { 1, SURFEL_DEPTH_BINDING    },      VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBindingArray("Images",     SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                         .AddBindingArray("Samplers",   SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000, VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                     )
@@ -288,6 +290,7 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelData,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelDiffuse,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelCoverage, RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(surfel->surfelDepth,    RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
@@ -441,6 +444,7 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStat->GetBuffer());
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
             descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
+            descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
             descriptor->SetSampledImages("Images", scene->images);
             descriptor->SetSamplers("Samplers", scene->samplers);
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
@@ -482,6 +486,7 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
             descriptor->SetStorageImage("Coverage", surfel->surfelCoverage->GetImage());
             descriptor->SetStorageImage("Diffuse", surfel->surfelDiffuse->GetImage());
+            descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
             descriptor->SetStorageImage("Debug", debug->surfelDebug->GetImage());
             descriptor->SetStorageImage("Variance", debug->surfelVariance->GetImage());
             descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);

@@ -1,3 +1,4 @@
+#include <glm/gtc/type_ptr.hpp>
 #include "config.h"
 #include "scene.h"
 #include "overlay.h"
@@ -67,6 +68,10 @@ void AddOverlayPass(RenderGraph&           graph,
     overlayPass->SetTexture(debug->surfelVariance);
     #endif
 
+    #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+    overlayPass->SetTexture(surfel->surfelDepth);
+    #endif
+
     #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
     overlayPass->SetTexture(debug->surfelBudget);
     #endif
@@ -104,6 +109,10 @@ void AddOverlayPass(RenderGraph&           graph,
 
         #ifdef ENABLE_SURFEL_VARIANCE_VISUALIZATION
         ImTextureID variance = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelVariance->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+        ImTextureID surfelDepth = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDepth->GetImage()->AsTexture());
         #endif
 
         ImTextureID diffuse  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDiffuse->GetImage()->AsTexture());
@@ -187,6 +196,13 @@ void AddOverlayPass(RenderGraph&           graph,
                     }
                     #endif
 
+                    #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+                    if (ImGui::BeginTabItem("Radial Depth")) {
+                        ImGui::Image(surfelDepth, size);
+                        ImGui::EndTabItem();
+                    }
+                    #endif
+
                     if (ImGui::BeginTabItem("Diffuse")) {
                         ImGui::Image(diffuse, size);
                         ImGui::EndTabItem();
@@ -218,47 +234,53 @@ void AddOverlayPass(RenderGraph&           graph,
                 }
 
                 // controller for light configurations
+                uint32_t selectedLight = 0;
                 ImGui::BeginTabBar("##Lights");
                 for (uint i = 0; i < scene->lights.size(); i++) {
+                    auto& light = scene->lights[i];
                     std::string tabname = "Light " + std::to_string(i);
                     std::string color = "Color##Light-" + std::to_string(i);
                     std::string position = "Position##Light-" + std::to_string(i);
                     std::string range = "Range##Light-" + std::to_string(i);
                     std::string intensity = "Intensity##Light-" + std::to_string(i);
                     if (ImGui::BeginTabItem(tabname.c_str())) {
-                        float _position[3] = {
-                            scene->lights[i].position.x,
-                            scene->lights[i].position.y,
-                            scene->lights[i].position.z,
-                        };
-                        float _color[3] = {
-                            scene->lights[i].color.x,
-                            scene->lights[i].color.y,
-                            scene->lights[i].color.z,
-                        };
-                        float _intensity = scene->lights[i].intensity;
-                        float _range = scene->lights[i].range;
-                        if (ImGui::DragFloat3(position.c_str(), _position, 0.1f, -30.0f, 30.0f)) {
-                            scene->lights[i].position.x = _position[0];
-                            scene->lights[i].position.y = _position[1];
-                            scene->lights[i].position.z = _position[2];
-                        }
-                        if (ImGui::DragFloat3(color.c_str(), _color, 0.05f, 0.0f, 1.0f)) {
-                            scene->lights[i].color.x = _color[0];
-                            scene->lights[i].color.y = _color[1];
-                            scene->lights[i].color.z = _color[2];
-                        }
-                        if (ImGui::DragFloat(intensity.c_str(), &_intensity, 1.0f, 0.0f, 100.0f)) {
-                            scene->lights[i].intensity = _intensity;
-                        }
-                        if (ImGui::DragFloat(range.c_str(), &_range, 1.0f, 0.0f, 100.0f)) {
-                            scene->lights[i].range = _range;
+                        ImGui::DragFloat3(position.c_str(), glm::value_ptr(light.position), 0.1f, -30.0f, 30.0f);
+                        ImGui::DragFloat3(color.c_str(), glm::value_ptr(light.color), 0.05f, 0.0f, 1.0f);
+                        ImGui::DragFloat(intensity.c_str(), &light.intensity, 1.0f, 0.0f, 100.0f);
+                        ImGui::DragFloat(range.c_str(), &light.range, 1.0f, 0.0f, 100.0f);
+                        if (ImGui::Button("Move Light to Camera")) {
+                            light.position = scene->camera->GetPosition();
                         }
                         ImGui::EndTabItem();
+                        selectedLight = i;
                     }
                 }
                 ImGui::EndTabBar();
 
+                // imguizmo
+                ImGuizmo::Enable(true);
+                ImGui::Begin("Main", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+                {
+                    ImGuizmo::SetDrawlist();
+                    float x = ImGui::GetWindowPos().x;
+                    float y = ImGui::GetWindowPos().y;
+                    float w = static_cast<float>(ImGui::GetWindowWidth());
+                    float h = static_cast<float>(ImGui::GetWindowHeight());
+                    ImGuizmo::SetRect(x, y, w, h);
+
+                    glm::mat4 xform(1.0);
+                    auto& light = scene->lights[selectedLight];
+                    xform = glm::translate(xform, light.position);  // apply translation
+                    ImGuizmo::Manipulate(glm::value_ptr(scene->camera->GetView()),
+                            glm::value_ptr(scene->camera->GetProjection()),
+                            ImGuizmo::TRANSLATE,
+                            ImGuizmo::LOCAL,
+                            glm::value_ptr(xform));
+                    light.position.x = xform[3][0];
+                    light.position.y = xform[3][1];
+                    light.position.z = xform[3][2];
+                }
+                ImGui::End();
             }
             ImGui::End();
         }

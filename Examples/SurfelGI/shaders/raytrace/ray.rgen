@@ -53,6 +53,10 @@ SurfelCellBuffer { uint data[]; } surfelCells;
 layout(set = 1, binding = SURFEL_STAT_BINDING) buffer
 SurfelStatBuffer { SurfelStat data; } surfelStat;
 
+// surfel depth atlas texture
+layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
+image2D surfelDepth;
+
 // ray payload
 layout(location = 0) rayPayloadEXT HitInfo hitData;
 layout(location = 1) rayPayloadEXT bool    shadowed;
@@ -175,7 +179,14 @@ vec4 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
                 float contribution = 1.0;
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
-                // TODO: compute contribution by surfel moment
+
+                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+                // radial depth function
+                uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(cellIndex, L/dist, SURFEL_DEPTH_TEXELS));
+                vec2 radialDepth = imageLoad(surfelDepth, int2(radialDepthPixel)).xy;
+                contribution *= compute_surfel_radial_depth(radialDepth, dist);
+                #endif
+
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
                 surfelGI += vec4(surfel.color, 1.0) * contribution;
@@ -235,6 +246,13 @@ void multiscale_mean_estimator(vec3 y, inout SurfelData data, float shortWindowB
     data.inconsistency = inconsistency;
 }
 
+void update_surfel_depth(uint2 pixel, float dist) {
+    vec2 prev = imageLoad(surfelDepth, int2(pixel)).xy;
+    float blend = prev.x < dist ? 0.005 : 0.5;
+    vec2 next = mix(prev, vec2(dist, dist * dist), blend);
+    imageStore(surfelDepth, int2(pixel), vec4(next, 0.0, 1.0));
+}
+
 void main() {
     uint currentSurfelID = gl_LaunchIDEXT.x * SURFEL_CAPACITY_SQRT
                          + gl_LaunchIDEXT.y;
@@ -262,7 +280,9 @@ void main() {
     RNGState rng = init_rng(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy, frameID);
 
     // decide ray budget for this surfel
-    int rayCount = max(16 - int(data.life), 1);
+    // int rayCount = max(16 - int(data.life), 1);
+    // int rayCount = int(ceil(mix(1, 16, data.inconsistency)));
+    int rayCount = 1;
 
     // trace ray into scene
     for (int i = 0; i < rayCount; i++) {
@@ -279,17 +299,32 @@ void main() {
         float tMin = 0.00001;
         float tMax = 100000.0;
 
+        #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+        // radial depth function
+        uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(currentSurfelID, rayDirection, SURFEL_DEPTH_TEXELS));
+        #endif
+
         // trace
         bool hit = traceScene(rayOrigin, rayDirection, tMin, tMax);
         if (!hit) {
-            // TODO: update surfel moments with surfel radius
+            #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+            // update surfel moments with surfel radius
+            update_surfel_depth(radialDepthPixel, surfel.radius);
+            #endif
 
             // get sky color
             vec3 env = sky.data.color;
             result += vec4(env, 1.0);
         }
         else {
-            // TODO: update surfel moments with surfel radius
+            #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+            // update surfel moments with surfel radius
+            float hitDepth = hitData.distance;
+            if (hitDepth < surfel.radius) {
+                hitDepth *= 0.8;
+            }
+            update_surfel_depth(radialDepthPixel, hitDepth);
+            #endif
 
             // record hit information
             HitInfo surface;

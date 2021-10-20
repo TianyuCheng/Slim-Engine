@@ -147,12 +147,18 @@ const uint3 SURFEL_GRID_OUTER_DIMS  = SURFEL_GRID_DIMS - SURFEL_GRID_INNER_DIMS;
 const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.y
                                     * SURFEL_GRID_DIMS.z;
-const uint SURFEL_MOMENT_TEXELS     = 4 + 2;
-const uint SURFEL_UPDATE_GROUP_SIZE = 32;
 const float SURFEL_LOW_COVERAGE     = 0.25;
 const float SURFEL_HIGH_COVERAGE    = 1.25;
 const float SURFEL_MAX_RADIUS       = 0.5;
 const float SURFEL_MIN_RADIUS       = 0.2;
+const uint SURFEL_UPDATE_GROUP_SIZE = 32;
+
+// record radial gaussian depth function values
+const uint SURFEL_DEPTH_TEXELS          = 4;
+const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_TEXELS * SURFEL_CAPACITY_SQRT;
+// record relative radiance for ray guiding
+const uint SURFEL_RAYGUIDE_TEXELS       = 6;
+const uint SURFEL_RAYGUIDE_ATLAS_TEXELS = SURFEL_RAYGUIDE_TEXELS * SURFEL_CAPACITY_SQRT;
 
 struct Surfel {
     vec3  position;
@@ -228,7 +234,7 @@ struct SurfelGridCell {
 #define SURFEL_DIFFUSE_BINDING      7
 #define SURFEL_COVERAGE_BINDING     8
 #define SURFEL_RAYGUIDE_BINDING     9
-#define SURFEL_MOMENT_BINDING       10
+#define SURFEL_DEPTH_BINDING        10
 #define SURFEL_VARIANCE_BINDING     11
 
 // Descriptor Set
@@ -332,6 +338,50 @@ uint2 unflatten_2d(uint index, uint2 dim) {
     return uint2(index % dim.x, index / dim.x);
 }
 
+// encode hemisphere into octahedron
+vec2 encode_hemioct(vec3 v) {
+    // project hemisphere onto hemi-octahedron
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + v.z));
+    // rotate and scale the center diamon to the unit square
+    return vec2(p.x + p.y, p.x - p.y);
+}
+
+// decode octahedron to hemisphere
+vec3 decode_hemioct(vec2 e) {
+    // rotate and scale the unit square back to the center diamond
+    vec2 temp = vec2(e.x + e.y, e.x - e.y) * 0.5;
+    vec3 v = vec3(temp, 1.0 - abs(temp.x) - abs(temp.y));
+    return normalize(v);
+}
+
+// compute pixel coordinate on surfel octmap
+vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, uint texels) {
+    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * texels;
+    vec3 hemi = normalize(direction);
+    vec2 uv = encode_hemioct(hemi) * 0.5 + 0.5;
+    return uv * texels;
+}
+
+// compute uv on surfel octmap
+vec2 compute_surfel_octmap_uv(uint surfelIndex, vec3 direction, uint texels, uint atlasTexels) {
+    vec2 pixel = compute_surfel_octmap_pixel(surfelIndex, direction, texels);
+    return pixel / atlasTexels;
+}
+
+float compute_surfel_radial_depth(vec2 weight, float dist) {
+    float mean = weight.x;
+    float mean2 = weight.y;
+    if (dist > mean) {
+        // chebyshev
+        float variance = abs(mean * mean - mean2);
+        float diff = dist - mean;
+        return max(0.0, pow(variance / (variance + diff * diff), 3.0));
+    }
+    return 1.0;
+}
+
 #endif
+
+#define ENABLE_SURFEL_RADIAL_DEPTH
 
 #endif
