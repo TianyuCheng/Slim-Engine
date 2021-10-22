@@ -2,6 +2,9 @@
 #extension GL_ARB_separate_shader_objects                : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
+#define ENABLE_SURFEL_DEBUG_POINT
+/* #define ENABLE_SURFEL_DEBUG_RANDOM */
+
 #include "pack.h"
 #include "unpack.h"
 #include "camera.h"
@@ -49,14 +52,6 @@ SurfelStatBuffer { SurfelStat data; } surfelStat;
 layout(set = 1, binding = SURFEL_COVERAGE_BINDING, r32f) uniform
 image2D coverageImage;
 
-// surfel debug
-layout(set = 1, binding = SURFEL_DEBUG_BINDING, rgba8) uniform
-image2D debugImage;
-
-// surfel variance
-layout(set = 1, binding = SURFEL_VARIANCE_BINDING, rgba8) uniform
-image2D varianceImage;
-
 // surfel depth atlas texture
 layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
 image2D surfelDepth;
@@ -81,8 +76,17 @@ usampler2D objectImage;
 layout(set = 2, binding = GBUFFER_NORMAL_BINDING) uniform
 sampler2D normalImage;
 
+// debug surfel
+layout(set = 3, binding = DEBUG_SURFEL_BINDING, rgba8) uniform
+image2D debugImage;
+
+// surfel variance
+layout(set = 3, binding = DEBUG_SURFEL_VAR_BINDING, rgba8) uniform
+image2D varianceImage;
+
+shared uint groupMinSurfelID;
 shared uint groupMinSurfelCount;
-shared uint groupMaxSurfelCount;
+shared uint groupMinSurfelCoverage;
 
 /**
  * This compute shader performs the following:
@@ -91,6 +95,11 @@ shared uint groupMaxSurfelCount;
  * 3. recycle surfels on high coverage
  */
 void main() {
+    groupMinSurfelID = 0xffffffff;
+    groupMinSurfelCount = 0;
+    groupMinSurfelCoverage = 0xffffffff;
+    memoryBarrierShared();
+
     int2 resolution = int2(frame.data.resolution);
 
     // dimension check
@@ -112,9 +121,10 @@ void main() {
     SurfelGridCell cell = surfelGrids.data[cellIndex];
 
     float coverage = 0.0;
-    vec2 variance = vec2(0.0);
+    vec4 variance = vec4(0.0);
     vec4 color = vec4(0.0);
     vec4 debug = vec4(0.0);
+    vec4 average = vec4(0.0);
 
     // iterate through all surfels in this grid cell
     for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
@@ -147,10 +157,18 @@ void main() {
                 contribution = smoothstep(0.0, 1.0, contribution);
                 coverage += contribution;
                 color += vec4(surfel.color, 1.0) * contribution;
-                debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
-                variance += vec2(sdata.vbbr, 1.0) * contribution;
+                variance += vec4(sdata.variance, 1.0) * contribution;
+                #ifdef ENABLE_SURFEL_DEBUG_RANDOM
+                debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
+                #endif
             }
+            average += vec4(surfel.color, 1.0);
         }
+        #ifdef ENABLE_SURFEL_DEBUG_POINT
+        if (d2 < 0.0025) {
+            debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
+        }
+        #endif
         // end of pixel coverage check
     }
 
@@ -178,14 +196,19 @@ void main() {
     }
 
     // normalize variance
-    if (variance.g > 0.0) {
-        variance.r /= variance.g;
+    if (variance.a > 0.0) {
+        variance /= variance.a;
+    }
+
+    // normalize average
+    if (average.a > 0.0) {
+        average /= average.a;
     }
 
     // output
     imageStore(debugImage, pixel, debug);
     imageStore(diffuseImage, pixel, color);
-    imageStore(coverageImage, pixel, vec4(coverage));
+    imageStore(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
     imageStore(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
 
     // spawn new surfels based on coverage
@@ -198,33 +221,34 @@ void main() {
 
     // find minimum surfel coverage
     uint2 localID = gl_LocalInvocationID.xy;
-    uint coverageHash = (uint(coverage)  & 0xff  ) << 24 // top bits matters the most
-                      | (uint(rand(rng)) & 0xffff) << 8  // shuffles pixels around
-                      | (     localID.x  & 0xf   ) << 4
-                      | (     localID.y  & 0xf   ) << 0;
+    uint covU32 = uint(coverage * 255.0);
+    uint coverageID = (covU32          & 0xff  ) << 24 // top bits matters the most
+                    | (uint(rand(rng)) & 0xffff) << 8  // shuffles pixels around
+                    | (     localID.x  & 0xf   ) << 4
+                    | (     localID.y  & 0xf   ) << 0;
     if (cell.count < SURFEL_CELL_CAPACITY) {
-        atomicMin(groupMinSurfelCount, coverageHash);
-        atomicMax(groupMaxSurfelCount, coverageHash);
-    }
-    memoryBarrierShared();
+        atomicMin(groupMinSurfelID, coverageID);
+        atomicMin(groupMinSurfelCoverage, covU32);
+        memoryBarrierShared();
+        if (covU32 == groupMinSurfelCoverage) {
+            atomicAdd(groupMinSurfelCount, 1);
+        }
 
-    // spawn surfel
-#if 1
-    uint surfelCoverage = groupMinSurfelCount;
-    if (coverageHash == surfelCoverage && coverage < 0.01) {
-        float chance = rand(rng);
+        memoryBarrierShared();
 
-        // need to spawn a new surfel
-        float zNear = camera.data.zNear;
-        float zFar = camera.data.zFar;
-        float zFarRcp = camera.data.zFarRcp;
-        float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
+        // spawn surfel
+        if (depth < 1.0 && coverageID == groupMinSurfelID && coverage < SURFEL_LOW_COVERAGE) {
+            // need to spawn a new surfel
+            float zNear = camera.data.zNear;
+            float zFar = camera.data.zFar;
+            float zFarRcp = camera.data.zFarRcp;
+            float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
 
-        if (linear < 1.0) {
-            float threshold = rand(rng);
+            float threshold = pow(1.0 - linear, 1.0);
+            float chance = rand(rng);
 
             // stochastically spawn surfel
-            if (chance < threshold) {
+            if (groupMinSurfelCount == 1 || chance > threshold) {
                 // request an available surfel
                 uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
                 uint surfelID = surfelLive.data[availableSurfelID];
@@ -235,9 +259,10 @@ void main() {
                 data.normal = pack_unitvec3(N * 0.5 + 0.5);
                 data.life = 0;
                 data.recycle = 0;
-                data.vbbr = 0.0;
+                data.vbbr = 1.0;
                 data.inconsistency = 1.0;
                 data.mean = vec3(0.0);
+                data.shortMean = vec3(0.0);
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -245,36 +270,4 @@ void main() {
             }
         }
     }
-#else
-    if (pixel == int2(0, 0) && frame.data.frameID == 1) {
-        for (int i = -50; i <= 50; i++) {
-            for (int j = -50; j <= 50; j++) {
-                // request an available surfel
-                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
-                uint surfelID = surfelLive.data[availableSurfelID];
-
-                // allocate new surfel
-                SurfelData data;
-                data.position = vec3(i * 0.25, 0.0, j * 0.25);
-                data.normal = pack_unitvec3(vec3(0.0, 1.0, 0.0) * 0.5 + 0.5);
-                data.life = 0;
-                data.recycle = 0;
-                data.vbbr = 0.0;
-                data.inconsistency = 1.0;
-                data.mean = vec3(0.0);
-                data.instanceID = 0;
-                data.surfelID = surfelID;
-
-                surfelData.data[surfelID] = data;
-            }
-        }
-    }
-#endif
-
-    // recycle surfel
-    #if 0
-    uint surfelCoverage = groupMaxSurfelCount;
-    if (coverageHash == surfelCoverage && coverage > SURFEL_HIGH_COVERAGE) {
-    }
-    #endif // end of recycle surfel
 }

@@ -56,10 +56,6 @@ void AddOverlayPass(RenderGraph&           graph,
     overlayPass->SetTexture(debug->surfelGrid);
     #endif
 
-    #ifdef ENABLE_SURFEL_DEBUG_VISUALIZATION
-    overlayPass->SetTexture(debug->surfelDebug);
-    #endif
-
     #ifdef ENABLE_SURFEL_COVERAGE_VISUALIZATION
     overlayPass->SetTexture(surfel->surfelCoverage);
     #endif
@@ -93,10 +89,6 @@ void AddOverlayPass(RenderGraph&           graph,
 
         #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
         ImTextureID grid   = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelGrid->GetImage()->AsTexture());
-        #endif
-
-        #ifdef ENABLE_SURFEL_DEBUG_VISUALIZATION
-        ImTextureID debugcov = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelDebug->GetImage()->AsTexture());
         #endif
 
         #ifdef ENABLE_SURFEL_COVERAGE_VISUALIZATION
@@ -175,13 +167,6 @@ void AddOverlayPass(RenderGraph&           graph,
                     }
                     #endif
 
-                    #ifdef ENABLE_SURFEL_DEBUG_VISUALIZATION
-                    if (ImGui::BeginTabItem("Debug")) {
-                        ImGui::Image(debugcov, size);
-                        ImGui::EndTabItem();
-                    }
-                    #endif
-
                     #ifdef ENABLE_SURFEL_COVERAGE_VISUALIZATION
                     if (ImGui::BeginTabItem("Coverage")) {
                         ImGui::Image(coverage, size);
@@ -232,6 +217,12 @@ void AddOverlayPass(RenderGraph&           graph,
                 if (ImGui::Button("Resume Surfels")) {
                     scene->ResumeSurfels();
                 }
+                if (ImGui::Button("Toggle Surfel Point")) {
+                    scene->surfelDebugControl.debugPoint = !scene->surfelDebugControl.debugPoint;
+                }
+                if (ImGui::Button("Toggle Light Control")) {
+                    scene->lightDebugControl.debugLight = !scene->lightDebugControl.debugLight;
+                }
 
                 // controller for light configurations
                 uint32_t selectedLight = 0;
@@ -258,29 +249,31 @@ void AddOverlayPass(RenderGraph&           graph,
                 ImGui::EndTabBar();
 
                 // imguizmo
-                ImGuizmo::Enable(true);
-                ImGui::Begin("Main", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
-                {
-                    ImGuizmo::SetDrawlist();
-                    float x = ImGui::GetWindowPos().x;
-                    float y = ImGui::GetWindowPos().y;
-                    float w = static_cast<float>(ImGui::GetWindowWidth());
-                    float h = static_cast<float>(ImGui::GetWindowHeight());
-                    ImGuizmo::SetRect(x, y, w, h);
+                if (scene->lightDebugControl.debugLight) {
+                    ImGuizmo::Enable(true);
+                    ImGui::Begin("Main", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
+                    {
+                        ImGuizmo::SetDrawlist();
+                        float x = ImGui::GetWindowPos().x;
+                        float y = ImGui::GetWindowPos().y;
+                        float w = static_cast<float>(ImGui::GetWindowWidth());
+                        float h = static_cast<float>(ImGui::GetWindowHeight());
+                        ImGuizmo::SetRect(x, y, w, h);
 
-                    glm::mat4 xform(1.0);
-                    auto& light = scene->lights[selectedLight];
-                    xform = glm::translate(xform, light.position);  // apply translation
-                    ImGuizmo::Manipulate(glm::value_ptr(scene->camera->GetView()),
-                            glm::value_ptr(scene->camera->GetProjection()),
-                            ImGuizmo::TRANSLATE,
-                            ImGuizmo::LOCAL,
-                            glm::value_ptr(xform));
-                    light.position.x = xform[3][0];
-                    light.position.y = xform[3][1];
-                    light.position.z = xform[3][2];
+                        glm::mat4 xform(1.0);
+                        auto& light = scene->lights[selectedLight];
+                        xform = glm::translate(xform, light.position);  // apply translation
+                        ImGuizmo::Manipulate(glm::value_ptr(scene->camera->GetView()),
+                                glm::value_ptr(scene->camera->GetProjection()),
+                                ImGuizmo::TRANSLATE,
+                                ImGuizmo::LOCAL,
+                                glm::value_ptr(xform));
+                        light.position.x = xform[3][0];
+                        light.position.y = xform[3][1];
+                        light.position.z = xform[3][2];
+                    }
+                    ImGui::End();
                 }
-                ImGui::End();
             }
             ImGui::End();
         }

@@ -78,7 +78,10 @@ void main() {
             for (int k = cell0.z; k <= cell1.z; k++) {
                 int3 gridIndex = int3(i, j, k);
                 uint cellIndex = compute_surfel_cell(gridIndex);
-                atomicAdd(surfelGrids.data[cellIndex].count, 1);
+                SurfelGridCell cell = surfelGrids.data[cellIndex];
+                if (cell.count < SURFEL_CELL_CAPACITY) {
+                    atomicAdd(surfelGrids.data[cellIndex].count, 1);
+                }
             }
         }
     }

@@ -9,6 +9,9 @@ Scene::Scene(Device* device)
     InitLights();
     InitSurfels();
     InitGeometry();
+
+    lightDebugControl = {};
+    surfelDebugControl = {};
 }
 
 void Scene::InitScene() {
@@ -18,12 +21,13 @@ void Scene::InitScene() {
     builder->GetAccelBuilder()->EnableCompaction();
 
     // load model
+    #ifdef ENABLE_SPONZA_SCENE
     model.Load(builder, GetUserAsset("Scenes/Sponza/glTF/Sponza.gltf"));
-
     // apply scaling if necessary
     #ifdef ENABLE_MINUSCALE_SCENE
-    model.GetScene(0)->Scale(0.01, 0.01, 0.01);
+    model.GetScene(0)->Scale(0.008, 0.008, 0.008);
     model.GetScene(0)->ApplyTransform();
+    #endif
     #endif
 
     // build scene
@@ -164,7 +168,7 @@ void Scene::InitSurfels() {
 
     // init surfel cell buffer
     surfelCellBuffer = SlimPtr<Buffer>(device,
-        sizeof(uint32_t) * SURFEL_GRID_COUNT * SURFEL_CELL_CAPACITY,
+        sizeof(uint32_t) * SURFEL_GRID_COUNT * 64, // SURFEL_CELL_CAPACITY,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
     surfelCellBuffer->SetName("SurfelCell");

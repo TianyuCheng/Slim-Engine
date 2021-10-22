@@ -65,6 +65,12 @@ int main() {
         light.position = vec3(-5.0, 1.0, 0.0);
         scene.lights.push_back(light);
     }
+    if (1) {
+        scene.surfelDebugControl.debugPoint = 1;
+    }
+    if (1) {
+        scene.lightDebugControl.debugLight = 1;
+    }
 
     // build ui dockspace
     BuildOverlayUI(ui);
@@ -141,7 +147,11 @@ int main() {
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddSurfelPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
-            AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+
+            // show light control
+            if (scene.lightDebugControl.debugLight) {
+                AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+            }
 
             #ifdef ENABLE_GBUFFER_VISUALIZATION
             AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);

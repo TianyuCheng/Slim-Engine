@@ -37,10 +37,12 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
         .SetCullMode(VK_CULL_MODE_BACK_BIT)
         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
         .SetPipelineLayout(PipelineLayoutDesc()
+            .AddPushConstant("Control", Range  { 0, sizeof(SurfelDebugControl) }, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Albedo",   SetBinding { 0, GBUFFER_ALBEDO_BINDING }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Normal",   SetBinding { 0, GBUFFER_NORMAL_BINDING }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Depth",    SetBinding { 0, GBUFFER_DEPTH_BINDING  }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Diffuse",  SetBinding { 1, SURFEL_DIFFUSE_BINDING }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding("Debug",    SetBinding { 2, DEBUG_SURFEL_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
         );
 
     return pipelineDesc;
@@ -65,6 +67,7 @@ void AddComposePass(RenderGraph&           graph,
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
     pass->SetTexture(surfel->surfelDiffuse);
+    pass->SetTexture(debug->surfelDebug);
 
     pass->Execute([=](const RenderInfo& info) {
         auto pipeline = info.renderFrame->RequestPipeline(
@@ -82,7 +85,11 @@ void AddComposePass(RenderGraph&           graph,
         descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
         descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
         descriptor->SetTexture("Diffuse", surfel->surfelDiffuse->GetImage(), sampler);
+        descriptor->SetTexture("Debug", debug->surfelDebug->GetImage(), sampler);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+        // push constant
+        info.commandBuffer->PushConstants(pipeline->Layout(), "Control", &scene->surfelDebugControl);
 
         // draw
         info.commandBuffer->Draw(6, 1, 0, 0);

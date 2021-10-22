@@ -196,6 +196,47 @@ vec4 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
     return surfelGI;
 }
 
+vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N) {
+    vec4 surfelGI = vec4(0.0);
+
+    // fetch surfel grid
+    int3 gridIndex = compute_surfel_grid(camera, P);
+    uint cellIndex = compute_surfel_cell(gridIndex);
+    SurfelGridCell cell = surfelGrids.data[cellIndex];
+
+    // iterate through all surfels in this grid cell
+    for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
+        uint cellIndex = surfelCells.data[i];
+        Surfel surfel = surfels.data[cellIndex];
+
+        // apply surfel coverage
+        vec3 L = surfel.position - P;
+        float d2 = dot(L, L);
+        float r2 = surfel.radius * surfel.radius;
+
+        vec3 surfelN = unpack_unitvec3(surfel.normal) * 2.0 - 1.0;
+        float dotN = dot(surfelN, N);
+        if (dotN > 0) {
+            float dist = sqrt(d2);
+            float contribution = 1.0;
+            contribution *= clamp(dotN, 0.0, 1.0);
+            contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
+
+            #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+            // radial depth function
+            uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(cellIndex, L/dist, SURFEL_DEPTH_TEXELS));
+            vec2 radialDepth = imageLoad(surfelDepth, int2(radialDepthPixel)).xy;
+            contribution *= compute_surfel_radial_depth(radialDepth, dist);
+            #endif
+
+            // surfel moment helps prevent incorrect color bleeding.
+            contribution = smoothstep(0.0, 1.0, contribution);
+            surfelGI += vec4(surfel.color, 1.0) * contribution;
+        }
+    }
+    return surfelGI;
+}
+
 // This function is copied and modified from RayTracingGems 2019
 void multiscale_mean_estimator(vec3 y, inout SurfelData data, float shortWindowBlend)
 {
@@ -280,8 +321,8 @@ void main() {
     RNGState rng = init_rng(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy, frameID);
 
     // decide ray budget for this surfel
-    // int rayCount = max(16 - int(data.life), 1);
-    // int rayCount = int(ceil(mix(1, 16, data.inconsistency)));
+    /* float var = data.variance.x + data.variance.y + data.variance.z; */
+    /* int rayCount = int(ceil(mix(1, 16, var))); */
     int rayCount = 1;
 
     // trace ray into scene
@@ -390,12 +431,14 @@ void main() {
     }
 
     // surfel irradiance sharing
-    vec4 surfelGI = compute_surfel_lighting(camera.data, surfelP, surfelN);
+#if 0
+    vec4 surfelGI = compute_irradiance_sharing(camera.data, surfelP, surfelN);
     if (surfelGI.a > 0.0) {
         surfelGI.rgb /= surfelGI.a;
         surfelGI.a = clamp(surfelGI.a, 0.0, 1.0);
         result += surfelGI;
     }
+#endif
 
     // apply moving average integrator
     if (result.a > 0.0) {

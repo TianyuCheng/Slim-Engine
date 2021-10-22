@@ -137,12 +137,10 @@ const uint  SURFEL_CAPACITY         = 250000;
 const uint  SURFEL_CAPACITY_SQRT    = 500;
 const uint  SURFEL_TILE_X           = 16;
 const uint  SURFEL_TILE_Y           = 16;
-const uint  SURFEL_CELL_CAPACITY    = 64;
+const uint  SURFEL_CELL_CAPACITY    = 0xffff;
 const float SURFEL_GRID_SIZE        = 1.0;
 const uint3 SURFEL_GRID_DIMS        = uint3(96, 96, 96);
 const uint3 SURFEL_GRID_INNER_DIMS  = uint3(48, 48, 48);
-// const uint3 SURFEL_GRID_DIMS        = uint3(8, 8, 8);
-// const uint3 SURFEL_GRID_INNER_DIMS  = uint3(4, 4, 4);
 const uint3 SURFEL_GRID_OUTER_DIMS  = SURFEL_GRID_DIMS - SURFEL_GRID_INNER_DIMS;
 const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.y
@@ -156,6 +154,7 @@ const uint SURFEL_UPDATE_GROUP_SIZE = 32;
 // record radial gaussian depth function values
 const uint SURFEL_DEPTH_TEXELS          = 4;
 const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_TEXELS * SURFEL_CAPACITY_SQRT;
+
 // record relative radiance for ray guiding
 const uint SURFEL_RAYGUIDE_TEXELS       = 6;
 const uint SURFEL_RAYGUIDE_ATLAS_TEXELS = SURFEL_RAYGUIDE_TEXELS * SURFEL_CAPACITY_SQRT;
@@ -200,6 +199,13 @@ struct SurfelGridCell {
     uint offset;
 };
 
+struct SurfelDebugControl {
+    uint debugPoint;
+};
+
+struct LightDebugControl {
+    uint debugLight;
+};
 
 // Descriptor Set
 #define SCENE_FRAME_BINDING         0
@@ -230,18 +236,18 @@ struct SurfelGridCell {
 #define SURFEL_GRID_BINDING         3
 #define SURFEL_CELL_BINDING         4
 #define SURFEL_STAT_BINDING         5
-#define SURFEL_DEBUG_BINDING        6
-#define SURFEL_DIFFUSE_BINDING      7
-#define SURFEL_COVERAGE_BINDING     8
+#define SURFEL_DIFFUSE_BINDING      6
+#define SURFEL_COVERAGE_BINDING     7
+#define SURFEL_DEPTH_BINDING        8
 #define SURFEL_RAYGUIDE_BINDING     9
-#define SURFEL_DEPTH_BINDING        10
-#define SURFEL_VARIANCE_BINDING     11
 
 // Descriptor Set
 #define DEBUG_DEPTH_BINDING         0
 #define DEBUG_OBJECT_BINDING        1
 #define DEBUG_GRID_BINDING          2
 #define DEBUG_SURFEL_BUDGET_BINDING 3
+#define DEBUG_SURFEL_BINDING        4
+#define DEBUG_SURFEL_VAR_BINDING    5
 
 #ifndef __cplusplus
 
@@ -382,6 +388,6 @@ float compute_surfel_radial_depth(vec2 weight, float dist) {
 
 #endif
 
-#define ENABLE_SURFEL_RADIAL_DEPTH
+// #define ENABLE_SURFEL_RADIAL_DEPTH
 
 #endif
