@@ -176,7 +176,7 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                     .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("SurfelDepth",SetBinding { 1, SURFEL_DEPTH_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Diffuse",    SetBinding { 1, SURFEL_DIFFUSE_BINDING   }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Diffuse",    SetBinding { 2, GBUFFER_DIFFUSE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Albedo",     SetBinding { 2, GBUFFER_ALBEDO_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Depth",      SetBinding { 2, GBUFFER_DEPTH_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Normal",     SetBinding { 2, GBUFFER_NORMAL_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
@@ -288,11 +288,11 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelLive,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelStat,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelData,     RenderGraph::STORAGE_WRITE_ONLY);
-    pass->SetStorage(surfel->surfelDiffuse,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelCoverage, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelDepth,    RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(gbuffer->diffuse,       RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
@@ -485,10 +485,10 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
             descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
             descriptor->SetStorageImage("Coverage", surfel->surfelCoverage->GetImage());
-            descriptor->SetStorageImage("Diffuse", surfel->surfelDiffuse->GetImage());
             descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
             descriptor->SetStorageImage("Debug", debug->surfelDebug->GetImage());
             descriptor->SetStorageImage("Variance", debug->surfelVariance->GetImage());
+            descriptor->SetStorageImage("Diffuse", gbuffer->diffuse->GetImage());
             descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
             descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
             descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);

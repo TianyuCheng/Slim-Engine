@@ -7,6 +7,7 @@ using namespace slim;
 #include "update.h"
 #include "debug.h"
 #include "surfel.h"
+#include "direct.h"
 #include "gbuffer.h"
 #include "compose.h"
 #include "overlay.h"
@@ -66,6 +67,9 @@ int main() {
         scene.lights.push_back(light);
     }
     if (1) {
+        scene.sky.color = vec3(0.0);
+    }
+    if (0) {
         scene.surfelDebugControl.debugPoint = 1;
     }
     if (1) {
@@ -120,6 +124,8 @@ int main() {
             gbuffer.normal              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
             gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
             gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.diffuse             = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.specular            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
 
             // surfel resources
             render::Surfel surfel       = {};
@@ -129,7 +135,6 @@ int main() {
             surfel.surfelGrid           = graph.CreateResource(scene.surfelGridBuffer);
             surfel.surfelCell           = graph.CreateResource(scene.surfelCellBuffer);
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
-            surfel.surfelDiffuse        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
             surfel.surfelDepth          = graph.CreateResource(radialDepthExtent,  VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
             surfel.surfelRayGuide       = graph.CreateResource(rayGuideExtent,     VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
@@ -146,6 +151,7 @@ int main() {
             AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddSurfelPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            // AddDirectLightingPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // show light control

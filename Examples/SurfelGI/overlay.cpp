@@ -72,7 +72,7 @@ void AddOverlayPass(RenderGraph&           graph,
     overlayPass->SetTexture(debug->surfelBudget);
     #endif
 
-    overlayPass->SetTexture(surfel->surfelDiffuse);
+    overlayPass->SetTexture(gbuffer->diffuse);
 
     overlayPass->Execute([=](const RenderInfo &info) {
         ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
@@ -107,7 +107,7 @@ void AddOverlayPass(RenderGraph&           graph,
         ImTextureID surfelDepth = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDepth->GetImage()->AsTexture());
         #endif
 
-        ImTextureID diffuse  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDiffuse->GetImage()->AsTexture());
+        ImTextureID diffuse  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->diffuse->GetImage()->AsTexture());
 
         ui->Begin();
         {

@@ -56,8 +56,8 @@ image2D coverageImage;
 layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
 image2D surfelDepth;
 
-// surfel diffuse
-layout(set = 1, binding = SURFEL_DIFFUSE_BINDING, rgba32f) uniform
+// gbuffer diffuse
+layout(set = 2, binding = GBUFFER_DIFFUSE_BINDING, rgba32f) uniform
 image2D diffuseImage;
 
 // gbuffer depth
@@ -121,10 +121,12 @@ void main() {
     SurfelGridCell cell = surfelGrids.data[cellIndex];
 
     float coverage = 0.0;
-    vec4 variance = vec4(0.0);
     vec4 color = vec4(0.0);
     vec4 debug = vec4(0.0);
-    vec4 average = vec4(0.0);
+    vec4 variance = vec4(0.0);
+    vec4 shortMean = vec4(0.0);
+    float vbbr = 0.0;
+    float inconsistency = 0.0;
 
     // iterate through all surfels in this grid cell
     for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
@@ -157,12 +159,16 @@ void main() {
                 contribution = smoothstep(0.0, 1.0, contribution);
                 coverage += contribution;
                 color += vec4(surfel.color, 1.0) * contribution;
-                variance += vec4(sdata.variance, 1.0) * contribution;
                 #ifdef ENABLE_SURFEL_DEBUG_RANDOM
                 debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
                 #endif
+
+                // for spawning a new surfel
+                variance += vec4(sdata.variance, 1.0) * contribution;
+                shortMean += vec4(sdata.shortMean, 1.0) * contribution;
+                vbbr += sdata.vbbr * contribution;
+                inconsistency += sdata.inconsistency * contribution;
             }
-            average += vec4(surfel.color, 1.0);
         }
         #ifdef ENABLE_SURFEL_DEBUG_POINT
         if (d2 < 0.0025) {
@@ -172,22 +178,12 @@ void main() {
         // end of pixel coverage check
     }
 
-    // light apply: if irradiance weight < 1, add weighted average cell irradiance
-    #if 0
-    if (color.a < 1.0) {
-        for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
-            uint cellIndex = surfelCells.data[i];
-            Surfel surfel = surfels.data[cellIndex];
-            color += vec4(surfel.color, 1.0);
-        }
-    }
-    #endif
-
     // normalize color
     if (color.a > 0.0) {
         color.rgb /= color.a;
         color.a = clamp(color.a, 0.0, 1.0);
     }
+    color.a = 1.0;
 
     // normalize debug color
     if (debug.a > 0.0) {
@@ -197,12 +193,10 @@ void main() {
 
     // normalize variance
     if (variance.a > 0.0) {
+        vbbr /= variance.a;
+        inconsistency /= variance.a;
+        shortMean /= variance.a;
         variance /= variance.a;
-    }
-
-    // normalize average
-    if (average.a > 0.0) {
-        average /= average.a;
     }
 
     // output
@@ -259,10 +253,11 @@ void main() {
                 data.normal = pack_unitvec3(N * 0.5 + 0.5);
                 data.life = 0;
                 data.recycle = 0;
-                data.vbbr = 1.0;
-                data.inconsistency = 1.0;
-                data.mean = vec3(0.0);
-                data.shortMean = vec3(0.0);
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 

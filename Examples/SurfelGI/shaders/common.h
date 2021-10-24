@@ -228,6 +228,8 @@ struct LightDebugControl {
 #define GBUFFER_NORMAL_BINDING      1
 #define GBUFFER_DEPTH_BINDING       2
 #define GBUFFER_OBJECT_BINDING      3
+#define GBUFFER_DIFFUSE_BINDING     4
+#define GBUFFER_SPECULAR_BINDING    5
 
 // Descriptor Set
 #define SURFEL_BINDING              0
@@ -236,7 +238,6 @@ struct LightDebugControl {
 #define SURFEL_GRID_BINDING         3
 #define SURFEL_CELL_BINDING         4
 #define SURFEL_STAT_BINDING         5
-#define SURFEL_DIFFUSE_BINDING      6
 #define SURFEL_COVERAGE_BINDING     7
 #define SURFEL_DEPTH_BINDING        8
 #define SURFEL_RAYGUIDE_BINDING     9

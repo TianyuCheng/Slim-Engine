@@ -27,6 +27,9 @@ add_slim_project(
         overlay.h
         overlay.cpp
 
+        direct.h
+        direct.cpp
+
         render.h
         render.cpp
 
@@ -49,6 +52,7 @@ add_slim_project(
         shaders/surfel/coverage.comp
 
         shaders/raytrace/ray.rgen
+        shaders/raytrace/direct.rgen
         shaders/raytrace/scene.rchit
         shaders/raytrace/scene.rmiss
         shaders/raytrace/shadow.rmiss

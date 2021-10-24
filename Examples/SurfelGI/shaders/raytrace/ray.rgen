@@ -9,6 +9,7 @@
 #include "sampling.h"
 #include "transform.h"
 #include "../common.h"
+#include "../halton.h"
 
 layout(push_constant) uniform Info {
     uint lightCount;
@@ -196,7 +197,7 @@ vec4 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
     return surfelGI;
 }
 
-vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N) {
+vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N, in vec3 variance) {
     vec4 surfelGI = vec4(0.0);
 
     // fetch surfel grid
@@ -217,7 +218,12 @@ vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N) {
         vec3 surfelN = unpack_unitvec3(surfel.normal) * 2.0 - 1.0;
         float dotN = dot(surfelN, N);
         if (dotN > 0) {
+            vec3 var = normalize(variance);
+            mat3 cov = outerProduct(var, var);
+            L = cov * L;
+            d2 = dot(L, L);
             float dist = sqrt(d2);
+
             float contribution = 1.0;
             contribution *= clamp(dotN, 0.0, 1.0);
             contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
@@ -282,6 +288,7 @@ void multiscale_mean_estimator(vec3 y, inout SurfelData data, float shortWindowB
 
     // output
     data.mean = mean;
+    data.shortMean = shortMean;
     data.vbbr = vbbr;
     data.variance = variance;
     data.inconsistency = inconsistency;
@@ -317,13 +324,12 @@ void main() {
     // lighting result
     vec4 result = vec4(0.0);
 
+    // decide ray budget for this surfel
+    int rayCount = int(ceil(mix(1, 16, data.inconsistency)));
+
     // rng
     RNGState rng = init_rng(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy, frameID);
-
-    // decide ray budget for this surfel
-    /* float var = data.variance.x + data.variance.y + data.variance.z; */
-    /* int rayCount = int(ceil(mix(1, 16, var))); */
-    int rayCount = 1;
+    HaltonState halton = halton_init(int(gl_LaunchIDEXT.x), int(gl_LaunchIDEXT.y), 0, rayCount, int(frameID), 1);
 
     // trace ray into scene
     for (int i = 0; i < rayCount; i++) {
@@ -331,9 +337,12 @@ void main() {
         // offset surfel position to avoid self intersection
         vec3 rayOrigin = surfelP + 0.01 * surfelN;
 
+        float rnd1 = fract(halton_next(halton) + rand(rng));
+        float rnd2 = fract(halton_next(halton) + rand(rng));
+
         // ray direction
         // use cosine-weighted hemisphere sampling
-        vec2 uv = vec2(rand(rng), rand(rng));
+        vec2 uv = vec2(rnd1, rnd2);
         vec3 rayDirection = to_tangent_space(cosine_sample_hemisphere(uv.x, uv.y), surfelN);
 
         // ray length
@@ -431,23 +440,19 @@ void main() {
     }
 
     // surfel irradiance sharing
-#if 0
-    vec4 surfelGI = compute_irradiance_sharing(camera.data, surfelP, surfelN);
+    #if 1
+    vec4 surfelGI = compute_irradiance_sharing(camera.data, surfelP, surfelN, data.variance);
     if (surfelGI.a > 0.0) {
         surfelGI.rgb /= surfelGI.a;
         surfelGI.a = clamp(surfelGI.a, 0.0, 1.0);
         result += surfelGI;
     }
-#endif
+    #endif
 
     // apply moving average integrator
     if (result.a > 0.0) {
         result /= result.a;
-        #if 1
         multiscale_mean_estimator(result.rgb, data, 0.08);
-        #else
-        data.mean = result.rgb;
-        #endif
     }
 
     // update surfel life

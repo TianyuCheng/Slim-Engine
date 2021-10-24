@@ -19,6 +19,8 @@ namespace render {
         RenderGraph::Resource* normal;
         RenderGraph::Resource* depth;
         RenderGraph::Resource* object;
+        RenderGraph::Resource* diffuse;
+        RenderGraph::Resource* specular;
     };
 
     struct Surfel {
@@ -28,7 +30,6 @@ namespace render {
         RenderGraph::Resource* surfelGrid;
         RenderGraph::Resource* surfelCell;
         RenderGraph::Resource* surfelStat;
-        RenderGraph::Resource* surfelDiffuse;
         RenderGraph::Resource* surfelCoverage;
         RenderGraph::Resource* surfelDepth;
         RenderGraph::Resource* surfelRayGuide;

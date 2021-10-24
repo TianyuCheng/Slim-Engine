@@ -1,0 +1,197 @@
+#version 460
+#extension GL_EXT_ray_tracing : require
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+
+#include "camera.h"
+#include "unpack.h"
+#include "random.h"
+#include "sampling.h"
+#include "transform.h"
+#include "../common.h"
+
+layout(push_constant) uniform Info {
+    uint lightCount;
+} info;
+
+// acceleration structure
+layout(set = 0, binding = SCENE_ACCEL_BINDING) uniform
+accelerationStructureEXT sceneAS;
+
+// frame information
+layout(set = 0, binding = SCENE_FRAME_BINDING) uniform
+Frame { FrameInfo data; } frame;
+
+// camera information
+layout(set = 0, binding = SCENE_CAMERA_BINDING) uniform
+Camera { CameraInfo data; } camera;
+
+// light information
+layout(set = 0, binding = SCENE_LIGHT_BINDING) buffer
+Light { LightInfo data[]; } lights;
+
+// gbuffer albedo
+layout(set = 1, binding = GBUFFER_ALBEDO_BINDING) uniform
+sampler2D albedoImage;
+
+// gbuffer normal
+layout(set = 1, binding = GBUFFER_NORMAL_BINDING) uniform
+sampler2D normalImage;
+
+// gbuffer depth
+layout(set = 1, binding = GBUFFER_DEPTH_BINDING) uniform
+sampler2D depthImage;
+
+// gbuffer diffuse
+layout(set = 1, binding = GBUFFER_DIFFUSE_BINDING, rgba32f) uniform
+image2D diffuseImage;
+
+// gbuffer specular
+layout(set = 1, binding = GBUFFER_SPECULAR_BINDING, rgba32f) uniform
+image2D specularImage;
+
+// ray payload
+layout(location = 0) rayPayloadEXT HitInfo hitData;
+layout(location = 1) rayPayloadEXT bool    shadowed;
+
+bool traceShadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
+    const uint flags = gl_RayFlagsTerminateOnFirstHitEXT
+                     | gl_RayFlagsSkipClosestHitShaderEXT
+                     | gl_RayFlagsOpaqueEXT;
+    traceRayEXT(sceneAS,          // acceleration structure
+            flags,                // rayFlags
+            0xff,                 // cullMask
+            0,                    // sbtRecordOffset
+            0,                    // sbtRecordStride
+            1,                    // missIndex
+            rayOrigin,            // ray origin
+            tMin,                 // ray min range
+            rayDirection,         // ray direction
+            tMax,                 // ray max range
+            1);                   // payload (location = 0)
+    return !shadowed;
+}
+
+vec3 compute_directional_lighting(in LightInfo light,
+                                  in HitInfo surface,
+                                  out float NoL,
+                                  out float dist) {
+    dist = HIGHP_FLT_MAX;
+    vec3 lightDirection = -normalize(light.direction);
+    NoL = dot(surface.normal, lightDirection);
+    return light.color * light.intensity * max(0.0, NoL);
+}
+
+vec3 compute_point_lighting(in LightInfo light,
+                            in HitInfo surface,
+                            out float NoL,
+                            out float dist) {
+    vec3 lightDirection = light.position - surface.position;
+    float d2 = dot(lightDirection, lightDirection);
+    float r2 = light.range * light.range;
+    // check maximum range
+    if (d2 < r2) {
+        dist = sqrt(d2);
+        lightDirection /= dist;
+        // compute attenuation if needed
+        NoL = dot(surface.normal, lightDirection);
+        if (NoL > 0.0) {
+            float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
+            float att2 = att1 * att1;
+            return light.color * light.intensity * att2;
+        }
+    }
+    return vec3(0.0);
+}
+
+vec3 compute_spot_lighting(in LightInfo light,
+                           in HitInfo surface,
+                           out float NoL,
+                           out float dist) {
+    vec3 lightDirection = light.position - surface.position;
+    float d2 = dot(lightDirection, lightDirection);
+    float r2 = light.range * light.range;
+    // check maximum range
+    if (d2 < r2) {
+        dist = sqrt(d2);
+        lightDirection /= dist;
+        // compute attenuation if needed
+        NoL = dot(surface.normal, lightDirection);
+        if (NoL > 0.0) {
+            float spotFactor = dot(lightDirection, light.direction);
+            float spotCutOff = cos(light.angle);
+            if (spotFactor > spotCutOff) {
+                float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
+                float att2 = att1 * att1;
+                float attenuation = clamp(1.0 - (1.0 - spotFactor) * 1.0 / (1.0 - spotCutOff), 0.0, 1.0);
+                return light.color * light.intensity * att2;
+            }
+        }
+    }
+    return vec3(0.0);
+}
+
+void main() {
+    int2 pixel = int2(gl_LaunchIDEXT.xy);
+
+    // compute world position
+    vec2 ndc = vec2(pixel) / vec2(frame.data.resolution);
+    float depth = texelFetch(depthImage, pixel, 0).x;
+    vec3 position = compute_world_position(ndc, depth, camera.data.invVP);
+
+    // load indirect diffuse
+    vec4 diffuse = imageLoad(diffuseImage, pixel);
+
+    HitInfo surface;
+    surface.position = position;
+    surface.normal = texelFetch(normalImage, pixel, 0).xyz;
+    vec4 albedo = texelFetch(albedoImage, pixel, 0);
+
+    // ray length
+    float tMin = 0.00001;
+    float tMax = 100000.0;
+
+    // compute direct lighting
+    for (uint i = 0; i < info.lightCount; i++) {
+        LightInfo light = lights.data[i];
+
+        // lighting info
+        float NoL = -1.0;
+        float dist = -1.0;
+        vec3 lightDiffuse = vec3(0.0);
+        vec3 lightDirection = vec3(0.0);
+
+        switch (light.type) {
+            // compute direct point lighting
+            case LIGHT_TYPE_POINT:
+                lightDiffuse = compute_point_lighting(light, surface, NoL, dist);
+                lightDirection = normalize(light.position - surface.position);
+                break;
+            // compute direct spot lighting
+            case LIGHT_TYPE_SPOTLIGHT:
+                lightDiffuse = compute_spot_lighting(light, surface, NoL, dist);
+                lightDirection = normalize(-light.direction);
+                break;
+            // compute direct directional lighting
+            case LIGHT_TYPE_DIRECTIONAL:
+                lightDiffuse = compute_directional_lighting(light, surface, NoL, dist);
+                lightDirection = normalize(light.position - surface.position);
+                break;
+        }
+
+        // add light contribution
+        if (NoL > 0.0 && dist > 0.0) {
+            // ray information at hit location
+            vec3 rayOrigin = surface.position + surface.normal * 0.00001;
+            vec3 rayDirection = lightDirection;
+
+            // check occlusion
+            if (traceShadow(rayOrigin, rayDirection, tMin, dist)) {
+                diffuse += vec4(lightDiffuse, 1.0);
+            }
+        }
+    }
+
+    // store diffuse
+    imageStore(diffuseImage, pixel, diffuse);
+}
