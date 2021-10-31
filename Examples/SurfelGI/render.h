@@ -42,6 +42,7 @@ namespace render {
         RenderGraph::Resource* surfelDebug;
         RenderGraph::Resource* surfelBudget;
         RenderGraph::Resource* surfelVariance;
+        RenderGraph::Resource* surfelRayDirection;
     };
 
 } // end of render namespace

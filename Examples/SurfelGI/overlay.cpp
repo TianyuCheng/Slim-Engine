@@ -209,6 +209,7 @@ void AddOverlayPass(RenderGraph&           graph,
 
                 // controller for surfel configurations
                 if (ImGui::Button("Reset Surfels")) {
+                    info.commandBuffer->GetDevice()->WaitIdle();
                     scene->ResetSurfels();
                 }
                 if (ImGui::Button("Pause Surfels")) {

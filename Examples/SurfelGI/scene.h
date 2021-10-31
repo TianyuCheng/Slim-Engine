@@ -41,6 +41,9 @@ public:
     SmartPtr<Buffer>         surfelGridBuffer;  // surfel grid acceleration structure
     SmartPtr<Buffer>         surfelCellBuffer;  // offset + count for grid cell into surfelLiveBuffer
     SmartPtr<Buffer>         surfelStatBuffer;  // global surfel status
+    SmartPtr<Buffer>         surfelRayDirBuffer;// surfel ray visualize
+    SmartPtr<GPUImage>       surfelDepthImage;
+    SmartPtr<GPUImage>       surfelRayGuideImage;
 
     // control
     float                    walkSpeed;

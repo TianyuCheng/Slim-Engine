@@ -81,6 +81,7 @@ bool traceShadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
     const uint flags = gl_RayFlagsTerminateOnFirstHitEXT
                      | gl_RayFlagsSkipClosestHitShaderEXT
                      | gl_RayFlagsOpaqueEXT;
+    shadowed = true;
     traceRayEXT(sceneAS,          // acceleration structure
             flags,                // rayFlags
             0xff,                 // cullMask
@@ -92,15 +93,16 @@ bool traceShadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
             rayDirection,         // ray direction
             tMax,                 // ray max range
             1);                   // payload (location = 1)
-    return !shadowed;
+    return shadowed;
 }
 
 vec3 compute_directional_lighting(in LightInfo light,
                                   in HitInfo surface,
                                   out float NoL,
-                                  out float dist) {
+                                  out float dist,
+                                  out vec3 lightDirection) {
     dist = HIGHP_FLT_MAX;
-    vec3 lightDirection = -normalize(light.direction);
+    lightDirection = -normalize(light.direction);
     NoL = dot(surface.normal, lightDirection);
     return light.color * light.intensity * max(0.0, NoL);
 }
@@ -108,8 +110,9 @@ vec3 compute_directional_lighting(in LightInfo light,
 vec3 compute_point_lighting(in LightInfo light,
                             in HitInfo surface,
                             out float NoL,
-                            out float dist) {
-    vec3 lightDirection = light.position - surface.position;
+                            out float dist,
+                            out vec3 lightDirection) {
+    lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
     float r2 = light.range * light.range;
     // check maximum range
@@ -130,8 +133,9 @@ vec3 compute_point_lighting(in LightInfo light,
 vec3 compute_spot_lighting(in LightInfo light,
                            in HitInfo surface,
                            out float NoL,
-                           out float dist) {
-    vec3 lightDirection = light.position - surface.position;
+                           out float dist,
+                           out vec3 lightDirection) {
+    lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
     float r2 = light.range * light.range;
     // check maximum range
@@ -343,7 +347,8 @@ void main() {
         // ray direction
         // use cosine-weighted hemisphere sampling
         vec2 uv = vec2(rnd1, rnd2);
-        vec3 rayDirection = to_tangent_space(cosine_sample_hemisphere(uv.x, uv.y), surfelN);
+        vec3 rayDirPre = cosine_sample_hemisphere(uv.x, uv.y);
+        vec3 rayDirection = to_tangent_space(rayDirPre, surfelN);
 
         // ray length
         float tMin = 0.00001;
@@ -351,7 +356,7 @@ void main() {
 
         #ifdef ENABLE_SURFEL_RADIAL_DEPTH
         // radial depth function
-        uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(currentSurfelID, rayDirection, SURFEL_DEPTH_TEXELS));
+        uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(currentSurfelID, rayDirPre, SURFEL_DEPTH_TEXELS));
         #endif
 
         // trace
@@ -395,19 +400,20 @@ void main() {
                 float NoL = -1.0;
                 float dist = -1.0;
                 vec3 lightDiffuse = vec3(0.0);
+                vec3 lightDirection = vec3(0.0);
 
                 switch (light.type) {
                     // compute direct point lighting
                     case LIGHT_TYPE_POINT:
-                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist);
+                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                     // compute direct spot lighting
                     case LIGHT_TYPE_SPOTLIGHT:
-                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist);
+                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                     // compute direct directional lighting
                     case LIGHT_TYPE_DIRECTIONAL:
-                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist);
+                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                 }
 
@@ -415,21 +421,24 @@ void main() {
                 if (NoL > 0.0 && dist > 0.0) {
                     // ray information at hit location
                     rayOrigin = surface.position + surface.normal * 0.00001;
+                    rayDirection = lightDirection;
 
                     // check occlusion
-                    if (traceShadow(rayOrigin, rayDirection, tMin, dist)) {
+                    if (!traceShadow(rayOrigin, rayDirection, tMin, dist)) {
                         hitResult += lightDiffuse / PI;
                     }
                 }
             }
 
             // infinite bounces
+            #if 1
             vec4 surfelGI = compute_surfel_lighting(camera.data, surface.position, surface.normal);
             if (surfelGI.a > 0.0) {
                 surfelGI.rgb /= surfelGI.a;
                 surfelGI.a = clamp(surfelGI.a, 0.0, 1.0);
                 hitResult += surfelGI.rgb;
             }
+            #endif
 
             // adding to final result
             hitResult *= surface.albedo;
@@ -440,7 +449,7 @@ void main() {
     }
 
     // surfel irradiance sharing
-    #if 1
+    #if 0
     vec4 surfelGI = compute_irradiance_sharing(camera.data, surfelP, surfelN, data.variance);
     if (surfelGI.a > 0.0) {
         surfelGI.rgb /= surfelGI.a;

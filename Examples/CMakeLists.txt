@@ -10,6 +10,7 @@ add_subdirectory(DynamicUniform)
 add_subdirectory(DescriptorIndexing)
 add_subdirectory(Geometries)
 add_subdirectory(Skybox)
+add_subdirectory(OctMap)
 add_subdirectory(MatCap)
 add_subdirectory(Deferred)
 

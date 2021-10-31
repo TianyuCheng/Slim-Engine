@@ -51,6 +51,8 @@ namespace slim {
         VkPhysicalDeviceVulkan11Features& GetVulkan11Features() { return *vk11features;      }
         VkPhysicalDeviceVulkan12Features& GetVulkan12Features() { return *vk12features;      }
 
+        bool IsBufferDeviceAddressEnabled() const;
+
     private:
         void PrepareForGlfw();
         void PrepareForViewport();

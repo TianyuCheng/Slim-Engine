@@ -30,6 +30,11 @@ void Scene::InitScene() {
     #endif
     #endif
 
+    #ifdef ENABLE_COLOR_BLEEDING_SCENE
+    model.Load(builder, GetUserAsset("Scenes/ColorBleeding/colorbleeding.gltf"));
+    model.GetScene(0)->ApplyTransform();
+    #endif
+
     // build scene
     builder->Build();
 
@@ -95,7 +100,7 @@ void Scene::InitCamera() {
     camera = SlimPtr<Flycam>("camera");
     #ifdef ENABLE_MINUSCALE_SCENE
     walkSpeed = 1.0f;
-    camera->LookAt(glm::vec3(0.03, 1.35, 0.0), glm::vec3(0.0, 1.35, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    camera->LookAt(glm::vec3(0.03, 1.35, 1.0), glm::vec3(0.0, 1.35, 1.0), glm::vec3(0.0, 1.0, 0.0));
     #else
     walkSpeed = 10.0f;
     camera->LookAt(glm::vec3(3.0, .135, 0.0), glm::vec3(0.0, 0.135, 0.0), glm::vec3(0.0, 1.0, 0.0));
@@ -180,6 +185,31 @@ void Scene::InitSurfels() {
         VMA_MEMORY_USAGE_GPU_ONLY);
     surfelStatBuffer->SetName("SurfelStat");
 
+    // // init surfel ray direction visualization buffer
+    // surfelRayDirBuffer = SlimPtr<Buffer>(device,
+    //     sizeof(glm::vec3) * 2 * SURFEL_CAPACITY,
+    //     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    //     VMA_MEMORY_USAGE_GPU_ONLY);
+    // surfelRayDirBuffer->SetName("SurfelRayDir");
+
+    // init surfel depth atlas storage texture
+    VkExtent2D radialDepthExtent = {};
+    radialDepthExtent.width = SURFEL_DEPTH_ATLAS_TEXELS;
+    radialDepthExtent.height = SURFEL_DEPTH_ATLAS_TEXELS;
+    surfelDepthImage = SlimPtr<GPUImage>(
+        device, VK_FORMAT_R32G32_SFLOAT, radialDepthExtent,
+        1, 1, VK_SAMPLE_COUNT_1_BIT,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+    // init surfel ray guide atlas storage texture
+    VkExtent2D rayGuideExtent = {};
+    rayGuideExtent.width = SURFEL_RAYGUIDE_ATLAS_TEXELS;
+    rayGuideExtent.height = SURFEL_RAYGUIDE_ATLAS_TEXELS;
+    surfelRayGuideImage = SlimPtr<GPUImage>(
+        device, VK_FORMAT_R32G32_SFLOAT, rayGuideExtent,
+        1, 1, VK_SAMPLE_COUNT_1_BIT,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
     ResetSurfels();
 }
 
@@ -247,6 +277,15 @@ void Scene::ResetSurfels() {
             surfelData[i].surfelID = i;
         }
         commandBuffer->CopyDataToBuffer(surfelData, surfelDataBuffer);
+
+        // clear attachments
+        VkClearColorValue clear = {};
+        clear.float32[0] = 1.0;
+        clear.float32[1] = 1.0;
+        clear.float32[2] = 1.0;
+        clear.float32[3] = 1.0;
+        commandBuffer->ClearColor(surfelDepthImage, clear);
+        commandBuffer->ClearColor(surfelRayGuideImage, clear);
     });
 }
 

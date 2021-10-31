@@ -1,0 +1,11 @@
+add_slim_project(
+    TARGET
+        octmap
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/decode_hemioct.vert
+        shaders/decode_hemioct.frag
+    SPV
+        vulkan1.0
+)

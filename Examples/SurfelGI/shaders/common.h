@@ -363,10 +363,10 @@ vec3 decode_hemioct(vec2 e) {
 
 // compute pixel coordinate on surfel octmap
 vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, uint texels) {
-    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * texels;
+    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT, 1)) * texels;
     vec3 hemi = normalize(direction);
     vec2 uv = encode_hemioct(hemi) * 0.5 + 0.5;
-    return uv * texels;
+    return pixel + uv * texels;
 }
 
 // compute uv on surfel octmap
@@ -375,6 +375,7 @@ vec2 compute_surfel_octmap_uv(uint surfelIndex, vec3 direction, uint texels, uin
     return pixel / atlasTexels;
 }
 
+// compute surfel depth on hemisphere
 float compute_surfel_radial_depth(vec2 weight, float dist) {
     float mean = weight.x;
     float mean2 = weight.y;
@@ -384,11 +385,11 @@ float compute_surfel_radial_depth(vec2 weight, float dist) {
         float diff = dist - mean;
         return max(0.0, pow(variance / (variance + diff * diff), 3.0));
     }
-    return 1.0;
+    return SURFEL_MAX_RADIUS;
 }
 
 #endif
 
-// #define ENABLE_SURFEL_RADIAL_DEPTH
+#define ENABLE_SURFEL_RADIAL_DEPTH
 
 #endif

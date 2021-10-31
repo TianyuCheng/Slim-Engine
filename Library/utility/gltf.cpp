@@ -629,16 +629,16 @@ void LoadNodes(Model &result, const tinygltf::Model &model, scene::Builder* buil
             snode->SetTransform(matrix);
         }
 
+        if (!node.translation.empty()) {
+            snode->Translate(node.translation[0], node.translation[1], node.translation[2]);
+        }
+
         if (!node.rotation.empty()) {
             snode->Rotate(node.rotation[3], node.rotation[0], node.rotation[1], node.rotation[2]);
         }
 
         if (!node.scale.empty()) {
-            snode->Translate(node.scale[0], node.scale[1], node.scale[2]);
-        }
-
-        if (!node.translation.empty()) {
-            snode->Translate(node.translation[0], node.translation[1], node.translation[2]);
+            snode->Scale(node.scale[0], node.scale[1], node.scale[2]);
         }
 
         if (node.mesh >= 0) {

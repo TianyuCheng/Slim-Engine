@@ -287,6 +287,15 @@ void ContextDesc::PrepareForValidation() {
     }
 }
 
+bool ContextDesc::IsBufferDeviceAddressEnabled() const {
+    #ifdef SLIM_USE_VK_FEATURES
+    return vk12features->bufferDeviceAddress;
+    #else
+    // adding buffer device address features
+    return deviceExtensions.find(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) != deviceExtensions.end();
+    #endif
+}
+
 Context::Context(const ContextDesc& desc) : desc(desc) {
     // initialize glfw
     if (desc.present) {

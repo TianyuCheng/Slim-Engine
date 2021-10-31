@@ -85,7 +85,6 @@ layout(set = 3, binding = DEBUG_SURFEL_VAR_BINDING, rgba8) uniform
 image2D varianceImage;
 
 shared uint groupMinSurfelID;
-shared uint groupMinSurfelCount;
 shared uint groupMinSurfelCoverage;
 
 /**
@@ -96,7 +95,6 @@ shared uint groupMinSurfelCoverage;
  */
 void main() {
     groupMinSurfelID = 0xffffffff;
-    groupMinSurfelCount = 0;
     groupMinSurfelCoverage = 0xffffffff;
     memoryBarrierShared();
 
@@ -223,10 +221,6 @@ void main() {
     if (cell.count < SURFEL_CELL_CAPACITY) {
         atomicMin(groupMinSurfelID, coverageID);
         atomicMin(groupMinSurfelCoverage, covU32);
-        memoryBarrierShared();
-        if (covU32 == groupMinSurfelCoverage) {
-            atomicAdd(groupMinSurfelCount, 1);
-        }
 
         memoryBarrierShared();
 
@@ -242,7 +236,7 @@ void main() {
             float chance = rand(rng);
 
             // stochastically spawn surfel
-            if (groupMinSurfelCount == 1 || chance > threshold) {
+            if (chance > threshold) {
                 // request an available surfel
                 uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
                 uint surfelID = surfelLive.data[availableSurfelID];

@@ -60,6 +60,9 @@ void main()
     // compute world normal at hit position
     vec3 normal = v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z;
     normal = normalize(instance.N * vec4(normal, 0.0)).xyz;
+    if (gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT) {
+        normal = -normal;
+    }
 
     // compute texture coords
     vec2 uv0 = v0.uv0 * bary.x + v1.uv0 * bary.y + v2.uv0 * bary.z;

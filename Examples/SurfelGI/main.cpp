@@ -23,6 +23,7 @@ int main() {
             .EnableGraphics(true)
             .EnableValidation(true)
             .EnableGLFW(true)
+            .EnableNonSolidPolygonMode()
             .EnableDescriptorIndexing()
             .EnableBufferDeviceAddress()
             .EnableShaderInt64()
@@ -63,7 +64,7 @@ int main() {
         light.color = vec3(1.0, 1.0, 1.0);
         light.intensity = 10.0;
         light.range = 5.0;
-        light.position = vec3(-5.0, 1.0, 0.0);
+        light.position = vec3(-5.0, 1.0, 1.0);
         scene.lights.push_back(light);
     }
     if (1) {
@@ -94,14 +95,6 @@ int main() {
         VkExtent2D barExtent = {};
         barExtent.width = 320;
         barExtent.height = 2;
-
-        VkExtent2D radialDepthExtent = {};
-        radialDepthExtent.width = SURFEL_DEPTH_ATLAS_TEXELS;
-        radialDepthExtent.height = SURFEL_DEPTH_ATLAS_TEXELS;
-
-        VkExtent2D rayGuideExtent = {};
-        rayGuideExtent.width = SURFEL_RAYGUIDE_ATLAS_TEXELS;
-        rayGuideExtent.height = SURFEL_RAYGUIDE_ATLAS_TEXELS;
 
         // update time
         time->Update();
@@ -136,8 +129,8 @@ int main() {
             surfel.surfelCell           = graph.CreateResource(scene.surfelCellBuffer);
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
             surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
-            surfel.surfelDepth          = graph.CreateResource(radialDepthExtent,  VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
-            surfel.surfelRayGuide       = graph.CreateResource(rayGuideExtent,     VK_FORMAT_R32G32_SFLOAT,       VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelDepth          = graph.CreateResource(scene.surfelDepthImage);
+            surfel.surfelRayGuide       = graph.CreateResource(scene.surfelRayGuideImage);
 
             // visualize resources
             render::Debug debug         = {};
