@@ -3,25 +3,34 @@
 
 #include "glsl.hpp"
 
-SLIM_ATTR uint pack_unitvec2(vec2 value) {
-    uint r = uint(value.r * 255);
-    uint g = uint(value.g * 255);
-    return r | (g << 8);
+// value: [0, 1]^2
+SLIM_ATTR uint pack_unorm2(vec2 value) {
+    return packUnorm2x16(value);
 }
 
-SLIM_ATTR uint pack_unitvec3(vec3 value) {
-    uint r = uint(value.r * 255);
-    uint g = uint(value.g * 255);
-    uint b = uint(value.b * 255);
-    return r | (g << 8) | (b << 16);
+// value: [0, 1]^3
+SLIM_ATTR uint pack_unorm3(vec3 value) {
+    return packUnorm4x8(vec4(value, 0.0));
 }
 
-SLIM_ATTR uint pack_unitvec4(vec4 value) {
-    uint r = uint(value.r * 255);
-    uint g = uint(value.g * 255);
-    uint b = uint(value.b * 255);
-    uint a = uint(value.a * 255);
-    return r | (g << 8) | (b << 16) | (a << 24);
+// value: [0, 1]^4
+SLIM_ATTR uint pack_unorm4(vec4 value) {
+    return packUnorm4x8(value);
+}
+
+// value: [0, 1]^2
+SLIM_ATTR uint pack_snorm2(vec2 value) {
+    return packSnorm2x16(value);
+}
+
+// value: [0, 1]^3
+SLIM_ATTR uint pack_snorm3(vec3 value) {
+    return packSnorm4x8(vec4(value, 0.0));
+}
+
+// value: [0, 1]^4
+SLIM_ATTR uint pack_snorm4(vec4 value) {
+    return packSnorm4x8(value);
 }
 
 #endif // SLIM_SHADER_LIB_PACK_H

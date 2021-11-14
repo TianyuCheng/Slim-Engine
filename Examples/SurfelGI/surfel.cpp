@@ -1,4 +1,5 @@
 #include "surfel.h"
+#include "shaders/common.h"
 
 Sampler* PrepareSurfelSampler(AutoReleasePool& pool) {
 
@@ -176,10 +177,13 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                     .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("SurfelDepth",SetBinding { 1, SURFEL_DEPTH_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Diffuse",    SetBinding { 2, GBUFFER_DIFFUSE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Diffuse",    SetBinding { 2, GBUFFER_GLOBAL_DIFFUSE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Albedo",     SetBinding { 2, GBUFFER_ALBEDO_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Depth",      SetBinding { 2, GBUFFER_DEPTH_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Normal",     SetBinding { 2, GBUFFER_NORMAL_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+                    .AddBinding("Position",   SetBinding { 2, GBUFFER_POSITION_BINDING }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    #endif
                     .AddBinding("Object",     SetBinding { 2, GBUFFER_OBJECT_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Debug",      SetBinding { 3, DEBUG_SURFEL_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Variance",   SetBinding { 3, DEBUG_SURFEL_VAR_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
@@ -292,11 +296,14 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelDepth,    RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
-    pass->SetStorage(gbuffer->diffuse,       RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(gbuffer->globalDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
     pass->SetTexture(gbuffer->object);
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    pass->SetTexture(gbuffer->position);
+    #endif
 
     pass->Execute([=](const RenderInfo& info) {
 
@@ -488,11 +495,14 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
             descriptor->SetStorageImage("Debug", debug->surfelDebug->GetImage());
             descriptor->SetStorageImage("Variance", debug->surfelVariance->GetImage());
-            descriptor->SetStorageImage("Diffuse", gbuffer->diffuse->GetImage());
+            descriptor->SetStorageImage("Diffuse", gbuffer->globalDiffuse->GetImage());
             descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
             descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
             descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
             descriptor->SetTexture("Object", gbuffer->object->GetImage(), sampler);
+            #ifdef ENABLE_GBUFFER_WORLD_POSITION
+            descriptor->SetTexture("Position", gbuffer->position->GetImage(), sampler);
+            #endif
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
             // issue compute call

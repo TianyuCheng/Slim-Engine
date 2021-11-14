@@ -2,14 +2,20 @@
 
 using namespace slim;
 
-struct RefractProperties {
-    float iota;
+enum MappingType : uint32_t {
+    OCTAHEDRON = 0,
+    HEMI_OCTAHEDRON_V1 = 1,
+    HEMI_OCTAHEDRON_V2 = 2,
+};
+
+struct Controller {
+    MappingType type;
 };
 
 int main() {
     slim::Initialize();
 
-    // create a slim device
+    // create device
     auto context = SlimPtr<Context>(
         ContextDesc()
             .Verbose(true)
@@ -19,10 +25,10 @@ int main() {
             .EnableGLFW(true)
     );
 
-    // create a slim device
+    // create device
     auto device = SlimPtr<Device>(context);
 
-    // create a slim window
+    // create window
     auto window = SlimPtr<Window>(
         device,
         WindowDesc()
@@ -31,6 +37,10 @@ int main() {
             .SetTitle("OctMap")
     );
 
+    // create ui
+    auto ui = SlimPtr<DearImGui>(device, window);
+
+    // create shaders
     auto decodeVShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/decode_hemioct.vert.spv");
     auto decodeFShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/decode_hemioct.frag.spv");
 
@@ -50,6 +60,9 @@ int main() {
         sampler = SlimPtr<Sampler>(device, SamplerDesc());
     });
 
+    Controller controller = {};
+    controller.type = OCTAHEDRON;
+
     // render
     while (window->IsRunning()) {
         Window::PollEvents();
@@ -57,10 +70,27 @@ int main() {
         // query image from swapchain
         auto frame = window->AcquireNext();
 
+        ui->Begin();
+        {
+            if (ImGui::Button("Octahedron")) {
+                controller.type = OCTAHEDRON;
+            }
+
+            if (ImGui::Button("Hemi Octahedron v1")) {
+                controller.type = HEMI_OCTAHEDRON_V1;
+            }
+
+            if (ImGui::Button("Hemi Octahedron v2")) {
+                controller.type = HEMI_OCTAHEDRON_V2;
+            }
+        }
+        ui->End();
+
         // rendergraph-based design
         RenderGraph renderGraph(frame);
         {
             auto colorBuffer = renderGraph.CreateResource(frame->GetBackBuffer());
+
             auto decodePass = renderGraph.CreateRenderPass("decode");
             decodePass->SetColor(colorBuffer, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
             decodePass->Execute([&](const RenderInfo &info) {
@@ -74,6 +104,7 @@ int main() {
                         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
                         .SetRenderPass(info.renderPass)
                         .SetPipelineLayout(PipelineLayoutDesc()
+                            .AddPushConstant("Info", Range { 0, sizeof(Controller) }, VK_SHADER_STAGE_FRAGMENT_BIT)
                             .AddBinding("Skybox", SetBinding { 0, 0 }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
                         )
                     );
@@ -86,8 +117,17 @@ int main() {
                 descriptor->SetTexture("Skybox", cubemap, sampler);
                 info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
+                // push constant
+                info.commandBuffer->PushConstants(pipeline->Layout(), "Info", &controller);
+
                 // draw quad
                 info.commandBuffer->Draw(6, 1, 0, 0);
+            });
+
+            auto uiPass = renderGraph.CreateRenderPass("ui");
+            uiPass->SetColor(colorBuffer);
+            uiPass->Execute([&](const RenderInfo &info) {
+                ui->Draw(info.commandBuffer);
             });
         }
         renderGraph.Execute();

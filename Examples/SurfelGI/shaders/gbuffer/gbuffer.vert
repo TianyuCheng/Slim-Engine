@@ -20,6 +20,9 @@ layout(location = 2) in vec2 inUV;
 
 layout(location = 0) out vec3 outNormal;
 layout(location = 1) out vec2 outUV;
+#ifdef ENABLE_GBUFFER_WORLD_POSITION
+layout(location = 2) out vec3 outPosition;
+#endif
 
 void main() {
     InstanceInfo instance = instances.data[object.instanceID];
@@ -33,4 +36,7 @@ void main() {
     // varyings
     outNormal = vec3(N * vec4(inNormal, 0.0));
     outUV     = inUV;
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    outPosition = vec3(M * vec4(inPosition, 1.0));
+    #endif
 }

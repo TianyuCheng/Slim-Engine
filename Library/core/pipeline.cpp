@@ -71,9 +71,9 @@ PipelineLayout::PipelineLayout(Device *device, const PipelineLayoutDesc &desc) :
 void PipelineLayout::Init(const PipelineLayoutDesc &desc, std::multimap<uint32_t, std::vector<DescriptorSetLayoutBinding>> &bindings) {
     hashValue = 0x0;
 
-    uint32_t maxSet = 0;
+    int32_t maxSet = -1;
     for (auto &kv : bindings) {
-        maxSet = std::max(kv.first, maxSet);
+        maxSet = std::max(maxSet, static_cast<int32_t>(kv.first));
     }
 
     descriptorSetLayouts.resize(maxSet + 1);

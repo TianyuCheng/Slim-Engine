@@ -1,0 +1,12 @@
+add_slim_project(
+    TARGET
+        hemisphere
+    SOURCES
+        main.cpp
+    SHADERS
+        shaders/generate.comp
+        shaders/direction.vert
+        shaders/direction.frag
+    SPV
+        vulkan1.0
+)

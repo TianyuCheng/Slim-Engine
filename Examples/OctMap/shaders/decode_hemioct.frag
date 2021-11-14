@@ -1,6 +1,14 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+#define OCTAHEDRON         0
+#define HEMI_OCTAHEDRON_V1 1
+#define HEMI_OCTAHEDRON_V2 2
+
+layout(push_constant) uniform Info {
+    uint type;
+} info;
+
 layout(set = 0, binding = 0) uniform samplerCube skyboxMap;
 
 layout(location = 0) in vec2 inUV;
@@ -12,22 +20,6 @@ float signNotZero(float v) {
 
 vec2 signNotZero(vec2 v) {
     return vec2(signNotZero(v.x), signNotZero(v.y));
-}
-
-// encode hemisphere into octahedron
-vec2 encode_hemioct(vec3 v) {
-    // project hemisphere onto hemi-octahedron
-    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + v.z));
-    // rotate and scale the center diamon to the unit square
-    return vec2(p.x + p.y, p.x - p.y);
-}
-
-// decode octahedron to hemisphere
-vec3 decode_hemioct(vec2 e) {
-    // rotate and scale the unit square back to the center diamond
-    vec2 temp = vec2(e.x + e.y, e.x - e.y) * 0.5;
-    vec3 v = vec3(temp, 1.0 - abs(temp.x) - abs(temp.y));
-    return normalize(v);
 }
 
 // result in [-1, 1]^2
@@ -44,12 +36,58 @@ vec3 decode_oct(vec2 e) {
     return normalize(v);
 }
 
-void main() {
-    vec3 uv3 = decode_oct(inUV * 2.0 - 1.0);
-    outColor = texture(skyboxMap, uv3);
+// encode hemisphere into octahedron
+vec2 encode_hemioct_v1(vec3 v) {
+    // project hemisphere onto hemi-octahedron
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + v.z));
+    // rotate and scale the center diamon to the unit square
+    return vec2(p.x, p.y);
+}
 
-    #if 0
-    vec3 uv3 = decode_hemioct(inUV * 2.0 - 1.0);
+// decode octahedron to hemisphere
+vec3 decode_hemioct_v1(vec2 e) {
+    // rotate and scale the unit square back to the center diamond
+    vec2 temp = vec2(e.x, e.y);
+    vec3 v = vec3(temp, 1.0 - abs(temp.x) - abs(temp.y));
+    return normalize(v);
+}
+
+// encode hemisphere into octahedron
+vec2 encode_hemioct_v2(vec3 v) {
+    // project hemisphere onto hemi-octahedron
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + v.z));
+    // rotate and scale the center diamon to the unit square
+    return vec2(p.x + p.y, p.x - p.y);
+}
+
+// decode octahedron to hemisphere
+vec3 decode_hemioct_v2(vec2 e) {
+    // rotate and scale the unit square back to the center diamond
+    vec2 temp = vec2(e.x + e.y, e.x - e.y) * 0.5;
+    vec3 v = vec3(temp, 1.0 - abs(temp.x) - abs(temp.y));
+    return normalize(v);
+}
+
+void main() {
+    vec3 uv3 = vec3(0.0);
+    vec2 uv2 = vec2(0.0);
+    switch (info.type) {
+        case OCTAHEDRON:
+            uv3 = decode_oct(inUV * 2.0 - 1.0);
+            uv2 = encode_oct(uv3);
+            break;
+        case HEMI_OCTAHEDRON_V1:
+            uv3 = decode_hemioct_v1(inUV * 2.0 - 1.0);
+            uv2 = encode_hemioct_v1(uv3);
+            if (uv3.z < 0.0) uv3 = vec3(0.0);
+            break;
+        case HEMI_OCTAHEDRON_V2:
+            uv3 = decode_hemioct_v2(inUV * 2.0 - 1.0);
+            uv2 = encode_hemioct_v2(uv3);
+            break;
+    }
     outColor = texture(skyboxMap, uv3);
-    #endif
+    /* outColor = vec4(inUV * 2.0 - 1.0, 0.0, 1.0); */
+    /* outColor = vec4(uv2, 0.0, 1.0); */
+    /* outColor = vec4(uv3, 1.0); */
 }

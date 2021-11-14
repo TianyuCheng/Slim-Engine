@@ -34,6 +34,9 @@ GraphicsPipelineDesc PrepareGBufferPass(AutoReleasePool& pool) {
         .SetDefaultBlendState(0)
         .SetDefaultBlendState(1)
         .SetDefaultBlendState(2)
+        #ifdef ENABLE_GBUFFER_WORLD_POSITION
+        .SetDefaultBlendState(3)
+        #endif
         .SetPipelineLayout(PipelineLayoutDesc()
             .AddPushConstant("InstanceID", Range      { 0, sizeof(uint32_t)       },                                          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding     ("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING   },       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
@@ -60,6 +63,9 @@ void AddGBufferPass(RenderGraph&       graph,
     pass->SetColor(gbuffer->albedo, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     pass->SetColor(gbuffer->normal, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     pass->SetColor(gbuffer->object, ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    pass->SetColor(gbuffer->position, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    #endif
     pass->SetDepth(gbuffer->depth, ClearValue(1.0f, 0));
     pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_READ_ONLY);
     pass->Execute([=](const RenderInfo &info) {

@@ -3,7 +3,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
 #define ENABLE_SURFEL_DEBUG_POINT
-/* #define ENABLE_SURFEL_DEBUG_RANDOM */
+// #define ENABLE_SURFEL_DEBUG_RANDOM
+// #define ENABLE_SURFEL_DEBUG_DEPTH
 
 #include "pack.h"
 #include "unpack.h"
@@ -57,7 +58,7 @@ layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
 image2D surfelDepth;
 
 // gbuffer diffuse
-layout(set = 2, binding = GBUFFER_DIFFUSE_BINDING, rgba32f) uniform
+layout(set = 2, binding = GBUFFER_GLOBAL_DIFFUSE_BINDING, rgba32f) uniform
 image2D diffuseImage;
 
 // gbuffer depth
@@ -76,6 +77,12 @@ usampler2D objectImage;
 layout(set = 2, binding = GBUFFER_NORMAL_BINDING) uniform
 sampler2D normalImage;
 
+#ifdef ENABLE_GBUFFER_WORLD_POSITION
+// gbuffer position
+layout(set = 2, binding = GBUFFER_POSITION_BINDING) uniform
+sampler2D positionImage;
+#endif
+
 // debug surfel
 layout(set = 3, binding = DEBUG_SURFEL_BINDING, rgba8) uniform
 image2D debugImage;
@@ -86,6 +93,21 @@ image2D varianceImage;
 
 shared uint groupMinSurfelID;
 shared uint groupMinSurfelCoverage;
+
+vec4 sample_radial_depth(vec2 pixel) {
+    int2 base = int2(pixel / vec2(SURFEL_DEPTH_TEXELS)) * int2(SURFEL_DEPTH_TEXELS);
+    vec2 tile = pixel - vec2(base) + vec2(0.5);
+    int2 co = int2(tile);
+    vec2 uv = fract(tile);
+
+    int2 c0 = base + max(co - int2(1), int2(0));
+    int2 c1 = base + min(co, int2(SURFEL_DEPTH_TEXELS - 1));
+    vec4 p00 = imageLoad(surfelDepth, int2(c0.x, c0.y));
+    vec4 p10 = imageLoad(surfelDepth, int2(c1.x, c0.y));
+    vec4 p01 = imageLoad(surfelDepth, int2(c0.x, c1.y));
+    vec4 p11 = imageLoad(surfelDepth, int2(c1.x, c1.y));
+    return mix(mix(p00, p10, uv.x), mix(p01, p11, uv.x), uv.y);
+}
 
 /**
  * This compute shader performs the following:
@@ -110,8 +132,12 @@ void main() {
     float depth  = texelFetch(depthImage,  pixel, 0).x;
     uint  primID = texelFetch(objectImage, pixel, 0).x;
     vec3  N      = texelFetch(normalImage, pixel, 0).xyz;
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    vec3  P      = texelFetch(positionImage, pixel, 0).xyz;
+    #else
     vec2  uv     = (vec2(pixel) + vec2(0.5)) / vec2(resolution);
     vec3  P      = compute_world_position(uv, depth, camera.data.invVP);
+    #endif
 
     // fetch surfel grid
     int3 gridIndex = compute_surfel_grid(camera.data, P);
@@ -138,9 +164,9 @@ void main() {
         float r2 = surfel.radius * surfel.radius;
 
         if (d2 < r2) {
-            vec3 surfelN = unpack_unitvec3(surfel.normal) * 2.0 - 1.0;
+            vec3 surfelN = unpack_snorm3(surfel.normal);
             float dotN = dot(surfelN, N);
-            if (dotN > 0) {
+            if (dotN > 0.0) {
                 float dist = sqrt(d2);
                 float contribution = 1.0;
                 contribution *= clamp(dotN, 0.0, 1.0);
@@ -148,17 +174,31 @@ void main() {
 
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
-                uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(cellIndex, L/dist, SURFEL_DEPTH_TEXELS));
-                vec2 radialDepth = imageLoad(surfelDepth, int2(radialDepthPixel)).xy;
-                contribution *= compute_surfel_radial_depth(radialDepth, dist);
+                vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
+                vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
+                contribution *= compute_surfel_weight(radialDepth, dist);
                 #endif
 
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
                 coverage += contribution;
                 color += vec4(surfel.color, 1.0) * contribution;
+
                 #ifdef ENABLE_SURFEL_DEBUG_RANDOM
                 debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
+                #endif
+
+                #ifdef ENABLE_SURFEL_DEBUG_POINT
+                if (dist < 0.02) {
+                    debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
+                }
+                #endif
+
+                #ifdef ENABLE_SURFEL_DEBUG_DEPTH
+                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+                float w = compute_surfel_weight(radialDepth, dist);
+                debug += vec4(w, w, w, 1.0);
+                #endif
                 #endif
 
                 // for spawning a new surfel
@@ -168,11 +208,6 @@ void main() {
                 inconsistency += sdata.inconsistency * contribution;
             }
         }
-        #ifdef ENABLE_SURFEL_DEBUG_POINT
-        if (d2 < 0.0025) {
-            debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
-        }
-        #endif
         // end of pixel coverage check
     }
 
@@ -181,7 +216,6 @@ void main() {
         color.rgb /= color.a;
         color.a = clamp(color.a, 0.0, 1.0);
     }
-    color.a = 1.0;
 
     // normalize debug color
     if (debug.a > 0.0) {
@@ -197,6 +231,13 @@ void main() {
         variance /= variance.a;
     }
 
+    // debug tiles
+    #if 0
+    if (((pixel.x & 0xf) == 0xf) || ((pixel.y & 0xf) == 0xf)) {
+        color = vec4(0.0);
+    }
+    #endif
+
     // output
     imageStore(debugImage, pixel, debug);
     imageStore(diffuseImage, pixel, color);
@@ -208,16 +249,18 @@ void main() {
         return;
     }
 
+#if 1
     // rng state
     RNGState rng = init_rng(uint2(pixel), resolution, frame.data.frameID);
 
     // find minimum surfel coverage
     uint2 localID = gl_LocalInvocationID.xy;
     uint covU32 = uint(coverage * 255.0);
-    uint coverageID = (covU32          & 0xff  ) << 24 // top bits matters the most
-                    | (uint(rand(rng)) & 0xffff) << 8  // shuffles pixels around
-                    | (     localID.x  & 0xf   ) << 4
-                    | (     localID.y  & 0xf   ) << 0;
+    uint randbits = floatBitsToUint(rand(rng));
+    uint coverageID = (covU32    & 0xff  ) << 24 // top bits matters the most
+                    | (randbits  & 0xffff) << 8  // shuffles pixels around
+                    | (localID.x & 0xf   ) << 4
+                    | (localID.y & 0xf   ) << 0;
     if (cell.count < SURFEL_CELL_CAPACITY) {
         atomicMin(groupMinSurfelID, coverageID);
         atomicMin(groupMinSurfelCoverage, covU32);
@@ -232,7 +275,7 @@ void main() {
             float zFarRcp = camera.data.zFarRcp;
             float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
 
-            float threshold = pow(1.0 - linear, 1.0);
+            float threshold = pow(1.0 - linear, 3.0);
             float chance = rand(rng);
 
             // stochastically spawn surfel
@@ -243,8 +286,12 @@ void main() {
 
                 // allocate new surfel
                 SurfelData data;
+                #ifdef ENABLE_GBUFFER_WORLD_POSITION
                 data.position = P;
-                data.normal = pack_unitvec3(N * 0.5 + 0.5);
+                #else
+                data.position = P + 0.01 * N;
+                #endif
+                data.normal = pack_snorm3(N);
                 data.life = 0;
                 data.recycle = 0;
                 data.vbbr = vbbr;
@@ -259,4 +306,166 @@ void main() {
             }
         }
     }
+#else
+    if (frame.data.frameID > 1) {
+        surfelStat.data.pause = 1;
+    }
+
+    // rng state
+    RNGState rng = init_rng(uint2(pixel), resolution, frame.data.frameID);
+
+    if ((pixel.x == 0) && (pixel.y == 0)) {
+        float w = 0.5;
+
+        for (int i = -50; i < 50; i++) {
+            for (int j = -50; j < 50; j++) {
+                // request an available surfel
+                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+                uint surfelID = surfelLive.data[availableSurfelID];
+
+                float rnd1 = 0.15; // rand(rng) * w;
+                float rnd2 = 0.15; // rand(rng) * w;
+
+                vec3 N = vec3(0.0, 1.0, 0.0);
+                vec3 P = vec3(i * w + rnd1, 0.05, j * w + rnd2);
+
+                // allocate new surfel
+                SurfelData data;
+                data.position = P;
+                data.normal = pack_snorm3(N);
+                data.life = 0;
+                data.recycle = 0;
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
+                data.instanceID = primID;
+                data.surfelID = surfelID;
+
+                surfelData.data[surfelID] = data;
+            }
+        }
+
+        for (int i = -50; i < 50; i++) {
+            for (int j = -50; j < 50; j++) {
+                // request an available surfel
+                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+                uint surfelID = surfelLive.data[availableSurfelID];
+
+                float rnd1 = 0.15; // rand(rng) * w;
+                float rnd2 = 0.15; // rand(rng) * w;
+
+                vec3 N = vec3(0.0, 0.0, 1.0);
+                vec3 P = vec3(i * w + rnd1, j * w + rnd2, 0.03);
+
+                // allocate new surfel
+                SurfelData data;
+                data.position = P;
+                data.normal = pack_snorm3(N);
+                data.life = 0;
+                data.recycle = 0;
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
+                data.instanceID = primID;
+                data.surfelID = surfelID;
+
+                surfelData.data[surfelID] = data;
+            }
+        }
+
+        for (int i = -50; i < 50; i++) {
+            for (int j = -50; j < 50; j++) {
+                // request an available surfel
+                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+                uint surfelID = surfelLive.data[availableSurfelID];
+
+                float rnd1 = 0.15; // rand(rng) * w;
+                float rnd2 = 0.15; // rand(rng) * w;
+
+                vec3 N = vec3(0.0, 0.0, -1.0);
+                vec3 P = vec3(i * w + rnd1, j * w + rnd2, -0.03);
+
+                // allocate new surfel
+                SurfelData data;
+                data.position = P;
+                data.normal = pack_snorm3(N);
+                data.life = 0;
+                data.recycle = 0;
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
+                data.instanceID = primID;
+                data.surfelID = surfelID;
+
+                surfelData.data[surfelID] = data;
+            }
+        }
+
+        for (int i = -50; i < 50; i++) {
+            for (int j = -50; j < 50; j++) {
+                // request an available surfel
+                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+                uint surfelID = surfelLive.data[availableSurfelID];
+
+                float rnd1 = 0.15; // rand(rng) * w;
+                float rnd2 = 0.15; // rand(rng) * w;
+
+                vec3 N = vec3(1.0, 0.0, 0.0);
+                vec3 P = vec3(0.03, i * w + rnd1, j * w + rnd2);
+
+                // allocate new surfel
+                SurfelData data;
+                data.position = P;
+                data.normal = pack_snorm3(N);
+                data.life = 0;
+                data.recycle = 0;
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
+                data.instanceID = primID;
+                data.surfelID = surfelID;
+
+                surfelData.data[surfelID] = data;
+            }
+        }
+
+        for (int i = -50; i < 50; i++) {
+            for (int j = -50; j < 50; j++) {
+                // request an available surfel
+                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
+                uint surfelID = surfelLive.data[availableSurfelID];
+
+                float rnd1 = 0.15; // rand(rng) * w;
+                float rnd2 = 0.15; // rand(rng) * w;
+
+                vec3 N = vec3(-1.0, 0.0, 0.0);
+                vec3 P = vec3(-0.03, i * w + rnd1, j * w + rnd2);
+
+                // allocate new surfel
+                SurfelData data;
+                data.position = P;
+                data.normal = pack_snorm3(N);
+                data.life = 0;
+                data.recycle = 0;
+                data.vbbr = vbbr;
+                data.inconsistency = inconsistency;
+                data.mean = color.rgb;
+                data.shortMean = shortMean.rgb;
+                data.variance = variance.xyz;
+                data.instanceID = primID;
+                data.surfelID = surfelID;
+
+                surfelData.data[surfelID] = data;
+            }
+        }
+    }
+#endif
 }

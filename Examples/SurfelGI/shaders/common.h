@@ -1,6 +1,8 @@
 #ifndef SLIM_EXAMPLE_SHADERS_COMMON_H
 #define SLIM_EXAMPLE_SHADERS_COMMON_H
 
+#include "../config.h"
+
 #ifdef __cplusplus
 #include <cmath>
 #include <cstdint>
@@ -24,7 +26,6 @@ using ivec4=glm::ivec4;
 using int2 = ivec2;
 using int3 = ivec3;
 using int4 = ivec4;
-#define PI M_PI
 #else
 #define uint2 uvec2
 #define uint3 uvec3
@@ -32,7 +33,7 @@ using int4 = ivec4;
 #define int2  ivec2
 #define int3  ivec3
 #define int4  ivec4
-#define PI 3.1415926
+#include "transform.h"
 #endif
 
 // Frame
@@ -145,15 +146,16 @@ const uint3 SURFEL_GRID_OUTER_DIMS  = SURFEL_GRID_DIMS - SURFEL_GRID_INNER_DIMS;
 const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.y
                                     * SURFEL_GRID_DIMS.z;
-const float SURFEL_LOW_COVERAGE     = 0.25;
-const float SURFEL_HIGH_COVERAGE    = 1.25;
+const float SURFEL_LOW_COVERAGE     = 0.5;
+const float SURFEL_HIGH_COVERAGE    = 1.5;
 const float SURFEL_MAX_RADIUS       = 0.5;
 const float SURFEL_MIN_RADIUS       = 0.2;
 const uint SURFEL_UPDATE_GROUP_SIZE = 32;
 
 // record radial gaussian depth function values
 const uint SURFEL_DEPTH_TEXELS          = 4;
-const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_TEXELS * SURFEL_CAPACITY_SQRT;
+const uint SURFEL_DEPTH_PADDED_TEXELS   = SURFEL_DEPTH_TEXELS;// + 2;
+const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_PADDED_TEXELS * SURFEL_CAPACITY_SQRT;
 
 // record relative radiance for ray guiding
 const uint SURFEL_RAYGUIDE_TEXELS       = 6;
@@ -228,8 +230,10 @@ struct LightDebugControl {
 #define GBUFFER_NORMAL_BINDING      1
 #define GBUFFER_DEPTH_BINDING       2
 #define GBUFFER_OBJECT_BINDING      3
-#define GBUFFER_DIFFUSE_BINDING     4
-#define GBUFFER_SPECULAR_BINDING    5
+#define GBUFFER_GLOBAL_DIFFUSE_BINDING     4
+#define GBUFFER_DIRECT_DIFFUSE_BINDING     5
+#define GBUFFER_SPECULAR_BINDING    6
+#define GBUFFER_POSITION_BINDING    7
 
 // Descriptor Set
 #define SURFEL_BINDING              0
@@ -241,6 +245,8 @@ struct LightDebugControl {
 #define SURFEL_COVERAGE_BINDING     7
 #define SURFEL_DEPTH_BINDING        8
 #define SURFEL_RAYGUIDE_BINDING     9
+#define SURFEL_DEPTH_TEX_BINDING    10
+#define SURFEL_RAYGUIDE_TEX_BINDING 11
 
 // Descriptor Set
 #define DEBUG_DEPTH_BINDING         0
@@ -326,6 +332,16 @@ int3 compute_surfel_grid(in CameraInfo cam, vec3 worldPos) {
     return int3(SURFEL_GRID_DIMS);
 }
 
+mat3 get_tangent_space(vec3 normal) {
+    // choose a helper vector for the cross product
+    vec3 helper = abs(normal.x) > 0.99 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+
+    // generate vectors
+    vec3 tangent = normalize(cross(normal, helper));
+    vec3 binormal = normalize(cross(normal, tangent));
+    return mat3(tangent, binormal, normal);
+}
+
 // compute the array index for surfel
 // returns the 1d cell index
 uint compute_surfel_cell(int3 gridIndex) {
@@ -345,6 +361,14 @@ uint2 unflatten_2d(uint index, uint2 dim) {
     return uint2(index % dim.x, index / dim.x);
 }
 
+float signNotZero(float v) {
+    return v >= 0.0 ? 1.0 : -1.0;
+}
+
+vec2 signNotZero(vec2 v) {
+    return vec2(signNotZero(v.x), signNotZero(v.y));
+}
+
 // encode hemisphere into octahedron
 vec2 encode_hemioct(vec3 v) {
     // project hemisphere onto hemi-octahedron
@@ -361,35 +385,54 @@ vec3 decode_hemioct(vec2 e) {
     return normalize(v);
 }
 
+// result in [-1, 1]^2
+vec2 encode_oct(vec3 v) {
+    vec2 p = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
+    // reflect the folds of the lower hemisphere over the diagonals
+    return (v.z <= 0.0) ? ((1.0 - abs(p.yx)) * signNotZero(p)) : p;
+}
+
+// result in [-1, +1]^3
+vec3 decode_oct(vec2 e) {
+    vec3 v = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+    if (v.z < 0) v.xy = (1.0 - abs(v.yx)) * signNotZero(v.xy);
+    return normalize(v);
+}
+
 // compute pixel coordinate on surfel octmap
-vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, uint texels) {
-    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT, 1)) * texels;
-    vec3 hemi = normalize(direction);
+vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, vec3 normal) {
+    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_DEPTH_PADDED_TEXELS;
+
+    // NOTE: direction is in world space,
+    // we need to transform it to z-axis oriented hemisphere
+    vec4 q = compute_rotation_to_z_axis(normal);
+    vec3 hemi = rotate_point(q, direction);
+    hemi.z = abs(hemi.z);
     vec2 uv = encode_hemioct(hemi) * 0.5 + 0.5;
-    return pixel + uv * texels;
+
+    uv = max(min(uv, vec2(0.99)), vec2(0.00));
+    return pixel + uv * SURFEL_DEPTH_TEXELS;
 }
 
 // compute uv on surfel octmap
-vec2 compute_surfel_octmap_uv(uint surfelIndex, vec3 direction, uint texels, uint atlasTexels) {
-    vec2 pixel = compute_surfel_octmap_pixel(surfelIndex, direction, texels);
-    return pixel / atlasTexels;
+vec2 compute_surfel_octmap_uv(uint surfelIndex, vec3 direction, vec3 normal) {
+    vec2 pixel = compute_surfel_octmap_pixel(surfelIndex, direction, normal);
+    return pixel / SURFEL_DEPTH_ATLAS_TEXELS;
 }
 
 // compute surfel depth on hemisphere
-float compute_surfel_radial_depth(vec2 weight, float dist) {
+float compute_surfel_weight(vec2 weight, float dist) {
     float mean = weight.x;
     float mean2 = weight.y;
     if (dist > mean) {
         // chebyshev
         float variance = abs(mean * mean - mean2);
         float diff = dist - mean;
-        return max(0.0, pow(variance / (variance + diff * diff), 3.0));
+        return max(0.0, pow(variance / (variance + diff * diff), 6.0));
     }
-    return SURFEL_MAX_RADIUS;
+    return 1.0;
 }
 
 #endif
-
-#define ENABLE_SURFEL_RADIAL_DEPTH
 
 #endif

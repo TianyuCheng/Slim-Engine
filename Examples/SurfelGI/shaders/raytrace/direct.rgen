@@ -42,8 +42,14 @@ sampler2D normalImage;
 layout(set = 1, binding = GBUFFER_DEPTH_BINDING) uniform
 sampler2D depthImage;
 
+#ifdef ENABLE_GBUFFER_WORLD_POSITION
+// gbuffer position
+layout(set = 1, binding = GBUFFER_POSITION_BINDING) uniform
+sampler2D positionImage;
+#endif
+
 // gbuffer diffuse
-layout(set = 1, binding = GBUFFER_DIFFUSE_BINDING, rgba32f) uniform
+layout(set = 1, binding = GBUFFER_DIRECT_DIFFUSE_BINDING, rgba32f) uniform
 image2D diffuseImage;
 
 // gbuffer specular
@@ -54,10 +60,11 @@ image2D specularImage;
 layout(location = 0) rayPayloadEXT HitInfo hitData;
 layout(location = 1) rayPayloadEXT bool    shadowed;
 
-bool traceShadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
+bool trace_shadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
     const uint flags = gl_RayFlagsTerminateOnFirstHitEXT
                      | gl_RayFlagsSkipClosestHitShaderEXT
                      | gl_RayFlagsOpaqueEXT;
+    shadowed = true;
     traceRayEXT(sceneAS,          // acceleration structure
             flags,                // rayFlags
             0xff,                 // cullMask
@@ -68,8 +75,8 @@ bool traceShadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
             tMin,                 // ray min range
             rayDirection,         // ray direction
             tMax,                 // ray max range
-            1);                   // payload (location = 0)
-    return !shadowed;
+            1);                   // payload (location = 1)
+    return shadowed;
 }
 
 vec3 compute_directional_lighting(in LightInfo light,
@@ -87,14 +94,16 @@ vec3 compute_point_lighting(in LightInfo light,
                             out float NoL,
                             out float dist) {
     vec3 lightDirection = light.position - surface.position;
+    NoL = dot(surface.normal, lightDirection);
+
     float d2 = dot(lightDirection, lightDirection);
     float r2 = light.range * light.range;
+    dist = sqrt(d2);
+
     // check maximum range
     if (d2 < r2) {
-        dist = sqrt(d2);
         lightDirection /= dist;
         // compute attenuation if needed
-        NoL = dot(surface.normal, lightDirection);
         if (NoL > 0.0) {
             float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
             float att2 = att1 * att1;
@@ -134,13 +143,17 @@ vec3 compute_spot_lighting(in LightInfo light,
 void main() {
     int2 pixel = int2(gl_LaunchIDEXT.xy);
 
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    vec3 position = texelFetch(positionImage, pixel, 0).xyz;
+    #else
     // compute world position
     vec2 ndc = vec2(pixel) / vec2(frame.data.resolution);
     float depth = texelFetch(depthImage, pixel, 0).x;
     vec3 position = compute_world_position(ndc, depth, camera.data.invVP);
+    #endif
 
     // load indirect diffuse
-    vec4 diffuse = imageLoad(diffuseImage, pixel);
+    vec4 diffuse = vec4(0.0);
 
     HitInfo surface;
     surface.position = position;
@@ -148,7 +161,7 @@ void main() {
     vec4 albedo = texelFetch(albedoImage, pixel, 0);
 
     // ray length
-    float tMin = 0.00001;
+    float tMin = 0.001;
     float tMax = 100000.0;
 
     // compute direct lighting
@@ -180,16 +193,20 @@ void main() {
         }
 
         // add light contribution
-        if (NoL > 0.0 && dist > 0.0) {
+        if (NoL > 0.0 && dist > 0.0 && dist < light.range) {
             // ray information at hit location
-            vec3 rayOrigin = surface.position + surface.normal * 0.00001;
+            vec3 rayOrigin = surface.position;
             vec3 rayDirection = lightDirection;
 
             // check occlusion
-            if (traceShadow(rayOrigin, rayDirection, tMin, dist)) {
+            if (!trace_shadow(rayOrigin, rayDirection, tMin, dist)) {
                 diffuse += vec4(lightDiffuse, 1.0);
             }
         }
+    }
+    if (diffuse.a > 0) {
+        diffuse.rgb /= diffuse.a;
+        diffuse.a = clamp(diffuse.a, 0.0, 1.0);
     }
 
     // store diffuse

@@ -62,9 +62,9 @@ int main() {
         LightInfo light = {};
         light.type = LIGHT_TYPE_POINT;
         light.color = vec3(1.0, 1.0, 1.0);
-        light.intensity = 10.0;
+        light.intensity = 1.0;
         light.range = 5.0;
-        light.position = vec3(-5.0, 1.0, 1.0);
+        light.position = vec3(-2.0, 1.0, 1.0);
         scene.lights.push_back(light);
     }
     if (1) {
@@ -117,8 +117,14 @@ int main() {
             gbuffer.normal              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
             gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
             gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.diffuse             = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             gbuffer.specular            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            #ifdef ENABLE_DIRECT_ILLUMINATION
+            gbuffer.directDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            #endif
+            gbuffer.globalDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            #ifdef ENABLE_GBUFFER_WORLD_POSITION
+            gbuffer.position            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);   // debug
+            #endif
 
             // surfel resources
             render::Surfel surfel       = {};
@@ -144,7 +150,9 @@ int main() {
             AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddSurfelPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
-            // AddDirectLightingPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            #ifdef ENABLE_DIRECT_ILLUMINATION
+            AddDirectLightingPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            #endif
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // show light control

@@ -1,0 +1,61 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#include "random.h"
+#include "sampling.h"
+#include "transform.h"
+
+#define UNIFORM 0
+#define COSINE  1
+
+layout(local_size_x=32,
+       local_size_y=1,
+       local_size_z=1) in;
+
+layout(push_constant) uniform Info {
+    uint seed;
+    uint count;
+    uint type;
+} info;
+
+layout(set=0, binding = 0) buffer InputBuffer {
+    vec2 v[];
+} inputUVs;
+
+layout(set=0, binding = 1) buffer OutputBuffer {
+    vec4 v[];
+} directions;
+
+void main() {
+    uint gID = gl_GlobalInvocationID.x;
+    if (gID >= info.count) return;
+
+    // prepare rng state
+    uvec2 pixel = uvec2(gID, 0);
+    uvec2 resolution = uvec2(info.count, 1);
+    uint  frameID = info.seed + gID;
+    RNGState rng = init_rng(pixel, resolution, frameID);
+
+    // generate direction on hemisphere
+    float u = rand(rng);
+    float v = rand(rng);
+    vec3 dir = vec3(0.0);
+
+    switch(info.type) {
+        case UNIFORM:
+            dir = uniform_sample_hemisphere(u, v);
+            break;
+        case COSINE:
+            dir = cosine_sample_hemisphere(u, v);
+            break;
+    }
+
+    // transform from z-space
+    vec3 normal = vec3(0.0, 1.0, 0.0);
+    dir = to_normal_space(dir, normal);
+
+    // store directions and prepare for visualization
+    inputUVs.v[gID] = vec2(u, v);
+    directions.v[2 * gID + 0] = vec4(0.0, 0.0, 0.0, 1.0);
+    directions.v[2 * gID + 1] = vec4(dir, 1.0);
+}

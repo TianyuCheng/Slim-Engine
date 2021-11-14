@@ -64,7 +64,10 @@ Pipeline* PrepareDirectLightingPass(AutoReleasePool& pool) {
                         .AddBinding("Albedo",          SetBinding { 1, GBUFFER_ALBEDO_BINDING },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("Normal",          SetBinding { 1, GBUFFER_NORMAL_BINDING },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("Depth",           SetBinding { 1, GBUFFER_DEPTH_BINDING  },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Diffuse",         SetBinding { 1, GBUFFER_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        #ifdef ENABLE_GBUFFER_WORLD_POSITION
+                        .AddBinding("Position",        SetBinding { 1, GBUFFER_POSITION_BINDING},      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        #endif
+                        .AddBinding("Diffuse",         SetBinding { 1, GBUFFER_DIRECT_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,       VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("Specular",        SetBinding { 1, GBUFFER_SPECULAR_BINDING},      VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBindingArray("Images",     SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                         .AddBindingArray("Samplers",   SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000, VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
@@ -91,11 +94,14 @@ void AddDirectLightingPass(RenderGraph&           graph,
     pass->SetStorage(sceneData->lights,      RenderGraph::STORAGE_READ_ONLY);
     pass->SetStorage(sceneData->camera,      RenderGraph::STORAGE_READ_ONLY);
     pass->SetStorage(sceneData->frame,       RenderGraph::STORAGE_READ_ONLY);
-    pass->SetStorage(gbuffer->diffuse,       RenderGraph::STORAGE_READ_WRITE);
+    pass->SetStorage(gbuffer->directDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(gbuffer->specular,      RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
+    #ifdef ENABLE_GBUFFER_WORLD_POSITION
+    pass->SetTexture(gbuffer->position);
+    #endif
 
     // execute
     pass->Execute([=](const RenderInfo& info) {
@@ -113,7 +119,10 @@ void AddDirectLightingPass(RenderGraph&           graph,
         descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
         descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
         descriptor->SetTexture("Depth", gbuffer->depth->GetImage(), sampler);
-        descriptor->SetStorageImage("Diffuse", gbuffer->diffuse->GetImage());
+        #ifdef ENABLE_GBUFFER_WORLD_POSITION
+        descriptor->SetTexture("Position", gbuffer->position->GetImage(), sampler);
+        #endif
+        descriptor->SetStorageImage("Diffuse", gbuffer->directDiffuse->GetImage());
         descriptor->SetStorageImage("Specular", gbuffer->specular->GetImage());
         descriptor->SetSampledImages("Images", scene->images);
         descriptor->SetSamplers("Samplers", scene->samplers);

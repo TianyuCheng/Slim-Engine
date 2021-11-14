@@ -13,6 +13,7 @@ add_subdirectory(Skybox)
 add_subdirectory(OctMap)
 add_subdirectory(MatCap)
 add_subdirectory(Deferred)
+add_subdirectory(Hemisphere)
 
 if (WIN32)
     add_subdirectory(Hybrid)

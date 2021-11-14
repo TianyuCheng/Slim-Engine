@@ -19,8 +19,10 @@ namespace render {
         RenderGraph::Resource* normal;
         RenderGraph::Resource* depth;
         RenderGraph::Resource* object;
-        RenderGraph::Resource* diffuse;
+        RenderGraph::Resource* globalDiffuse;
+        RenderGraph::Resource* directDiffuse;
         RenderGraph::Resource* specular;
+        RenderGraph::Resource* position; // for debugging
     };
 
     struct Surfel {

@@ -23,15 +23,12 @@ void Scene::InitScene() {
     // load model
     #ifdef ENABLE_SPONZA_SCENE
     model.Load(builder, GetUserAsset("Scenes/Sponza/glTF/Sponza.gltf"));
-    // apply scaling if necessary
-    #ifdef ENABLE_MINUSCALE_SCENE
-    model.GetScene(0)->Scale(0.008, 0.008, 0.008);
     model.GetScene(0)->ApplyTransform();
-    #endif
     #endif
 
     #ifdef ENABLE_COLOR_BLEEDING_SCENE
     model.Load(builder, GetUserAsset("Scenes/ColorBleeding/colorbleeding.gltf"));
+    model.GetScene(0)->Scale(0.4, 0.4, 0.4);
     model.GetScene(0)->ApplyTransform();
     #endif
 
@@ -99,8 +96,17 @@ void Scene::InitCamera() {
     // camera
     camera = SlimPtr<Flycam>("camera");
     #ifdef ENABLE_MINUSCALE_SCENE
-    walkSpeed = 1.0f;
-    camera->LookAt(glm::vec3(0.03, 1.35, 1.0), glm::vec3(0.0, 1.35, 1.0), glm::vec3(0.0, 1.0, 0.0));
+
+        #ifdef ENABLE_SPONZA_SCENE
+        walkSpeed = 1.0f;
+        camera->LookAt(glm::vec3(0.03, 1.35, 0.0), glm::vec3(0.0, 1.35, 0.0), glm::vec3(0.0, 1.0, 0.0));
+        #endif
+
+        #ifdef ENABLE_COLOR_BLEEDING_SCENE
+        walkSpeed = 5.0f;
+        camera->LookAt(glm::vec3(-5.0, 1.35, 1.0), glm::vec3(0.0, 1.35, 1.0), glm::vec3(0.0, 1.0, 0.0));
+        #endif
+
     #else
     walkSpeed = 10.0f;
     camera->LookAt(glm::vec3(3.0, .135, 0.0), glm::vec3(0.0, 0.135, 0.0), glm::vec3(0.0, 1.0, 0.0));
@@ -279,9 +285,10 @@ void Scene::ResetSurfels() {
         commandBuffer->CopyDataToBuffer(surfelData, surfelDataBuffer);
 
         // clear attachments
+        float diameter = SURFEL_MAX_RADIUS * 2.0;
         VkClearColorValue clear = {};
-        clear.float32[0] = 1.0;
-        clear.float32[1] = 1.0;
+        clear.float32[0] = diameter;
+        clear.float32[1] = diameter * diameter;
         clear.float32[2] = 1.0;
         clear.float32[3] = 1.0;
         commandBuffer->ClearColor(surfelDepthImage, clear);

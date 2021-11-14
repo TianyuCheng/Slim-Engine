@@ -41,7 +41,10 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
             .AddBinding("Albedo",   SetBinding { 0, GBUFFER_ALBEDO_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Normal",   SetBinding { 0, GBUFFER_NORMAL_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Depth",    SetBinding { 0, GBUFFER_DEPTH_BINDING      }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .AddBinding("Diffuse",  SetBinding { 0, GBUFFER_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            #ifdef ENABLE_DIRECT_ILLUMINATION
+            .AddBinding("DirectDiffuse", SetBinding { 0, GBUFFER_DIRECT_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            #endif
+            .AddBinding("GlobalDiffuse", SetBinding { 0, GBUFFER_GLOBAL_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Debug",    SetBinding { 1, DEBUG_SURFEL_BINDING       }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
         );
 
@@ -66,7 +69,10 @@ void AddComposePass(RenderGraph&           graph,
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
-    pass->SetTexture(gbuffer->diffuse);
+    #ifdef ENABLE_DIRECT_ILLUMINATION
+    pass->SetTexture(gbuffer->directDiffuse);
+    #endif
+    pass->SetTexture(gbuffer->globalDiffuse);
     pass->SetTexture(debug->surfelDebug);
 
     pass->Execute([=](const RenderInfo& info) {
@@ -84,7 +90,10 @@ void AddComposePass(RenderGraph&           graph,
         descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
         descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
         descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
-        descriptor->SetTexture("Diffuse", gbuffer->diffuse->GetImage(), sampler);
+        descriptor->SetTexture("GlobalDiffuse", gbuffer->globalDiffuse->GetImage(), sampler);
+        #ifdef ENABLE_DIRECT_ILLUMINATION
+        descriptor->SetTexture("DirectDiffuse", gbuffer->directDiffuse->GetImage(), sampler);
+        #endif
         descriptor->SetTexture("Debug", debug->surfelDebug->GetImage(), sampler);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
