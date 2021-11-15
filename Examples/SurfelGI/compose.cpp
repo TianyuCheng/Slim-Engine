@@ -29,6 +29,16 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
             return new spirv::FragmentShader(device, "main", "shaders/post/compose.frag.spv");
         });
 
+    VkPipelineColorBlendAttachmentState blendState = {};
+    blendState.blendEnable = VK_TRUE;
+    blendState.colorBlendOp = VK_BLEND_OP_ADD;
+    blendState.colorWriteMask = VK_COLOR_COMPONENT_R_BIT
+                              | VK_COLOR_COMPONENT_G_BIT
+                              | VK_COLOR_COMPONENT_B_BIT
+                              | VK_COLOR_COMPONENT_A_BIT;
+    blendState.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendState.dstColorBlendFactor = VK_BLEND_FACTOR_DST_ALPHA;
+
     // pipeline
     static auto pipelineDesc = GraphicsPipelineDesc()
         .SetName("compose")
@@ -36,8 +46,9 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
         .SetFragmentShader(fShader)
         .SetCullMode(VK_CULL_MODE_BACK_BIT)
         .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .SetBlendState(0, blendState)
         .SetPipelineLayout(PipelineLayoutDesc()
-            .AddPushConstant("Control", Range  { 0, sizeof(SurfelDebugControl) }, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddPushConstant("Control", Range  { 0, sizeof(DebugControl)       }, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Albedo",   SetBinding { 0, GBUFFER_ALBEDO_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Normal",   SetBinding { 0, GBUFFER_NORMAL_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Depth",    SetBinding { 0, GBUFFER_DEPTH_BINDING      }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -98,7 +109,7 @@ void AddComposePass(RenderGraph&           graph,
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
         // push constant
-        info.commandBuffer->PushConstants(pipeline->Layout(), "Control", &scene->surfelDebugControl);
+        info.commandBuffer->PushConstants(pipeline->Layout(), "Control", &scene->debugControl);
 
         // draw
         info.commandBuffer->Draw(6, 1, 0, 0);

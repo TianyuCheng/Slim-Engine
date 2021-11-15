@@ -120,10 +120,15 @@ void main() {
     groupMinSurfelCoverage = 0xffffffff;
     memoryBarrierShared();
 
+    int2 pixel = int2(gl_GlobalInvocationID.xy);
+    #ifdef ENABLE_HALFRES_LIGHT_APPLY
+    pixel.x = pixel.x * 2;
+    pixel.y = pixel.y * 2;
+    #endif
+
     int2 resolution = int2(frame.data.resolution);
 
     // dimension check
-    int2 pixel = int2(gl_GlobalInvocationID.xy);
     if (any(greaterThanEqual(pixel, resolution))) {
         return;
     }
@@ -172,17 +177,18 @@ void main() {
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
 
+                float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
                 vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
                 vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-                contribution *= compute_surfel_weight(radialDepth, dist);
+                occlusion *= compute_surfel_weight(radialDepth, dist);
                 #endif
 
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
-                coverage += contribution;
-                color += vec4(surfel.color, 1.0) * contribution;
+                coverage += contribution * occlusion;
+                color += vec4(surfel.color * occlusion, 1.0) * contribution;
 
                 #ifdef ENABLE_SURFEL_DEBUG_RANDOM
                 debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
@@ -239,10 +245,32 @@ void main() {
     #endif
 
     // output
+    #ifdef ENABLE_HALFRES_LIGHT_APPLY
+    imageStore(debugImage, pixel + int2(0, 0), debug);
+    imageStore(debugImage, pixel + int2(1, 0), debug);
+    imageStore(debugImage, pixel + int2(0, 1), debug);
+    imageStore(debugImage, pixel + int2(1, 1), debug);
+
+    imageStore(diffuseImage, pixel + int2(0, 0), color);
+    imageStore(diffuseImage, pixel + int2(1, 0), color);
+    imageStore(diffuseImage, pixel + int2(0, 1), color);
+    imageStore(diffuseImage, pixel + int2(1, 1), color);
+
+    imageStore(coverageImage, pixel + int2(0, 0), vec4(vec3(coverage), 1.0));
+    imageStore(coverageImage, pixel + int2(1, 0), vec4(vec3(coverage), 1.0));
+    imageStore(coverageImage, pixel + int2(0, 1), vec4(vec3(coverage), 1.0));
+    imageStore(coverageImage, pixel + int2(1, 1), vec4(vec3(coverage), 1.0));
+
+    imageStore(varianceImage, pixel + int2(0, 0), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    imageStore(varianceImage, pixel + int2(1, 0), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    imageStore(varianceImage, pixel + int2(0, 1), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    imageStore(varianceImage, pixel + int2(1, 1), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #else
     imageStore(debugImage, pixel, debug);
     imageStore(diffuseImage, pixel, color);
     imageStore(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
     imageStore(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #endif
 
     // spawn new surfels based on coverage
     if (surfelStat.data.pause != 0) {
@@ -456,8 +484,8 @@ void main() {
                 data.life = 0;
                 data.recycle = 0;
                 data.vbbr = vbbr;
-                data.inconsistency = inconsistency;
-                data.mean = color.rgb;
+                data.inconsistency = 1;
+                data.mean = vec3(0.0);
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
                 data.instanceID = primID;

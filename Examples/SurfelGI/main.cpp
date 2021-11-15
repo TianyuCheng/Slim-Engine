@@ -70,12 +70,6 @@ int main() {
     if (1) {
         scene.sky.color = vec3(0.0);
     }
-    if (0) {
-        scene.surfelDebugControl.debugPoint = 1;
-    }
-    if (1) {
-        scene.lightDebugControl.debugLight = 1;
-    }
 
     // build ui dockspace
     BuildOverlayUI(ui);
@@ -92,6 +86,7 @@ int main() {
         scene.camera->SetExtent(frame->GetExtent());
         scene.camera->Update(input, time);
 
+        // bar size
         VkExtent2D barExtent = {};
         barExtent.width = 320;
         barExtent.height = 2;
@@ -118,10 +113,10 @@ int main() {
             gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
             gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
             gbuffer.specular            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.globalDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             #ifdef ENABLE_DIRECT_ILLUMINATION
             gbuffer.directDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             #endif
-            gbuffer.globalDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             #ifdef ENABLE_GBUFFER_WORLD_POSITION
             gbuffer.position            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);   // debug
             #endif
@@ -134,9 +129,9 @@ int main() {
             surfel.surfelGrid           = graph.CreateResource(scene.surfelGridBuffer);
             surfel.surfelCell           = graph.CreateResource(scene.surfelCellBuffer);
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
-            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,          VK_SAMPLE_COUNT_1_BIT);
             surfel.surfelDepth          = graph.CreateResource(scene.surfelDepthImage);
             surfel.surfelRayGuide       = graph.CreateResource(scene.surfelRayGuideImage);
+            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
 
             // visualize resources
             render::Debug debug         = {};
@@ -156,9 +151,7 @@ int main() {
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // show light control
-            if (scene.lightDebugControl.debugLight) {
-                AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
-            }
+            AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             #ifdef ENABLE_GBUFFER_VISUALIZATION
             AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);

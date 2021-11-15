@@ -219,10 +219,16 @@ void AddOverlayPass(RenderGraph&           graph,
                     scene->ResumeSurfels();
                 }
                 if (ImGui::Button("Toggle Surfel Point")) {
-                    scene->surfelDebugControl.debugPoint = !scene->surfelDebugControl.debugPoint;
+                    scene->debugControl.showSurfel = !scene->debugControl.showSurfel;
                 }
                 if (ImGui::Button("Toggle Light Control")) {
-                    scene->lightDebugControl.debugLight = !scene->lightDebugControl.debugLight;
+                    scene->debugControl.showLight = !scene->debugControl.showLight;
+                }
+                if (ImGui::Button("Toggle Direct Illumination")) {
+                    scene->debugControl.showDirectDiffuse = !scene->debugControl.showDirectDiffuse;
+                }
+                if (ImGui::Button("Toggle Global Illumination")) {
+                    scene->debugControl.showGlobalDiffuse = !scene->debugControl.showGlobalDiffuse;
                 }
 
                 // controller for light configurations
@@ -250,7 +256,7 @@ void AddOverlayPass(RenderGraph&           graph,
                 ImGui::EndTabBar();
 
                 // imguizmo
-                if (scene->lightDebugControl.debugLight) {
+                if (scene->debugControl.showLight) {
                     ImGuizmo::Enable(true);
                     ImGui::Begin("Main", 0, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
                     {

@@ -94,11 +94,11 @@ vec3 compute_point_lighting(in LightInfo light,
                             out float NoL,
                             out float dist) {
     vec3 lightDirection = light.position - surface.position;
-    NoL = dot(surface.normal, lightDirection);
 
     float d2 = dot(lightDirection, lightDirection);
     float r2 = light.range * light.range;
     dist = sqrt(d2);
+    NoL = dot(surface.normal, lightDirection/dist);
 
     // check maximum range
     if (d2 < r2) {
@@ -200,7 +200,7 @@ void main() {
 
             // check occlusion
             if (!trace_shadow(rayOrigin, rayDirection, tMin, dist)) {
-                diffuse += vec4(lightDiffuse, 1.0);
+                diffuse += vec4(lightDiffuse * NoL, 1.0);
             }
         }
     }

@@ -307,6 +307,13 @@ void AddSurfelPass(RenderGraph&       graph,
 
     pass->Execute([=](const RenderInfo& info) {
 
+        // Step: positional update (for every surfel)
+        // We don't plan to support this. Skip for now.
+
+        // Step: recycle (for every surfel)
+        // We don't plan to support this. Skip for now.
+
+        // Step: reset and prepare for indirection update
         info.commandBuffer->BeginRegion("surfel-prepare");
         {
             auto pipeline = preparePipeline;
@@ -327,8 +334,7 @@ void AddSurfelPass(RenderGraph&       graph,
         }
         info.commandBuffer->EndRegion();
 
-        // ----------------------------------------------------------------------------------------------------
-
+        // Step: clear grid information
         info.commandBuffer->BeginRegion("surfel-reset");
         {
             auto pipeline = resetPipeline;
@@ -349,8 +355,8 @@ void AddSurfelPass(RenderGraph&       graph,
         }
         info.commandBuffer->EndRegion();
 
-        // ----------------------------------------------------------------------------------------------------
-
+        // Step: update surfel information (should be done before)
+        // and update grid count
         info.commandBuffer->BeginRegion("surfel-update");
         {
             auto pipeline = updatePipeline;
@@ -376,8 +382,7 @@ void AddSurfelPass(RenderGraph&       graph,
         }
         info.commandBuffer->EndRegion();
 
-        // ----------------------------------------------------------------------------------------------------
-
+        // Step: grid alloc
         info.commandBuffer->BeginRegion("surfel-offset");
         {
             auto pipeline = offsetPipeline;
@@ -402,8 +407,7 @@ void AddSurfelPass(RenderGraph&       graph,
         }
         info.commandBuffer->EndRegion();
 
-        // ----------------------------------------------------------------------------------------------------
-
+        // Step: grid binning
         info.commandBuffer->BeginRegion("surfel-binning");
         {
             auto pipeline = binningPipeline;
@@ -429,8 +433,7 @@ void AddSurfelPass(RenderGraph&       graph,
         }
         info.commandBuffer->EndRegion();
 
-        // ----------------------------------------------------------------------------------------------------
-
+        // Step: determine ray count, update lighting
         info.commandBuffer->BeginRegion("raytrace");
         {
             auto pipeline = raytracePipeline;
@@ -476,6 +479,7 @@ void AddSurfelPass(RenderGraph&       graph,
 
         // ----------------------------------------------------------------------------------------------------
 
+        // Step: gap detect, gap fill
         info.commandBuffer->BeginRegion("surfel-coverage");
         {
             auto pipeline = coveragePipeline;
@@ -506,8 +510,13 @@ void AddSurfelPass(RenderGraph&       graph,
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
             // issue compute call
-            uint32_t groupX = (info.renderFrame->GetExtent().width + SURFEL_TILE_X - 1) / SURFEL_TILE_X;
+            #ifdef ENABLE_HALFRES_LIGHT_APPLY
+            uint32_t groupX = ((info.renderFrame->GetExtent().width  >> 1) + SURFEL_TILE_X - 1) / SURFEL_TILE_X;
+            uint32_t groupY = ((info.renderFrame->GetExtent().height >> 1) + SURFEL_TILE_Y - 1) / SURFEL_TILE_Y;
+            #else
+            uint32_t groupX = (info.renderFrame->GetExtent().width  + SURFEL_TILE_X - 1) / SURFEL_TILE_X;
             uint32_t groupY = (info.renderFrame->GetExtent().height + SURFEL_TILE_Y - 1) / SURFEL_TILE_Y;
+            #endif
             info.commandBuffer->Dispatch(groupX, groupY, 1);
 
             // barriers

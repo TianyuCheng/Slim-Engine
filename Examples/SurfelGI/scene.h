@@ -47,8 +47,7 @@ public:
 
     // control
     float                    walkSpeed;
-    LightDebugControl        lightDebugControl;
-    SurfelDebugControl       surfelDebugControl;
+    DebugControl             debugControl;
 
     explicit Scene(Device* device);
 

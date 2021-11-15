@@ -4,7 +4,7 @@
 
 #include "../common.h"
 
-layout(push_constant) uniform Control { SurfelDebugControl data; } control;
+layout(push_constant) uniform Control { DebugControl data; } control;
 
 // samplers
 layout(set = 0, binding = GBUFFER_ALBEDO_BINDING)   uniform sampler2D albedoImage;
@@ -21,27 +21,33 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     vec4 albedo  = texture(albedoImage, inUV);
+    outColor = vec4(0.0);
 
     // global diffuse contribution
-    vec4 globalDiffuse = texture(globalDiffuseImage, inUV);
-    outColor = globalDiffuse * albedo;
-    outColor.rgb *= globalDiffuse.a;
+    if (control.data.showGlobalDiffuse != 0) {
+        vec4 globalDiffuse = texture(globalDiffuseImage, inUV);
+        globalDiffuse = clamp(globalDiffuse, vec4(0.0), vec4(1.0));
+        outColor += globalDiffuse * albedo;
+    }
 
     #ifdef ENABLE_DIRECT_ILLUMINATION
-    // direct diffuse contribution
-    vec4 directDiffuse = texture(directDiffuseImage, inUV);
-    outColor += directDiffuse * albedo;
+    if (control.data.showDirectDiffuse != 0) {
+        // direct diffuse contribution
+        vec4 directDiffuse = texture(directDiffuseImage, inUV);
+        directDiffuse = clamp(directDiffuse, vec4(0.0), vec4(1.0));
+        outColor += directDiffuse * albedo;
+    }
     #endif
 
     // show debug points
-    if (control.data.debugPoint != 0) {
+    if (control.data.showSurfel != 0) {
         vec4 debug = texture(debugImage, inUV);
         outColor += debug;
     }
 
-    #ifdef ENABLE_GAMMA_CORRECT
-    // gamma correct
-    const float gamma = 2.2;
-    outColor.rgb = pow(outColor.rgb, vec3(gamma));
-    #endif
+    /* #ifdef ENABLE_GAMMA_CORRECT */
+    /* // gamma correct */
+    /* const float gamma = 1.0/2.2; */
+    /* outColor.rgb = pow(outColor.rgb, vec3(gamma)); */
+    /* #endif */
 }

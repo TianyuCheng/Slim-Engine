@@ -59,9 +59,10 @@ void main() {
 
     // surfel
     if (in_uniform_surfel_grid(camera.data, surfel.position)) {
-        float dist = length(surfel.position - camera.data.position);
-        float ratio = dist / camera.data.zFar;
-        surfel.radius = mix(SURFEL_MIN_RADIUS, SURFEL_MAX_RADIUS, ratio);
+        /* float dist = length(surfel.position - camera.data.position); */
+        /* float ratio = dist / camera.data.zFar; */
+        /* surfel.radius = mix(SURFEL_MIN_RADIUS, SURFEL_MAX_RADIUS, ratio); */
+        surfel.radius = SURFEL_MAX_RADIUS;
     } else {
         surfel.radius = 0.0;
     }

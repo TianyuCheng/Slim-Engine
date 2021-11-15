@@ -136,8 +136,13 @@ struct HitInfo {
 // Surfels
 const uint  SURFEL_CAPACITY         = 250000;
 const uint  SURFEL_CAPACITY_SQRT    = 500;
+#ifdef ENABLE_HALFRES_LIGHT_APPLY
+const uint  SURFEL_TILE_X           = 8;
+const uint  SURFEL_TILE_Y           = 8;
+#else
 const uint  SURFEL_TILE_X           = 16;
 const uint  SURFEL_TILE_Y           = 16;
+#endif
 const uint  SURFEL_CELL_CAPACITY    = 0xffff;
 const float SURFEL_GRID_SIZE        = 1.0;
 const uint3 SURFEL_GRID_DIMS        = uint3(96, 96, 96);
@@ -201,12 +206,12 @@ struct SurfelGridCell {
     uint offset;
 };
 
-struct SurfelDebugControl {
-    uint debugPoint;
-};
-
-struct LightDebugControl {
-    uint debugLight;
+struct DebugControl {
+    uint showOverlay;
+    uint showLight;
+    uint showSurfel;
+    uint showDirectDiffuse;
+    uint showGlobalDiffuse;
 };
 
 // Descriptor Set

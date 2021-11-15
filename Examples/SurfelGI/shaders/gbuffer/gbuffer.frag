@@ -50,9 +50,9 @@ void main() {
         discard;
     }
 
-    #ifdef ENABLE_GAMMA_CORRECT
-    // gamma correct
-    const float gamma = 1.0/2.2;
-    outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma));
-    #endif
+    /* #ifdef ENABLE_GAMMA_CORRECT */
+    /* // gamma correct */
+    /* const float gamma = 2.2; */
+    /* outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma)); */
+    /* #endif */
 }

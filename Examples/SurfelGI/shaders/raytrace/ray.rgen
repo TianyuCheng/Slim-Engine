@@ -200,16 +200,17 @@ vec4 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
 
+                float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
                 vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
                 vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-                contribution *= compute_surfel_weight(radialDepth, dist);
+                occlusion *= compute_surfel_weight(radialDepth, dist);
                 #endif
 
                 // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
-                surfelGI += vec4(surfel.color, 1.0) * contribution;
+                surfelGI += vec4(surfel.color * occlusion, 1.0) * contribution;
             }
         }
     }
@@ -244,16 +245,17 @@ vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N, in v
             contribution *= clamp(dotN, 0.0, 1.0);
             contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
 
+            float occlusion = 1.0;
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // radial depth function
             vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
             vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-            contribution *= compute_surfel_weight(radialDepth, dist);
+            occlusion *= compute_surfel_weight(radialDepth, dist);
             #endif
 
             // surfel moment helps prevent incorrect color bleeding.
             contribution = smoothstep(0.0, 1.0, contribution);
-            surfelGI += vec4(surfel.color, 1.0) * contribution;
+            surfelGI += vec4(surfel.color * occlusion, 1.0) * contribution;
         }
     }
     return surfelGI;
@@ -446,7 +448,7 @@ void main() {
             }
 
             // infinite bounces
-            #if 0
+            #ifdef ENABLE_INFINITE_BOUNCES
             vec4 surfelGI = compute_surfel_lighting(camera.data, surface.position, surface.normal);
             if (surfelGI.a > 0.0) {
                 surfelGI.rgb /= surfelGI.a;
@@ -464,7 +466,7 @@ void main() {
     }
 
     // surfel irradiance sharing
-    #if 0
+    #ifdef ENABLE_IRRADIANCE_SHARING
     vec4 surfelGI = compute_irradiance_sharing(camera.data, surfelP, surfelN, data.variance);
     if (surfelGI.a > 0.0) {
         surfelGI.rgb /= surfelGI.a;

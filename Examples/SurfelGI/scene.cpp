@@ -10,8 +10,12 @@ Scene::Scene(Device* device)
     InitSurfels();
     InitGeometry();
 
-    lightDebugControl = {};
-    surfelDebugControl = {};
+    debugControl = {};
+    debugControl.showOverlay = 1;
+    debugControl.showLight = 1;
+    debugControl.showSurfel = 0;
+    debugControl.showDirectDiffuse = 1;
+    debugControl.showGlobalDiffuse = 1;
 }
 
 void Scene::InitScene() {
