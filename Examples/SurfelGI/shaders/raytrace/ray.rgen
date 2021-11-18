@@ -11,6 +11,17 @@
 #include "../common.h"
 #include "../halton.h"
 
+const int2 locations_l1[9] = int2[9](
+    int2(0, 0), int2(1, 0), int2(2, 0),
+    int2(0, 1), int2(1, 1), int2(2, 1),
+    int2(0, 2), int2(1, 2), int2(2, 2)
+);
+
+const int2 locations_l2[4] = int2[4](
+    int2(0, 0), int2(1, 0),
+    int2(0, 1), int2(1, 1)
+);
+
 layout(push_constant) uniform Info {
     uint lightCount;
 } info;
@@ -58,6 +69,10 @@ SurfelStatBuffer { SurfelStat data; } surfelStat;
 layout(set = 1, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
 image2D surfelDepth;
 
+// surfel ray guiding texture
+layout(set = 1, binding = SURFEL_RAYGUIDE_BINDING, r8) uniform
+image2D surfelRayGuide;
+
 // ray payload
 layout(location = 0) rayPayloadEXT HitInfo hitData;
 layout(location = 1) rayPayloadEXT bool    shadowed;
@@ -96,7 +111,7 @@ bool trace_shadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
     return shadowed;
 }
 
-vec4 sample_radial_depth(vec2 pixel) {
+vec2 linear_sample_radial_depth(vec2 pixel) {
     int2 base = int2(pixel / vec2(SURFEL_DEPTH_TEXELS)) * int2(SURFEL_DEPTH_TEXELS);
     vec2 tile = pixel - vec2(base) + vec2(0.5);
     int2 co = int2(tile);
@@ -108,24 +123,94 @@ vec4 sample_radial_depth(vec2 pixel) {
     vec4 p10 = imageLoad(surfelDepth, int2(c1.x, c0.y));
     vec4 p01 = imageLoad(surfelDepth, int2(c0.x, c1.y));
     vec4 p11 = imageLoad(surfelDepth, int2(c1.x, c1.y));
-    return mix(mix(p00, p10, uv.x), mix(p01, p11, uv.x), uv.y);
+    return mix(mix(p00, p10, uv.x), mix(p01, p11, uv.x), uv.y).xy;
+}
+
+float load_rayguide_level1(int2 pixel, int2 pix) {
+    return imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(0, 0)).x
+         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(1, 0)).x
+         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(0, 1)).x
+         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(1, 1)).x;
+}
+
+vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, out int2 loc, out float pdf) {
+    float accum = 0.0;
+    float target = rand(rng);
+    int level1index = 0;
+    int level2index = 0;
+
+    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
+
+    // We are using 6x6 texels as discrete ray guiding function.
+    // Level 1: walk 3x3 texels with linear sampler
+    for (level1index = 0; level1index < 9; level1index++) {
+        int2 location = locations_l1[level1index];
+        float value = load_rayguide_level1(pixel, location);
+        if ((accum + value) >= target) {
+            break;
+        }
+        accum += value;
+    }
+
+    // Level 2: walk 6x6 texels with hierarchy
+    int2 level2base = locations_l1[level1index] * 2;
+    for (level2index = 0; level2index < 4; level2index++) {
+        int2 location = level2base + locations_l2[level2index];
+        float value = imageLoad(surfelRayGuide, location).x;
+        if ((accum + value) >= target) {
+            break;
+        }
+        accum += value;
+    }
+
+    int2 level2pix = level2base + locations_l2[level2index];
+    vec2 uv = vec2(level2pix) / vec2(SURFEL_RAYGUIDE_TEXELS);
+    uv.x += rand(rng) / 6.0;
+    uv.y += rand(rng) / 6.0;
+
+    loc = level2pix;
+    pdf = imageLoad(surfelRayGuide, level2pix).x;
+    return decode_hemioct(uv);
+}
+
+void normalize_rayguide(uint surfelIndex, inout SurfelData data) {
+    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
+
+    float sum = 0.0;
+    for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
+        for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
+            sum += imageLoad(surfelRayGuide, pixel + int2(x, y)).x * data.rayGuideScale;
+        }
+    }
+
+    for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
+        for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
+            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x / sum;
+            imageStore(surfelRayGuide, pixel + int2(x, y), vec4(value, 0.0, 0.0, 1.0));
+        }
+    }
+
+    data.rayGuideScale = sum;
 }
 
 vec3 compute_directional_lighting(in LightInfo light,
                                   in HitInfo surface,
                                   out float NoL,
                                   out float dist,
+                                  out float radiance,
                                   out vec3 lightDirection) {
     dist = HIGHP_FLT_MAX;
     lightDirection = -normalize(light.direction);
     NoL = dot(surface.normal, lightDirection);
-    return light.color * light.intensity * max(0.0, NoL);
+    radiance = light.intensity * max(0.0, NoL);
+    return light.color * radiance;
 }
 
 vec3 compute_point_lighting(in LightInfo light,
                             in HitInfo surface,
                             out float NoL,
                             out float dist,
+                            out float radiance,
                             out vec3 lightDirection) {
     lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
@@ -139,7 +224,8 @@ vec3 compute_point_lighting(in LightInfo light,
         if (NoL > 0.0) {
             float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
             float att2 = att1 * att1;
-            return light.color * light.intensity * att2;
+            radiance = light.intensity * att2;
+            return light.color * radiance;
         }
     }
     return vec3(0.0);
@@ -149,6 +235,7 @@ vec3 compute_spot_lighting(in LightInfo light,
                            in HitInfo surface,
                            out float NoL,
                            out float dist,
+                           out float radiance,
                            out vec3 lightDirection) {
     lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
@@ -166,7 +253,8 @@ vec3 compute_spot_lighting(in LightInfo light,
                 float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
                 float att2 = att1 * att1;
                 float attenuation = clamp(1.0 - (1.0 - spotFactor) * 1.0 / (1.0 - spotCutOff), 0.0, 1.0);
-                return light.color * light.intensity * att2;
+                radiance = light.intensity * att2;
+                return light.color * radiance;
             }
         }
     }
@@ -203,9 +291,9 @@ vec4 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
                 float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
-                vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
-                vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-                occlusion *= compute_surfel_weight(radialDepth, dist);
+                vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
+                vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
+                occlusion *= compute_surfel_depth_weight(radialDepth, dist);
                 #endif
 
                 // surfel moment helps prevent incorrect color bleeding.
@@ -229,6 +317,7 @@ vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N, in v
     for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
         uint cellIndex = surfelCells.data[i];
         Surfel surfel = surfels.data[cellIndex];
+        surfel.radius *= 2.0;
 
         // apply surfel coverage
         vec3 L = surfel.position - P;
@@ -248,9 +337,9 @@ vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N, in v
             float occlusion = 1.0;
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // radial depth function
-            vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
-            vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-            occlusion *= compute_surfel_weight(radialDepth, dist);
+            vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
+            vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
+            occlusion *= compute_surfel_depth_weight(radialDepth, dist);
             #endif
 
             // surfel moment helps prevent incorrect color bleeding.
@@ -319,6 +408,13 @@ void update_surfel_depth(uint2 pixel, float dist) {
     imageStore(surfelDepth, int2(pixel), vec4(next, 0.0, 1.0));
 }
 
+void update_surfel_rayguide(uint2 pixel, float radiance) {
+    float prev = imageLoad(surfelDepth, int2(pixel)).x;
+    float blend = 0.5;
+    float next = mix(prev, radiance, blend);
+    imageStore(surfelRayGuide, int2(pixel), vec4(next, 0.0, 0.0, 1.0));
+}
+
 void main() {
     uint currentSurfelID = gl_LaunchIDEXT.x * SURFEL_CAPACITY_SQRT
                          + gl_LaunchIDEXT.y;
@@ -343,7 +439,11 @@ void main() {
     vec4 result = vec4(0.0);
 
     // decide ray budget for this surfel
+    #if 0
     int rayCount = int(ceil(mix(1, 16, data.inconsistency)));
+    #else
+    int rayCount = 1;
+    #endif
 
     // rng
     RNGState rng = init_rng(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy, frameID);
@@ -353,26 +453,33 @@ void main() {
         float rnd1 = rand(rng);
         float rnd2 = rand(rng);
 
+        float pdf = 1.0 / PI;
+        float radiance = 0.0;
+
         // ray direction
         // use cosine-weighted hemisphere sampling
         vec2 uv = vec2(rnd1, rnd2);
 
+        #ifdef ENABLE_SURFEL_RAY_GUIDING
+        int2 rayGuidePixel;
+        vec3 rayDirection = sample_rayguide(currentSurfelID, rng, rayGuidePixel, pdf);
+        #else
         // rayDirZ is a randomly generated ray in hemisphere in +z axis
-        vec3 rayDirZ = cosine_sample_hemisphere(uv.x, uv.y);
-
         // rayDirection is a world-space ray (rotated from rayDirZ)
+        vec3 rayDirZ = cosine_sample_hemisphere(uv.x, uv.y);
         vec3 rayDirection = rotate_point(invert_rotation(compute_rotation_to_z_axis(surfelN)), rayDirZ);
+        #endif
 
         // ray origin
         vec3 rayOrigin = surfelP;
 
         // ray length
-        float tMin = 0.001;
+        float tMin = 0.01;
         float tMax = 10000.0;
 
         #ifdef ENABLE_SURFEL_RADIAL_DEPTH
         // radial depth function
-        uint2 radialDepthPixel = uint2(compute_surfel_octmap_pixel(currentSurfelID, rayDirection, surfelN));
+        uint2 radialDepthPixel = uint2(compute_surfel_depth_pixel(currentSurfelID, rayDirection, surfelN));
         #endif
 
         // trace
@@ -380,21 +487,19 @@ void main() {
         if (!hit) {
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // update surfel moments with surfel radius
-            update_surfel_depth(radialDepthPixel, surfel.radius);
+            update_surfel_depth(radialDepthPixel, surfel.radius * 2.0);
             #endif
 
             // get sky color
             vec3 env = sky.data.color;
             result += vec4(env, 1.0);
+            radiance = 1.0;
         }
         else {
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // update surfel moments with surfel radius
-            float hitDepth = hitData.distance;
-            /* if (hitDepth < SURFEL_MAX_RADIUS * 2.0) { */
-            /*     hitDepth *= 0.8; // bias */
-            /* } */
-            hitDepth = clamp(hitDepth, 0.0, surfel.radius);
+            float hitDepth = hitData.distance * 0.9;
+            hitDepth = clamp(hitDepth, 0.0, surfel.radius * 2.0);
             update_surfel_depth(radialDepthPixel, hitDepth);
             #endif
 
@@ -422,15 +527,15 @@ void main() {
                 switch (light.type) {
                     // compute direct point lighting
                     case LIGHT_TYPE_POINT:
-                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist, lightDirection);
+                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist, radiance, lightDirection);
                         break;
                     // compute direct spot lighting
                     case LIGHT_TYPE_SPOTLIGHT:
-                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist, lightDirection);
+                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist, radiance, lightDirection);
                         break;
                     // compute direct directional lighting
                     case LIGHT_TYPE_DIRECTIONAL:
-                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist, lightDirection);
+                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist, radiance, lightDirection);
                         break;
                 }
 
@@ -442,10 +547,19 @@ void main() {
 
                     // check occlusion
                     if (!trace_shadow(rayOrigin, rayDirection, tMin, dist)) {
-                        hitResult += lightDiffuse / PI;
+                        hitResult += lightDiffuse * pdf;
+                        radiance = 0.0;
                     }
+                } else {
+                    radiance = 0.0;
                 }
             }
+
+            // update ray guiding function
+            #ifdef ENABLE_SURFEL_RAY_GUIDING
+            update_surfel_rayguide(rayGuidePixel, radiance);
+            normalize_rayguide(currentSurfelID, data);
+            #endif
 
             // infinite bounces
             #ifdef ENABLE_INFINITE_BOUNCES

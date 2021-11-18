@@ -44,6 +44,7 @@ void AddOverlayPass(RenderGraph&           graph,
 
     #ifdef ENABLE_GBUFFER_VISUALIZATION
     overlayPass->SetTexture(gbuffer->albedo);
+    overlayPass->SetTexture(gbuffer->metallicRoughness);
     overlayPass->SetTexture(gbuffer->normal);
     overlayPass->SetTexture(debug->depth);
     #endif
@@ -64,12 +65,16 @@ void AddOverlayPass(RenderGraph&           graph,
     overlayPass->SetTexture(debug->surfelVariance);
     #endif
 
-    #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+    #ifdef ENABLE_SURFEL_RADIAL_DEPTH
     overlayPass->SetTexture(surfel->surfelDepth);
     #endif
 
     #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
     overlayPass->SetTexture(debug->surfelBudget);
+    #endif
+
+    #ifdef ENABLE_SURFEL_RAY_GUIDING
+    overlayPass->SetTexture(surfel->surfelRayGuide);
     #endif
 
     overlayPass->SetTexture(gbuffer->globalDiffuse);
@@ -81,6 +86,7 @@ void AddOverlayPass(RenderGraph&           graph,
         ImTextureID albedo = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->albedo->GetImage()->AsTexture());
         ImTextureID normal = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->normal->GetImage()->AsTexture());
         ImTextureID depth  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->depth->GetImage()->AsTexture());
+        ImTextureID metallicRoughness = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->metallicRoughness->GetImage()->AsTexture());
         #endif
 
         #ifdef ENABLE_OBJECT_VISUALIZATION
@@ -103,8 +109,12 @@ void AddOverlayPass(RenderGraph&           graph,
         ImTextureID variance = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), debug->surfelVariance->GetImage()->AsTexture());
         #endif
 
-        #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+        #ifdef ENABLE_SURFEL_RADIAL_DEPTH
         ImTextureID surfelDepth = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelDepth->GetImage()->AsTexture());
+        #endif
+
+        #ifdef ENABLE_SURFEL_RAY_GUIDING
+        ImTextureID surfelRayGuide = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), surfel->surfelRayGuide->GetImage()->AsTexture());
         #endif
 
         ImTextureID globalDiffuse  = slim::imgui::AddTexture(info.renderFrame->GetDescriptorPool(), gbuffer->globalDiffuse->GetImage()->AsTexture());
@@ -151,6 +161,11 @@ void AddOverlayPass(RenderGraph&           graph,
                         ImGui::Image(depth, size);
                         ImGui::EndTabItem();
                     }
+
+                    if (ImGui::BeginTabItem("MetallicRoughness")) {
+                        ImGui::Image(metallicRoughness, size);
+                        ImGui::EndTabItem();
+                    }
                     #endif
 
                     #ifdef ENABLE_OBJECT_VISUALIZATION
@@ -181,9 +196,16 @@ void AddOverlayPass(RenderGraph&           graph,
                     }
                     #endif
 
-                    #ifdef ENABLE_SURFEL_DEPTH_VISUALIZATION
+                    #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                     if (ImGui::BeginTabItem("Radial Depth")) {
                         ImGui::Image(surfelDepth, size);
+                        ImGui::EndTabItem();
+                    }
+                    #endif
+
+                    #ifdef ENABLE_SURFEL_RAY_GUIDING
+                    if (ImGui::BeginTabItem("Ray Guide")) {
+                        ImGui::Image(surfelRayGuide, size);
                         ImGui::EndTabItem();
                     }
                     #endif

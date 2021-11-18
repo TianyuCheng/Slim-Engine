@@ -54,23 +54,24 @@ Pipeline* PrepareDirectLightingPass(AutoReleasePool& pool) {
                     .SetClosestHitShader(sceneClosestHitShader)
                     .SetMaxRayRecursionDepth(1)
                     .SetPipelineLayout(PipelineLayoutDesc()
-                        .AddPushConstant("Info",       Range      { 0, sizeof(uint32_t)       },                                                      VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Accel",           SetBinding { 0, SCENE_ACCEL_BINDING    },       VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Frame",           SetBinding { 0, SCENE_FRAME_BINDING    },       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Camera",          SetBinding { 0, SCENE_CAMERA_BINDING   },       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Lights",          SetBinding { 0, SCENE_LIGHT_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Instances",       SetBinding { 0, SCENE_INSTANCE_BINDING },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                        .AddBinding("Materials",       SetBinding { 0, SCENE_MATERIAL_BINDING },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
-                        .AddBinding("Albedo",          SetBinding { 1, GBUFFER_ALBEDO_BINDING },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Normal",          SetBinding { 1, GBUFFER_NORMAL_BINDING },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Depth",           SetBinding { 1, GBUFFER_DEPTH_BINDING  },       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddPushConstant("Info",         Range      { 0, sizeof(uint32_t)       },                                                             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Accel",             SetBinding { 0, SCENE_ACCEL_BINDING    },              VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Frame",             SetBinding { 0, SCENE_FRAME_BINDING    },              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Camera",            SetBinding { 0, SCENE_CAMERA_BINDING   },              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Lights",            SetBinding { 0, SCENE_LIGHT_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Instances",         SetBinding { 0, SCENE_INSTANCE_BINDING },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                        .AddBinding("Materials",         SetBinding { 0, SCENE_MATERIAL_BINDING },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR)
+                        .AddBinding("Albedo",            SetBinding { 1, GBUFFER_ALBEDO_BINDING },              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("MetallicRoughness", SetBinding { 1, GBUFFER_METALLIC_ROUGHNESS_BINDING },  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Normal",            SetBinding { 1, GBUFFER_NORMAL_BINDING },              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Depth",             SetBinding { 1, GBUFFER_DEPTH_BINDING  },              VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         #ifdef ENABLE_GBUFFER_WORLD_POSITION
-                        .AddBinding("Position",        SetBinding { 1, GBUFFER_POSITION_BINDING},      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Position",          SetBinding { 1, GBUFFER_POSITION_BINDING},             VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         #endif
-                        .AddBinding("Diffuse",         SetBinding { 1, GBUFFER_DIRECT_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,       VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("Specular",        SetBinding { 1, GBUFFER_SPECULAR_BINDING},      VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBindingArray("Images",     SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
-                        .AddBindingArray("Samplers",   SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000, VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
+                        .AddBinding("Diffuse",           SetBinding { 1, GBUFFER_DIRECT_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("Specular",          SetBinding { 1, GBUFFER_SPECULAR_BINDING},             VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBindingArray("Images",       SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
+                        .AddBindingArray("Samplers",     SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000,        VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                     )
                 );
         }
@@ -97,6 +98,7 @@ void AddDirectLightingPass(RenderGraph&           graph,
     pass->SetStorage(gbuffer->directDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(gbuffer->specular,      RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
+    pass->SetTexture(gbuffer->metallicRoughness);
     pass->SetTexture(gbuffer->normal);
     pass->SetTexture(gbuffer->depth);
     #ifdef ENABLE_GBUFFER_WORLD_POSITION
@@ -117,6 +119,7 @@ void AddDirectLightingPass(RenderGraph&           graph,
         descriptor->SetStorageBuffer("Instances", scene->instanceBuffer);
         descriptor->SetStorageBuffer("Materials", scene->materialBuffer);
         descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
+        descriptor->SetTexture("MetallicRoughness", gbuffer->metallicRoughness->GetImage(), sampler);
         descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
         descriptor->SetTexture("Depth", gbuffer->depth->GetImage(), sampler);
         #ifdef ENABLE_GBUFFER_WORLD_POSITION

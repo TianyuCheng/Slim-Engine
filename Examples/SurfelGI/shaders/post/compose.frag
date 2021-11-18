@@ -13,6 +13,7 @@ layout(set = 0, binding = GBUFFER_DEPTH_BINDING)    uniform sampler2D depthImage
 layout(set = 0, binding = GBUFFER_GLOBAL_DIFFUSE_BINDING)  uniform sampler2D globalDiffuseImage;
 #ifdef ENABLE_DIRECT_ILLUMINATION
 layout(set = 0, binding = GBUFFER_DIRECT_DIFFUSE_BINDING)  uniform sampler2D directDiffuseImage;
+layout(set = 0, binding = GBUFFER_SPECULAR_BINDING)        uniform sampler2D specularImage;
 #endif
 layout(set = 1, binding = DEBUG_SURFEL_BINDING)     uniform sampler2D debugImage;
 
@@ -34,8 +35,11 @@ void main() {
     if (control.data.showDirectDiffuse != 0) {
         // direct diffuse contribution
         vec4 directDiffuse = texture(directDiffuseImage, inUV);
-        directDiffuse = clamp(directDiffuse, vec4(0.0), vec4(1.0));
-        outColor += directDiffuse * albedo;
+        outColor += directDiffuse;
+
+        // direct specular contribution
+        vec4 directSpecular = texture(specularImage, inUV);
+        outColor += directSpecular;
     }
     #endif
 
@@ -46,7 +50,6 @@ void main() {
     }
 
     /* #ifdef ENABLE_GAMMA_CORRECT */
-    /* // gamma correct */
     /* const float gamma = 1.0/2.2; */
     /* outColor.rgb = pow(outColor.rgb, vec3(gamma)); */
     /* #endif */

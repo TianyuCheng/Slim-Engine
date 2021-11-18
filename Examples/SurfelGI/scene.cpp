@@ -14,7 +14,7 @@ Scene::Scene(Device* device)
     debugControl.showOverlay = 1;
     debugControl.showLight = 1;
     debugControl.showSurfel = 0;
-    debugControl.showDirectDiffuse = 1;
+    debugControl.showDirectDiffuse = 0;
     debugControl.showGlobalDiffuse = 1;
 }
 
@@ -57,6 +57,10 @@ void Scene::InitScene() {
             m.baseColorSampler = data.baseColorSampler;
             m.emissiveTexture = data.emissiveTexture;
             m.emissiveSampler = data.emissiveSampler;
+            m.metalness = data.metalness;
+            m.roughness = data.roughness;
+            m.metallicRoughnessTexture = data.metallicRoughnessTexture;
+            m.metallicRoughnessSampler = data.metallicRoughnessSampler;
             material2id[material] = material2id.size();
         });
     materialBuffer = SlimPtr<Buffer>(device, sizeof(MaterialInfo) * materials.size(),
@@ -195,13 +199,6 @@ void Scene::InitSurfels() {
         VMA_MEMORY_USAGE_GPU_ONLY);
     surfelStatBuffer->SetName("SurfelStat");
 
-    // // init surfel ray direction visualization buffer
-    // surfelRayDirBuffer = SlimPtr<Buffer>(device,
-    //     sizeof(glm::vec3) * 2 * SURFEL_CAPACITY,
-    //     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-    //     VMA_MEMORY_USAGE_GPU_ONLY);
-    // surfelRayDirBuffer->SetName("SurfelRayDir");
-
     // init surfel depth atlas storage texture
     VkExtent2D radialDepthExtent = {};
     radialDepthExtent.width = SURFEL_DEPTH_ATLAS_TEXELS;
@@ -216,7 +213,7 @@ void Scene::InitSurfels() {
     rayGuideExtent.width = SURFEL_RAYGUIDE_ATLAS_TEXELS;
     rayGuideExtent.height = SURFEL_RAYGUIDE_ATLAS_TEXELS;
     surfelRayGuideImage = SlimPtr<GPUImage>(
-        device, VK_FORMAT_R32G32_SFLOAT, rayGuideExtent,
+        device, VK_FORMAT_R8_UNORM, rayGuideExtent,
         1, 1, VK_SAMPLE_COUNT_1_BIT,
         VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
@@ -290,13 +287,19 @@ void Scene::ResetSurfels() {
 
         // clear attachments
         float diameter = SURFEL_MAX_RADIUS * 2.0;
-        VkClearColorValue clear = {};
-        clear.float32[0] = diameter;
-        clear.float32[1] = diameter * diameter;
-        clear.float32[2] = 1.0;
-        clear.float32[3] = 1.0;
-        commandBuffer->ClearColor(surfelDepthImage, clear);
-        commandBuffer->ClearColor(surfelRayGuideImage, clear);
+        VkClearColorValue depthClear = {};
+        depthClear.float32[0] = diameter;
+        depthClear.float32[1] = diameter * diameter;
+        depthClear.float32[2] = 1.0;
+        depthClear.float32[3] = 1.0;
+        commandBuffer->ClearColor(surfelDepthImage, depthClear);
+
+        VkClearColorValue rayGuideClear = {};
+        rayGuideClear.float32[0] = 1.0 / 36.0;
+        rayGuideClear.float32[1] = 0.0;
+        rayGuideClear.float32[2] = 0.0;
+        rayGuideClear.float32[3] = 0.0;
+        commandBuffer->ClearColor(surfelRayGuideImage, rayGuideClear);
     });
 }
 

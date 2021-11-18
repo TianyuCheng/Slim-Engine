@@ -167,26 +167,26 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                 .SetName("surfel-coverage")
                 .SetComputeShader(shader)
                 .SetPipelineLayout(PipelineLayoutDesc()
-                    .AddBinding("Frame",      SetBinding { 0, SCENE_FRAME_BINDING      }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING     }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Surfel",     SetBinding { 1, SURFEL_BINDING           }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelData", SetBinding { 1, SURFEL_DATA_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelLive", SetBinding { 1, SURFEL_LIVE_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelStat", SetBinding { 1, SURFEL_STAT_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelGrid", SetBinding { 1, SURFEL_GRID_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING      }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("SurfelDepth",SetBinding { 1, SURFEL_DEPTH_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Diffuse",    SetBinding { 2, GBUFFER_GLOBAL_DIFFUSE_BINDING  }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Albedo",     SetBinding { 2, GBUFFER_ALBEDO_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Depth",      SetBinding { 2, GBUFFER_DEPTH_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Normal",     SetBinding { 2, GBUFFER_NORMAL_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Frame",      SetBinding { 0, SCENE_FRAME_BINDING            }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING           }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Surfel",     SetBinding { 1, SURFEL_BINDING                 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelData", SetBinding { 1, SURFEL_DATA_BINDING            }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelLive", SetBinding { 1, SURFEL_LIVE_BINDING            }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelStat", SetBinding { 1, SURFEL_STAT_BINDING            }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelGrid", SetBinding { 1, SURFEL_GRID_BINDING            }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelCell", SetBinding { 1, SURFEL_CELL_BINDING            }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("SurfelDepth",SetBinding { 1, SURFEL_DEPTH_BINDING           }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Coverage",   SetBinding { 1, SURFEL_COVERAGE_BINDING        }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Diffuse",    SetBinding { 2, GBUFFER_GLOBAL_DIFFUSE_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Albedo",     SetBinding { 2, GBUFFER_ALBEDO_BINDING         }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Depth",      SetBinding { 2, GBUFFER_DEPTH_BINDING          }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Normal",     SetBinding { 2, GBUFFER_NORMAL_BINDING         }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     #ifdef ENABLE_GBUFFER_WORLD_POSITION
-                    .AddBinding("Position",   SetBinding { 2, GBUFFER_POSITION_BINDING }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Position",   SetBinding { 2, GBUFFER_POSITION_BINDING       }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
                     #endif
-                    .AddBinding("Object",     SetBinding { 2, GBUFFER_OBJECT_BINDING   }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Debug",      SetBinding { 3, DEBUG_SURFEL_BINDING     }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
-                    .AddBinding("Variance",   SetBinding { 3, DEBUG_SURFEL_VAR_BINDING }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Object",     SetBinding { 2, GBUFFER_OBJECT_BINDING         }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Debug",      SetBinding { 3, DEBUG_SURFEL_BINDING           }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
+                    .AddBinding("Variance",   SetBinding { 3, DEBUG_SURFEL_VAR_BINDING       }, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          VK_SHADER_STAGE_COMPUTE_BIT)
                 )
             );
         });
@@ -249,7 +249,8 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
                         .AddBinding("SurfelGrid",      SetBinding { 1, SURFEL_GRID_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("SurfelCell",      SetBinding { 1, SURFEL_CELL_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("SurfelStat",      SetBinding { 1, SURFEL_STAT_BINDING    },       VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
-                        .AddBinding("SurfelDepth",     SetBinding { 1, SURFEL_DEPTH_BINDING    },      VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelDepth",     SetBinding { 1, SURFEL_DEPTH_BINDING   },       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelRayGuide",  SetBinding { 1, SURFEL_RAYGUIDE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBindingArray("Images",     SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                         .AddBindingArray("Samplers",   SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000, VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                     )
@@ -293,7 +294,8 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelStat,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelData,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(surfel->surfelCoverage, RenderGraph::STORAGE_WRITE_ONLY);
-    pass->SetStorage(surfel->surfelDepth,    RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(surfel->surfelDepth,    RenderGraph::STORAGE_READ_WRITE);
+    pass->SetStorage(surfel->surfelRayGuide, RenderGraph::STORAGE_READ_WRITE);
     pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(gbuffer->globalDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
@@ -455,6 +457,7 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
             descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
             descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
+            descriptor->SetStorageImage("SurfelRayGuide", surfel->surfelRayGuide->GetImage());
             descriptor->SetSampledImages("Images", scene->images);
             descriptor->SetSamplers("Samplers", scene->samplers);
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());

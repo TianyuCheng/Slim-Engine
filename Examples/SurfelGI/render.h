@@ -2,6 +2,7 @@
 #define SLIM_EXAMPLE_RENDER_H
 
 #include <slim/slim.hpp>
+#include "config.h"
 using namespace slim;
 
 namespace render {
@@ -16,13 +17,17 @@ namespace render {
 
     struct GBuffer {
         RenderGraph::Resource* albedo;
+        RenderGraph::Resource* emissive;
+        RenderGraph::Resource* metallicRoughness;
         RenderGraph::Resource* normal;
         RenderGraph::Resource* depth;
         RenderGraph::Resource* object;
         RenderGraph::Resource* globalDiffuse;
         RenderGraph::Resource* directDiffuse;
         RenderGraph::Resource* specular;
-        RenderGraph::Resource* position; // for debugging
+        #ifdef ENABLE_GBUFFER_WORLD_POSITION
+        RenderGraph::Resource* position;
+        #endif
     };
 
     struct Surfel {

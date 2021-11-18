@@ -109,6 +109,8 @@ int main() {
             // gbuffer resources
             render::GBuffer gbuffer     = {};
             gbuffer.albedo              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.emissive            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.metallicRoughness   = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8_UNORM,     VK_SAMPLE_COUNT_1_BIT);
             gbuffer.normal              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
             gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
             gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);

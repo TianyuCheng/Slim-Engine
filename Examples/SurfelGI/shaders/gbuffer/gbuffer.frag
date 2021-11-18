@@ -28,18 +28,61 @@ layout(location = 2) in vec3 inPosition;
 #endif
 
 layout(location = 0) out vec4 outAlbedo;
-layout(location = 1) out vec4 outNormal;
-layout(location = 2) out uint outInstanceID;
-layout(location = 3) out vec4 outPosition;
+layout(location = 1) out vec4 outEmissive;
+layout(location = 2) out vec4 outMetallicRoughness;
+layout(location = 3) out vec4 outNormal;
+layout(location = 4) out uint outInstanceID;
+#ifdef ENABLE_GBUFFER_WORLD_POSITION
+layout(location = 5) out vec4 outPosition;
+#endif
 
 void main() {
+    const float gamma = 2.2;
+
     InstanceInfo instance = instances.data[object.instanceID];
     MaterialInfo material = materials.data[instance.materialID];
 
-    uint baseColorTextureID = nonuniformEXT(material.baseColorTexture);
-    uint baseColorSamplerID = nonuniformEXT(material.baseColorSampler);
-    outAlbedo     = texture(sampler2D(textures[baseColorTextureID], samplers[baseColorSamplerID]), inUV);
-    outNormal     = vec4(normalize(inNormal), 1.0);
+    // base color
+    int baseColorTextureID = nonuniformEXT(material.baseColorTexture);
+    int baseColorSamplerID = nonuniformEXT(material.baseColorSampler);
+    if (baseColorTextureID >= 0) {
+        outAlbedo = texture(sampler2D(textures[baseColorTextureID],
+                                      samplers[baseColorSamplerID]), inUV);
+        /* #ifdef ENABLE_GAMMA_CORRECT */
+        /* outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma)); */
+        /* #endif */
+    } else {
+        outAlbedo = material.baseColor;
+    }
+
+    // emissive
+    int emissiveTextureID = nonuniformEXT(material.emissiveTexture);
+    int emissiveSamplerID = nonuniformEXT(material.emissiveSampler);
+    if (emissiveTextureID >= 0) {
+        outEmissive = texture(sampler2D(textures[emissiveTextureID],
+                                        samplers[emissiveSamplerID]), inUV);
+        /* #ifdef ENABLE_GAMMA_CORRECT */
+        /* outEmissive.rgb = pow(outEmissive.rgb, vec3(gamma)); */
+        /* #endif */
+    } else {
+        outEmissive = material.emissiveColor;
+    }
+
+    // metallic roughness
+    int metallicRoughnessTextureID = nonuniformEXT(material.metallicRoughnessTexture);
+    int metallicRoughnessSamplerID = nonuniformEXT(material.metallicRoughnessSampler);
+    if (metallicRoughnessTextureID >= 0) {
+        outMetallicRoughness = texture(sampler2D(textures[metallicRoughnessTextureID],
+                                                 samplers[metallicRoughnessSamplerID]), inUV).bgra;
+    } else {
+        outMetallicRoughness = vec4(
+            material.metalness,
+            material.roughness,
+            0.0, 1.0);
+    }
+
+    // others
+    outNormal = vec4(normalize(inNormal), 1.0);
     outInstanceID = object.instanceID;
 
     #ifdef ENABLE_GBUFFER_WORLD_POSITION
@@ -49,10 +92,4 @@ void main() {
     if (outAlbedo.a <= 0.25) {
         discard;
     }
-
-    /* #ifdef ENABLE_GAMMA_CORRECT */
-    /* // gamma correct */
-    /* const float gamma = 2.2; */
-    /* outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma)); */
-    /* #endif */
 }

@@ -34,8 +34,10 @@ GraphicsPipelineDesc PrepareGBufferPass(AutoReleasePool& pool) {
         .SetDefaultBlendState(0)
         .SetDefaultBlendState(1)
         .SetDefaultBlendState(2)
-        #ifdef ENABLE_GBUFFER_WORLD_POSITION
         .SetDefaultBlendState(3)
+        .SetDefaultBlendState(4)
+        #ifdef ENABLE_GBUFFER_WORLD_POSITION
+        .SetDefaultBlendState(5)
         #endif
         .SetPipelineLayout(PipelineLayoutDesc()
             .AddPushConstant("InstanceID", Range      { 0, sizeof(uint32_t)       },                                          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -61,6 +63,8 @@ void AddGBufferPass(RenderGraph&       graph,
 
     auto pass = graph.CreateRenderPass("gbuffer");
     pass->SetColor(gbuffer->albedo, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    pass->SetColor(gbuffer->emissive, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
+    pass->SetColor(gbuffer->metallicRoughness, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     pass->SetColor(gbuffer->normal, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     pass->SetColor(gbuffer->object, ClearValue(0.0f, 0.0f, 0.0f, 0.0f));
     #ifdef ENABLE_GBUFFER_WORLD_POSITION

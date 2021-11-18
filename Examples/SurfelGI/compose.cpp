@@ -54,6 +54,7 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
             .AddBinding("Depth",    SetBinding { 0, GBUFFER_DEPTH_BINDING      }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             #ifdef ENABLE_DIRECT_ILLUMINATION
             .AddBinding("DirectDiffuse", SetBinding { 0, GBUFFER_DIRECT_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            .AddBinding("Specular",      SetBinding { 0, GBUFFER_SPECULAR_BINDING          }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             #endif
             .AddBinding("GlobalDiffuse", SetBinding { 0, GBUFFER_GLOBAL_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Debug",    SetBinding { 1, DEBUG_SURFEL_BINDING       }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -82,6 +83,7 @@ void AddComposePass(RenderGraph&           graph,
     pass->SetTexture(gbuffer->depth);
     #ifdef ENABLE_DIRECT_ILLUMINATION
     pass->SetTexture(gbuffer->directDiffuse);
+    pass->SetTexture(gbuffer->specular);
     #endif
     pass->SetTexture(gbuffer->globalDiffuse);
     pass->SetTexture(debug->surfelDebug);
@@ -104,6 +106,7 @@ void AddComposePass(RenderGraph&           graph,
         descriptor->SetTexture("GlobalDiffuse", gbuffer->globalDiffuse->GetImage(), sampler);
         #ifdef ENABLE_DIRECT_ILLUMINATION
         descriptor->SetTexture("DirectDiffuse", gbuffer->directDiffuse->GetImage(), sampler);
+        descriptor->SetTexture("Specular", gbuffer->specular->GetImage(), sampler);
         #endif
         descriptor->SetTexture("Debug", debug->surfelDebug->GetImage(), sampler);
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());

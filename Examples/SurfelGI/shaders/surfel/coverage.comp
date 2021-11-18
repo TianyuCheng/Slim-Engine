@@ -2,9 +2,11 @@
 #extension GL_ARB_separate_shader_objects                : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
-#define ENABLE_SURFEL_DEBUG_POINT
+// #define ENABLE_SURFEL_DEBUG_POINT
 // #define ENABLE_SURFEL_DEBUG_RANDOM
 // #define ENABLE_SURFEL_DEBUG_DEPTH
+// #define ENABLE_SURFEL_DEBUG_NORMAL
+#define ENABLE_SURFEL_DEBUG_INCONSISTENCY
 
 #include "pack.h"
 #include "unpack.h"
@@ -94,7 +96,7 @@ image2D varianceImage;
 shared uint groupMinSurfelID;
 shared uint groupMinSurfelCoverage;
 
-vec4 sample_radial_depth(vec2 pixel) {
+vec2 linear_sample_radial_depth(vec2 pixel) {
     int2 base = int2(pixel / vec2(SURFEL_DEPTH_TEXELS)) * int2(SURFEL_DEPTH_TEXELS);
     vec2 tile = pixel - vec2(base) + vec2(0.5);
     int2 co = int2(tile);
@@ -106,7 +108,7 @@ vec4 sample_radial_depth(vec2 pixel) {
     vec4 p10 = imageLoad(surfelDepth, int2(c1.x, c0.y));
     vec4 p01 = imageLoad(surfelDepth, int2(c0.x, c1.y));
     vec4 p11 = imageLoad(surfelDepth, int2(c1.x, c1.y));
-    return mix(mix(p00, p10, uv.x), mix(p01, p11, uv.x), uv.y);
+    return mix(mix(p00, p10, uv.x), mix(p01, p11, uv.x), uv.y).xy;
 }
 
 /**
@@ -180,9 +182,9 @@ void main() {
                 float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
-                vec2 radialDepthPixel = compute_surfel_octmap_pixel(cellIndex, -L/dist, surfelN);
-                vec2 radialDepth = sample_radial_depth(radialDepthPixel).xy;
-                occlusion *= compute_surfel_weight(radialDepth, dist);
+                vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
+                vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
+                occlusion *= compute_surfel_depth_weight(radialDepth, dist);
                 #endif
 
                 // surfel moment helps prevent incorrect color bleeding.
@@ -200,9 +202,13 @@ void main() {
                 }
                 #endif
 
+                #ifdef ENABLE_SURFEL_DEBUG_NORMAL
+                debug += vec4(surfelN * 0.5 + 0.5, 1.0);
+                #endif
+
                 #ifdef ENABLE_SURFEL_DEBUG_DEPTH
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
-                float w = compute_surfel_weight(radialDepth, dist);
+                float w = compute_surfel_depth_weight(radialDepth, dist);
                 debug += vec4(w, w, w, 1.0);
                 #endif
                 #endif
@@ -212,6 +218,10 @@ void main() {
                 shortMean += vec4(sdata.shortMean, 1.0) * contribution;
                 vbbr += sdata.vbbr * contribution;
                 inconsistency += sdata.inconsistency * contribution;
+
+                #ifdef ENABLE_SURFEL_DEBUG_INCONSISTENCY
+                debug += vec4(vec3(inconsistency), 1.0);
+                #endif
             }
         }
         // end of pixel coverage check
@@ -246,31 +256,21 @@ void main() {
 
     // output
     #ifdef ENABLE_HALFRES_LIGHT_APPLY
-    imageStore(debugImage, pixel + int2(0, 0), debug);
-    imageStore(debugImage, pixel + int2(1, 0), debug);
-    imageStore(debugImage, pixel + int2(0, 1), debug);
-    imageStore(debugImage, pixel + int2(1, 1), debug);
-
-    imageStore(diffuseImage, pixel + int2(0, 0), color);
-    imageStore(diffuseImage, pixel + int2(1, 0), color);
-    imageStore(diffuseImage, pixel + int2(0, 1), color);
-    imageStore(diffuseImage, pixel + int2(1, 1), color);
-
-    imageStore(coverageImage, pixel + int2(0, 0), vec4(vec3(coverage), 1.0));
-    imageStore(coverageImage, pixel + int2(1, 0), vec4(vec3(coverage), 1.0));
-    imageStore(coverageImage, pixel + int2(0, 1), vec4(vec3(coverage), 1.0));
-    imageStore(coverageImage, pixel + int2(1, 1), vec4(vec3(coverage), 1.0));
-
-    imageStore(varianceImage, pixel + int2(0, 0), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
-    imageStore(varianceImage, pixel + int2(1, 0), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
-    imageStore(varianceImage, pixel + int2(0, 1), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
-    imageStore(varianceImage, pixel + int2(1, 1), vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #define STORE(IMAGE, PIXEL, VALUE)              \
+    imageStore(IMAGE, PIXEL + int2(0, 0), VALUE);   \
+    imageStore(IMAGE, PIXEL + int2(1, 0), VALUE);   \
+    imageStore(IMAGE, PIXEL + int2(0, 1), VALUE);   \
+    imageStore(IMAGE, PIXEL + int2(1, 1), VALUE);
     #else
-    imageStore(debugImage, pixel, debug);
-    imageStore(diffuseImage, pixel, color);
-    imageStore(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
-    imageStore(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #define STORE(IMAGE, PIXEL, VALUE)              \
+    imageStore(IMAGE, PIXEL, VALUE);
     #endif
+
+    STORE(debugImage,    pixel, debug);
+    STORE(diffuseImage,  pixel, color);
+    STORE(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
+    STORE(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #undef STORE
 
     // spawn new surfels based on coverage
     if (surfelStat.data.pause != 0) {
@@ -317,7 +317,7 @@ void main() {
                 #ifdef ENABLE_GBUFFER_WORLD_POSITION
                 data.position = P;
                 #else
-                data.position = P + 0.01 * N;
+                data.position = P + normalize(camera.data.position - P) * 0.01;
                 #endif
                 data.normal = pack_snorm3(N);
                 data.life = 0;
@@ -327,6 +327,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -368,6 +369,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -398,6 +400,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -428,6 +431,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -458,6 +462,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -488,6 +493,7 @@ void main() {
                 data.mean = vec3(0.0);
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
+                data.rayGuideScale = 1.0;
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 

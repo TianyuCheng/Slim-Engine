@@ -95,10 +95,16 @@ struct SkyInfo {
 struct MaterialInfo {
     vec4 baseColor;
     vec4 emissiveColor;
+
     int baseColorTexture;
     int baseColorSampler;
     int emissiveTexture;
     int emissiveSampler;
+
+    float metalness;
+    float roughness;
+    int metallicRoughnessTexture;
+    int metallicRoughnessSampler;
 };
 
 // Instances
@@ -151,16 +157,16 @@ const uint3 SURFEL_GRID_OUTER_DIMS  = SURFEL_GRID_DIMS - SURFEL_GRID_INNER_DIMS;
 const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.y
                                     * SURFEL_GRID_DIMS.z;
-const float SURFEL_LOW_COVERAGE     = 0.5;
+const float SURFEL_LOW_COVERAGE     = 1.0;
 const float SURFEL_HIGH_COVERAGE    = 1.5;
 const float SURFEL_MAX_RADIUS       = 0.5;
 const float SURFEL_MIN_RADIUS       = 0.2;
 const uint SURFEL_UPDATE_GROUP_SIZE = 32;
+const uint MAX_RAYS_PER_SURFEL      = 32;
 
 // record radial gaussian depth function values
-const uint SURFEL_DEPTH_TEXELS          = 4;
-const uint SURFEL_DEPTH_PADDED_TEXELS   = SURFEL_DEPTH_TEXELS;// + 2;
-const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_PADDED_TEXELS * SURFEL_CAPACITY_SQRT;
+const uint SURFEL_DEPTH_TEXELS          = 6;
+const uint SURFEL_DEPTH_ATLAS_TEXELS    = SURFEL_DEPTH_TEXELS * SURFEL_CAPACITY_SQRT;
 
 // record relative radiance for ray guiding
 const uint SURFEL_RAYGUIDE_TEXELS       = 6;
@@ -184,7 +190,7 @@ struct SurfelData {
     uint  surfelID;
 
     vec3  variance;
-    float padding0;
+    float rayGuideScale; // NOTE: 16b is enough
 
     float vbbr;
     float inconsistency;
@@ -231,14 +237,16 @@ struct DebugControl {
 #define SCENE_SAMPLERS_BINDING      0
 
 // Descriptor Set
-#define GBUFFER_ALBEDO_BINDING      0
-#define GBUFFER_NORMAL_BINDING      1
-#define GBUFFER_DEPTH_BINDING       2
-#define GBUFFER_OBJECT_BINDING      3
-#define GBUFFER_GLOBAL_DIFFUSE_BINDING     4
-#define GBUFFER_DIRECT_DIFFUSE_BINDING     5
-#define GBUFFER_SPECULAR_BINDING    6
-#define GBUFFER_POSITION_BINDING    7
+#define GBUFFER_ALBEDO_BINDING              0
+#define GBUFFER_EMISSIVE_BINDING            1
+#define GBUFFER_METALLIC_ROUGHNESS_BINDING  2
+#define GBUFFER_NORMAL_BINDING              3
+#define GBUFFER_DEPTH_BINDING               4
+#define GBUFFER_OBJECT_BINDING              5
+#define GBUFFER_GLOBAL_DIFFUSE_BINDING      6
+#define GBUFFER_DIRECT_DIFFUSE_BINDING      7
+#define GBUFFER_SPECULAR_BINDING            8
+#define GBUFFER_POSITION_BINDING            9
 
 // Descriptor Set
 #define SURFEL_BINDING              0
@@ -404,9 +412,9 @@ vec3 decode_oct(vec2 e) {
     return normalize(v);
 }
 
-// compute pixel coordinate on surfel octmap
-vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, vec3 normal) {
-    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_DEPTH_PADDED_TEXELS;
+// compute pixel coordinate on surfel depth octmap
+vec2 compute_surfel_depth_pixel(uint surfelIndex, vec3 direction, vec3 normal) {
+    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_DEPTH_TEXELS;
 
     // NOTE: direction is in world space,
     // we need to transform it to z-axis oriented hemisphere
@@ -419,14 +427,8 @@ vec2 compute_surfel_octmap_pixel(uint surfelIndex, vec3 direction, vec3 normal) 
     return pixel + uv * SURFEL_DEPTH_TEXELS;
 }
 
-// compute uv on surfel octmap
-vec2 compute_surfel_octmap_uv(uint surfelIndex, vec3 direction, vec3 normal) {
-    vec2 pixel = compute_surfel_octmap_pixel(surfelIndex, direction, normal);
-    return pixel / SURFEL_DEPTH_ATLAS_TEXELS;
-}
-
 // compute surfel depth on hemisphere
-float compute_surfel_weight(vec2 weight, float dist) {
+float compute_surfel_depth_weight(vec2 weight, float dist) {
     float mean = weight.x;
     float mean2 = weight.y;
     if (dist > mean) {
