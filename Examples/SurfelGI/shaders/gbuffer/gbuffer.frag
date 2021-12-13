@@ -48,9 +48,9 @@ void main() {
     if (baseColorTextureID >= 0) {
         outAlbedo = texture(sampler2D(textures[baseColorTextureID],
                                       samplers[baseColorSamplerID]), inUV);
-        /* #ifdef ENABLE_GAMMA_CORRECT */
-        /* outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma)); */
-        /* #endif */
+        #ifdef ENABLE_INPUT_GAMMA_CORRECT
+        outAlbedo.rgb = pow(outAlbedo.rgb, vec3(gamma));
+        #endif
     } else {
         outAlbedo = material.baseColor;
     }
@@ -61,9 +61,9 @@ void main() {
     if (emissiveTextureID >= 0) {
         outEmissive = texture(sampler2D(textures[emissiveTextureID],
                                         samplers[emissiveSamplerID]), inUV);
-        /* #ifdef ENABLE_GAMMA_CORRECT */
-        /* outEmissive.rgb = pow(outEmissive.rgb, vec3(gamma)); */
-        /* #endif */
+        #ifdef ENABLE_INPUT_GAMMA_CORRECT
+        outEmissive.rgb = pow(outEmissive.rgb, vec3(gamma));
+        #endif
     } else {
         outEmissive = material.emissiveColor;
     }

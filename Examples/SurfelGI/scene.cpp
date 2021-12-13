@@ -9,13 +9,19 @@ Scene::Scene(Device* device)
     InitLights();
     InitSurfels();
     InitGeometry();
+    InitBilateral();
 
     debugControl = {};
     debugControl.showOverlay = 1;
-    debugControl.showLight = 1;
-    debugControl.showSurfel = 0;
-    debugControl.showDirectDiffuse = 0;
+    debugControl.showLight = 0;
+    debugControl.showSurfelInfo = 0;
+    debugControl.showDirectDiffuse = 1;
     debugControl.showGlobalDiffuse = 1;
+    debugControl.showSampleRays = 0;
+
+    // #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+    // debugControl.showSampleRays = 1;
+    // #endif
 }
 
 void Scene::InitScene() {
@@ -100,6 +106,14 @@ void Scene::InitFrame() {
     frameInfoBuffer->SetName("FrameInfo");
 }
 
+void Scene::InitBilateral() {
+    bilateralBuffer = SlimPtr<Buffer>(device,
+        2 * sizeof(BilateralInfo),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+    bilateralBuffer->SetName("BilateralInfo");
+}
+
 void Scene::InitCamera() {
     // camera
     camera = SlimPtr<Flycam>("camera");
@@ -112,7 +126,7 @@ void Scene::InitCamera() {
 
         #ifdef ENABLE_COLOR_BLEEDING_SCENE
         walkSpeed = 5.0f;
-        camera->LookAt(glm::vec3(-5.0, 1.35, 1.0), glm::vec3(0.0, 1.35, 1.0), glm::vec3(0.0, 1.0, 0.0));
+        camera->LookAt(glm::vec3(-12.0, 1.35, 3.0), glm::vec3(0.0, 1.35, 3.0), glm::vec3(0.0, 1.0, 0.0));
         #endif
 
     #else
@@ -198,6 +212,13 @@ void Scene::InitSurfels() {
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
     surfelStatBuffer->SetName("SurfelStat");
+
+    // init surfel ray dir buffer
+    surfelRayDirBuffer = SlimPtr<Buffer>(device,
+        sizeof(glm::vec4) * 2 * SURFEL_CAPACITY * 16,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+    surfelRayDirBuffer->SetName("SurfelRayDir");
 
     // init surfel depth atlas storage texture
     VkExtent2D radialDepthExtent = {};
@@ -295,7 +316,7 @@ void Scene::ResetSurfels() {
         commandBuffer->ClearColor(surfelDepthImage, depthClear);
 
         VkClearColorValue rayGuideClear = {};
-        rayGuideClear.float32[0] = 1.0 / 36.0;
+        rayGuideClear.float32[0] = 1.0;
         rayGuideClear.float32[1] = 0.0;
         rayGuideClear.float32[2] = 0.0;
         rayGuideClear.float32[3] = 0.0;

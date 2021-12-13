@@ -143,7 +143,7 @@ void AddOverlayPass(RenderGraph&           graph,
                 ImVec2 size = ImVec2(region.x, region.x / info.renderFrame->GetAspectRatio());
                 ImVec2 barSize = ImVec2(size.x, 10);
 
-                ImGui::BeginTabBar("##GBuffer");
+                ImGui::BeginTabBar("##Debug Buffers");
                 {
 
                     #ifdef ENABLE_GBUFFER_VISUALIZATION
@@ -224,34 +224,48 @@ void AddOverlayPass(RenderGraph&           graph,
 
                 ImGui::Separator();
 
-                // controller for camera walk speed
-                if (ImGui::InputFloat("Walk Speed", &scene->walkSpeed)) {
-                    scene->camera->SetWalkSpeed(scene->walkSpeed);
-                }
 
-                // controller for surfel configurations
-                if (ImGui::Button("Reset Surfels")) {
-                    info.commandBuffer->GetDevice()->WaitIdle();
-                    scene->ResetSurfels();
+                // controller for surfel debug information
+                ImGui::BeginTabBar("##Options");
+                {
+                    if (ImGui::BeginTabItem("Surfel##Options")) {
+                        // controller for surfel configurations
+                        if (ImGui::Button("Reset Surfels")) {
+                            info.commandBuffer->GetDevice()->WaitIdle();
+                            scene->ResetSurfels();
+                        }
+                        if (ImGui::Button("Pause Surfels")) {
+                            scene->PauseSurfels();
+                        }
+                        if (ImGui::Button("Resume Surfels")) {
+                            scene->ResumeSurfels();
+                        }
+                        ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("Debug##Options")) {
+                        ImGui::RadioButton("None",          (int*) &scene->debugControl.showSurfelInfo, 0);
+                        ImGui::RadioButton("Point",         (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_POINT);
+                        ImGui::RadioButton("Radial Depth",  (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_RADIAL_DEPTH);
+                        ImGui::RadioButton("Inconsistency", (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_INCONSISTENCY);
+                        ImGui::EndTabItem();
+                    }
+
+                    if (ImGui::BeginTabItem("Misc##Options")) {
+                        // controller for camera walk speed
+                        if (ImGui::InputFloat("Walk Speed", &scene->walkSpeed)) {
+                            scene->camera->SetWalkSpeed(scene->walkSpeed);
+                        }
+                        #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+                        ImGui::Checkbox("Ray Sample Dirs", (bool*) &scene->debugControl.showSampleRays);
+                        #endif
+                        ImGui::Checkbox("Light Control", (bool*) &scene->debugControl.showLight);
+                        ImGui::Checkbox("Direct Diffuse", (bool*) &scene->debugControl.showDirectDiffuse);
+                        ImGui::Checkbox("Global Diffuse", (bool*) &scene->debugControl.showGlobalDiffuse);
+                        ImGui::EndTabItem();
+                    }
                 }
-                if (ImGui::Button("Pause Surfels")) {
-                    scene->PauseSurfels();
-                }
-                if (ImGui::Button("Resume Surfels")) {
-                    scene->ResumeSurfels();
-                }
-                if (ImGui::Button("Toggle Surfel Point")) {
-                    scene->debugControl.showSurfel = !scene->debugControl.showSurfel;
-                }
-                if (ImGui::Button("Toggle Light Control")) {
-                    scene->debugControl.showLight = !scene->debugControl.showLight;
-                }
-                if (ImGui::Button("Toggle Direct Illumination")) {
-                    scene->debugControl.showDirectDiffuse = !scene->debugControl.showDirectDiffuse;
-                }
-                if (ImGui::Button("Toggle Global Illumination")) {
-                    scene->debugControl.showGlobalDiffuse = !scene->debugControl.showGlobalDiffuse;
-                }
+                ImGui::EndTabBar();
 
                 // controller for light configurations
                 uint32_t selectedLight = 0;
@@ -266,7 +280,7 @@ void AddOverlayPass(RenderGraph&           graph,
                     if (ImGui::BeginTabItem(tabname.c_str())) {
                         ImGui::DragFloat3(position.c_str(), glm::value_ptr(light.position), 0.1f, -30.0f, 30.0f);
                         ImGui::DragFloat3(color.c_str(), glm::value_ptr(light.color), 0.05f, 0.0f, 1.0f);
-                        ImGui::DragFloat(intensity.c_str(), &light.intensity, 1.0f, 0.0f, 100.0f);
+                        ImGui::DragFloat(intensity.c_str(), &light.intensity, 50.0f, 0.0f, 1000.0f);
                         ImGui::DragFloat(range.c_str(), &light.range, 1.0f, 0.0f, 100.0f);
                         if (ImGui::Button("Move Light to Camera")) {
                             light.position = scene->camera->GetPosition();

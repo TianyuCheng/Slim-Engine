@@ -54,8 +54,18 @@ void main()
     // barycentrics
     vec3 bary = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
-    // compute world position
+    // compute world position at hit position
+    #if 0
+    // It is very imprecise to compute the hit position based on the ray equation
+    // due to the imprecise nature of floating points. The further the hit position
+    // is, the bigger we will see error in the computed vs actual position on the surface.
     vec3 position = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    #else
+    // The correct way to compute the hit position is based on the barycentric coordinates,
+    // and the hitting hitting geometry's vertex information to compute the hitting position.
+    vec3 position = v0.position * bary.x + v1.position * bary.y + v2.position * bary.z;
+    position = (instance.M * vec4(position, 1.0)).xyz;
+    #endif
 
     // compute world normal at hit position
     vec3 normal = v0.normal * bary.x + v1.normal * bary.y + v2.normal * bary.z;

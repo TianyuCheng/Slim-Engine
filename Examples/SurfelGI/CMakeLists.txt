@@ -33,6 +33,9 @@ add_slim_project(
         render.h
         render.cpp
 
+        post.h
+        post.cpp
+
     SHADERS
         shaders/gbuffer/gbuffer.vert
         shaders/gbuffer/gbuffer.frag
@@ -43,6 +46,8 @@ add_slim_project(
         shaders/debug/allocvis.comp
         shaders/debug/geometry.vert
         shaders/debug/light.frag
+        shaders/debug/raydir.vert
+        shaders/debug/raydir.frag
 
         shaders/surfel/reset.comp
         shaders/surfel/offset.comp
@@ -59,6 +64,8 @@ add_slim_project(
 
         shaders/post/fullscreen.vert
         shaders/post/compose.frag
+        shaders/post/bilateral.vert
+        shaders/post/bilateral.frag
 
     SPV
         vulkan1.2

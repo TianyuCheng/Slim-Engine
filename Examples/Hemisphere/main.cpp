@@ -5,6 +5,7 @@ using namespace slim;
 enum SamplingType : uint32_t {
     UNIFORM = 0,
     COSINE  = 1,
+    HEMIOCT = 2,
 };
 
 struct GenInfo {
@@ -123,15 +124,18 @@ int main() {
         {
             bool update = false;
 
-            if (ImGui::Button("Uniform Hemisphere Sampling")) {
-                gen.type = UNIFORM;
+            int *genType = (int*)(&gen.type);
+            if (ImGui::RadioButton("Uniform Hemisphere Sampling", genType, UNIFORM)) {
+                update = true;
+            }
+            if (ImGui::RadioButton("Cosine Weighted Sampling", genType, COSINE)) {
+                update = true;
+            }
+            if (ImGui::RadioButton("Hemi-Octahedron Decoding", genType, HEMIOCT)) {
                 update = true;
             }
 
-            if (ImGui::Button("Cosine Hemisphere Sampling")) {
-                gen.type = COSINE;
-                update = true;
-            }
+            ImGui::Separator();
 
             if (ImGui::SliderInt("Count", (int32_t*) &gen.count, 1, MAX_DIR_COUNT)) {
                 update = true;

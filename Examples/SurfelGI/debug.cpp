@@ -162,6 +162,42 @@ GraphicsPipelineDesc PrepareLightVisPass(AutoReleasePool& pool) {
     return pipelineDesc;
 }
 
+GraphicsPipelineDesc PrepareRayDirVisPass(AutoReleasePool& pool) {
+    // vertex shader
+    auto vShader = pool.FetchOrCreate(
+        "raydir.vertex.shader",
+        [](Device* device) {
+            return new spirv::VertexShader(device, "main", "shaders/debug/raydir.vert.spv");
+        });
+
+    // fragment shader
+    auto fShader = pool.FetchOrCreate(
+        "raydir.fragment.shader",
+        [](Device* device) {
+            return new spirv::FragmentShader(device, "main", "shaders/debug/raydir.frag.spv");
+        });
+
+    // pipeline
+    auto pipelineDesc = GraphicsPipelineDesc()
+        .SetName("raydir")
+        .AddVertexBinding(0, sizeof(glm::vec4), VK_VERTEX_INPUT_RATE_VERTEX, {
+            { 0, VK_FORMAT_R32G32B32_SFLOAT, 0 },
+         })
+        .SetVertexShader(vShader)
+        .SetFragmentShader(fShader)
+        .SetPrimitive(VK_PRIMITIVE_TOPOLOGY_LINE_LIST)
+        .SetCullMode(VK_CULL_MODE_NONE)
+        .SetFrontFace(VK_FRONT_FACE_COUNTER_CLOCKWISE)
+        .SetDepthTest(VK_COMPARE_OP_LESS)
+        .SetDepthWrite(VK_FALSE)
+        .SetDefaultBlendState(0)
+        .SetPipelineLayout(PipelineLayoutDesc()
+            .AddBinding("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+        );
+
+    return pipelineDesc;
+}
+
 void AddLinearDepthPass(RenderGraph&       graph,
                         AutoReleasePool&   pool,
                         render::GBuffer*   gbuffer,
@@ -353,6 +389,44 @@ void AddLightVisPass(RenderGraph&           graph,
             info.commandBuffer->PushConstants(pipeline->Layout(), "LightID", &i);
             info.commandBuffer->DrawIndexed(mesh->GetIndexCount(), 1, 0, 0, 0);
         }
+    });
+
+}
+
+void AddRayDirVisPass(RenderGraph&           graph,
+                      AutoReleasePool&       pool,
+                      render::GBuffer*       gbuffer,
+                      render::SceneData*     sceneData,
+                      render::Surfel*        surfel,
+                      render::Debug*         debug,
+                      Scene*                 scene,
+                      RenderGraph::Resource* colorAttachment) {
+
+    static auto pipelineDesc = PrepareRayDirVisPass(pool);
+
+    auto pass = graph.CreateRenderPass("raydirvis");
+    pass->SetColor(colorAttachment);
+    pass->SetDepth(gbuffer->depth);
+    pass->SetStorage(sceneData->camera, RenderGraph::STORAGE_READ_ONLY);
+    pass->Execute([=](const RenderInfo &info) {
+
+        // bind pipeline
+        auto pipeline = info.renderFrame->RequestPipeline(
+            pipelineDesc
+                .SetRenderPass(info.renderPass)
+                .SetViewport(info.renderFrame->GetExtent()));
+
+        info.commandBuffer->BindPipeline(pipeline);
+
+        // bind camera and storage uniform
+        auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
+        descriptor->SetUniformBuffer("Camera", sceneData->camera->GetBuffer());
+        info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+
+        // draw
+        uint32_t count = SURFEL_CAPACITY;
+        info.commandBuffer->BindVertexBuffer(0, debug->sampleRays->GetBuffer(), 0);
+        info.commandBuffer->Draw(count * 2 * 16, 1, 0, 0);
     });
 
 }

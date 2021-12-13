@@ -7,6 +7,7 @@
 
 #define UNIFORM 0
 #define COSINE  1
+#define HEMIOCT 2
 
 layout(local_size_x=32,
        local_size_y=1,
@@ -25,6 +26,14 @@ layout(set=0, binding = 0) buffer InputBuffer {
 layout(set=0, binding = 1) buffer OutputBuffer {
     vec4 v[];
 } directions;
+
+// decode octahedron to hemisphere
+vec3 decode_hemioct(vec2 e) {
+    // rotate and scale the unit square back to the center diamond
+    vec2 temp = vec2(e.x + e.y, e.x - e.y) * 0.5;
+    vec3 v = vec3(temp, 1.0 - abs(temp.x) - abs(temp.y));
+    return normalize(v);
+}
 
 void main() {
     uint gID = gl_GlobalInvocationID.x;
@@ -48,11 +57,14 @@ void main() {
         case COSINE:
             dir = cosine_sample_hemisphere(u, v);
             break;
+        case HEMIOCT:
+            dir = decode_hemioct(vec2(u, v) * 2.0 - 1.0);
+            break;
     }
 
-    // transform from z-space
+    // sampling from hemisphere are in Z-axis
     vec3 normal = vec3(0.0, 1.0, 0.0);
-    dir = to_normal_space(dir, normal);
+    dir = rotate_point(invert_rotation(compute_rotation_to_z_axis(normal)), dir);
 
     // store directions and prepare for visualization
     inputUVs.v[gID] = vec2(u, v);

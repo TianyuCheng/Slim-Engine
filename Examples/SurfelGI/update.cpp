@@ -1,4 +1,5 @@
 #include "update.h"
+#include "exposure.h"
 
 void AddUpdatePass(RenderGraph&       graph,
                    AutoReleasePool&   pool,
@@ -73,7 +74,12 @@ void AddUpdatePass(RenderGraph&       graph,
         frameInfo.resolution.x = info.renderFrame->GetExtent().width;
         frameInfo.resolution.y = info.renderFrame->GetExtent().height;
 
-        // lights
+        // pre-compute exposure in CPU
+        // float ev100 = EV100(16, 0.008, 100);
+        float ev100 = 10;
+        float exposure = Exposure(ev100);
+
+        // light transforms
         std::vector<glm::mat4> lightXform;
         for (const auto& light : scene->lights) {
             glm::mat4 xform(1.0);
@@ -82,11 +88,42 @@ void AddUpdatePass(RenderGraph&       graph,
             lightXform.push_back(xform);
         }
 
+        // light info
+        std::vector<LightInfo> lightInfos;
+        for (const auto& light : scene->lights) {
+            lightInfos.push_back(light);
+            // translate point light intensity into luminous power
+            lightInfos.back().intensity *= (4 * M_PI);
+            // pre-apply exposure to intensity
+            lightInfos.back().intensity *= exposure;
+        }
+
+        // sky info
+        SkyInfo skyInfo = {};
+        skyInfo.color = scene->sky.color;
+        skyInfo.intensity = scene->sky.intensity * exposure;
+
+        // bilateral info
+        std::vector<BilateralInfo> bilaterals = {};
+        {
+            BilateralInfo data = {};
+            data.singleStepOffset = glm::vec2(1.0 / info.renderFrame->GetExtent().width, 0.0);
+            data.distanceNormalizationFactor = 8.0;
+            bilaterals.push_back(data);
+        }
+        {
+            BilateralInfo data = {};
+            data.singleStepOffset = glm::vec2(0.0, 1.0 / info.renderFrame->GetExtent().height);
+            data.distanceNormalizationFactor = 8.0;
+            bilaterals.push_back(data);
+        }
+
         info.commandBuffer->CopyDataToBuffer(lightXform, scene->lightXformBuffer);
-        info.commandBuffer->CopyDataToBuffer(scene->lights, scene->lightBuffer);
+        info.commandBuffer->CopyDataToBuffer(lightInfos, scene->lightBuffer);
         info.commandBuffer->CopyDataToBuffer(cameraInfo, scene->cameraBuffer);
-        info.commandBuffer->CopyDataToBuffer(frameInfo, scene->frameInfoBuffer);
-        info.commandBuffer->CopyDataToBuffer(scene->sky, scene->skyBuffer);
+        info.commandBuffer->CopyDataToBuffer(frameInfo,  scene->frameInfoBuffer);
+        info.commandBuffer->CopyDataToBuffer(skyInfo,    scene->skyBuffer);
+        info.commandBuffer->CopyDataToBuffer(bilaterals, scene->bilateralBuffer);
     });
 
     frameID++;

@@ -20,6 +20,34 @@ layout(set = 1, binding = DEBUG_SURFEL_BINDING)     uniform sampler2D debugImage
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
 
+vec3 ACESFilm(vec3 x)
+{
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return saturate((x*(a*x+b))/(x*(c*x+d)+e));
+}
+
+// n must not be normalized (e.g. window coordinates)
+float interleavedGradientNoise(highp vec2 n) {
+    return fract(52.982919 * fract(dot(vec2(0.06711, 0.00584), n)));
+}
+
+vec4 ditherInterleavedGradientNoise(vec4 rgba, const highp float temporalNoise01) {
+    // Jimenez 2014, "Next Generation Post-Processing in Call of Duty"
+    highp vec2 uv = gl_FragCoord.xy + temporalNoise01;
+
+    // The noise variable must be highp to workaround Adreno bug #1096.
+    highp float noise = interleavedGradientNoise(uv);
+
+    // remap from [0..1[ to [-0.5..0.5[
+    noise -= 0.5;
+
+    return rgba + vec4(noise / 255.0);
+}
+
 void main() {
     vec4 albedo  = texture(albedoImage, inUV);
     outColor = vec4(0.0);
@@ -43,14 +71,24 @@ void main() {
     }
     #endif
 
+    #ifdef ENABLE_OUTPUT_GAMMA_CORRECT
+    const float gamma = 1.0/2.2;
+    outColor.rgb = pow(outColor.rgb, vec3(gamma));
+    #endif
+
+    #ifdef ENABLE_OUTPUT_DITHER
+    // dither
+    outColor.rgba = ditherInterleavedGradientNoise(outColor, gl_FragCoord.x);
+    #endif
+
+    #ifdef ENABLE_OUTPUT_TONEMAP
+    // tonemap
+    outColor.rgb = ACESFilm(outColor.rgb);
+    #endif
+
     // show debug points
-    if (control.data.showSurfel != 0) {
+    if (control.data.showSurfelInfo != 0) {
         vec4 debug = texture(debugImage, inUV);
         outColor += debug;
     }
-
-    /* #ifdef ENABLE_GAMMA_CORRECT */
-    /* const float gamma = 1.0/2.2; */
-    /* outColor.rgb = pow(outColor.rgb, vec3(gamma)); */
-    /* #endif */
 }

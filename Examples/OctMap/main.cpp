@@ -10,6 +10,7 @@ enum MappingType : uint32_t {
 
 struct Controller {
     MappingType type;
+    uint32_t showNormal;
 };
 
 int main() {
@@ -48,8 +49,6 @@ int main() {
     SmartPtr<GPUImage> cubemap = nullptr;
     SmartPtr<Sampler> sampler = nullptr;
     device->Execute([&](CommandBuffer* commandBuffer) {
-        // image = TextureLoader::Load2D(commandBuffer,
-        //         GetUserAsset("Skyboxes/NiagaraFalls/posx.jpg"));
         cubemap = TextureLoader::LoadCubemap(commandBuffer,
                 GetUserAsset("Skyboxes/NiagaraFalls/posx.jpg"),
                 GetUserAsset("Skyboxes/NiagaraFalls/negx.jpg"),
@@ -62,6 +61,7 @@ int main() {
 
     Controller controller = {};
     controller.type = OCTAHEDRON;
+    controller.showNormal = 0;
 
     // render
     while (window->IsRunning()) {
@@ -72,17 +72,16 @@ int main() {
 
         ui->Begin();
         {
-            if (ImGui::Button("Octahedron")) {
-                controller.type = OCTAHEDRON;
-            }
+            int *controllerType = (int*)(&controller.type);
+            ImGui::RadioButton("Octahedron", controllerType, OCTAHEDRON);
+            ImGui::RadioButton("HemiOctV1", controllerType, HEMI_OCTAHEDRON_V1);
+            ImGui::RadioButton("HemiOctV2", controllerType, HEMI_OCTAHEDRON_V2);
 
-            if (ImGui::Button("Hemi Octahedron v1")) {
-                controller.type = HEMI_OCTAHEDRON_V1;
-            }
+            ImGui::Separator();
 
-            if (ImGui::Button("Hemi Octahedron v2")) {
-                controller.type = HEMI_OCTAHEDRON_V2;
-            }
+            int *showNormal = (int*)(&controller.showNormal);
+            ImGui::RadioButton("Image", showNormal, 0);
+            ImGui::RadioButton("Normal", showNormal, 1);
         }
         ui->End();
 

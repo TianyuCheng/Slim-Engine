@@ -104,15 +104,16 @@ vec3 compute_point_lighting(in LightInfo light,
     float r2 = light.range * light.range;
     dist = sqrt(d2);
     NoL = dot(surface.normal, lightDirection/dist);
-
     // check maximum range
     if (d2 < r2) {
+        dist = sqrt(d2);
         lightDirection /= dist;
         // compute attenuation if needed
         if (NoL > 0.0) {
-            float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
-            float att2 = att1 * att1;
-            return light.color * light.intensity * att2;
+            float n = 2;
+            float att1 = clamp(1.0 - (pow(dist, n) / pow(light.range, n)), 0.0, 1.0);
+            float att2 = 1.0 / d2;
+            return light.color * light.intensity * att1 * att2;
         }
     }
     return vec3(0.0);
@@ -178,23 +179,23 @@ void main() {
         // lighting info
         float NoL = -1.0;
         float dist = -1.0;
-        vec3 lightRadiance = vec3(0.0);
+        vec3 luminance = vec3(0.0);
         vec3 lightDirection = vec3(0.0);
 
         switch (light.type) {
             // compute direct point lighting
             case LIGHT_TYPE_POINT:
-                lightRadiance = compute_point_lighting(light, surface, NoL, dist);
+                luminance = compute_point_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(light.position - surface.position);
                 break;
             // compute direct spot lighting
             case LIGHT_TYPE_SPOTLIGHT:
-                lightRadiance = compute_spot_lighting(light, surface, NoL, dist);
+                luminance = compute_spot_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(-light.direction);
                 break;
             // compute direct directional lighting
             case LIGHT_TYPE_DIRECTIONAL:
-                lightRadiance = compute_directional_lighting(light, surface, NoL, dist);
+                luminance = compute_directional_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(light.position - surface.position);
                 break;
         }
@@ -202,7 +203,7 @@ void main() {
         // add light contribution
         if (NoL > 0.0 && dist > 0.0 && dist < light.range) {
             // ray information at hit location
-            vec3 rayOrigin = surface.position;
+            vec3 rayOrigin = offset_ray_origin(surface.position, surface.normal);
             vec3 rayDirection = lightDirection;
 
             // check occlusion
@@ -212,24 +213,31 @@ void main() {
                 vec3 l = lightDirection;
                 vec3 h = normalize(v + l);
 
+                float metalness = metallicRoughness.x;
+                float roughness = metallicRoughness.y;
+
                 vec3 dielectricF0 = vec3(0.04);
                 vec3 conductorF0 = albedo.rgb;
-                vec3 f0 = mix(conductorF0, dielectricF0, metallicRoughness.x);
-                float roughness = metallicRoughness.y * metallicRoughness.y;
+                vec3 f0 = mix(dielectricF0, conductorF0, metalness);
+                vec3 f90 = albedo.rgb;
 
                 float NoV = abs(dot(n, v)) + 1e-5;
                 float NoL = clamp(dot(n, l), 0.0, 1.0);
                 float NoH = clamp(dot(n, h), 0.0, 1.0);
                 float LoH = clamp(dot(l, h), 0.0, 1.0);
 
+                vec3 factor = luminance * NoL;
+
                 // compute diffuse
-                diffuse += lightRadiance * NoL * albedo.rgb;
+                vec3 Fd  = albedo.rgb * Fd_Lambert();
+                diffuse += factor * Fd * 8.0;
 
                 // compute specular
-                float D = D_GGX(NoH, roughness);
-                vec3  F = F_Schlick(LoH, f0);
-                float G = V_SmithGGXCorrelated(NoV, NoL, roughness);
-                specular += lightRadiance * D * G * F / max(1e-5, 4.0 * NoL * NoV) * NoL;
+                float D   = D_GGX(NoH, roughness);
+                vec3  F   = F_Schlick(LoH, f0, f90);
+                float G   = V_SmithGGXCorrelated(NoV, NoL, roughness);
+                vec3  Fr  = D * G * F;
+                specular += factor * Fr;
             }
         }
     }

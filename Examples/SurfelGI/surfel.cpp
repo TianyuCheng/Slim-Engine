@@ -167,6 +167,7 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
                 .SetName("surfel-coverage")
                 .SetComputeShader(shader)
                 .SetPipelineLayout(PipelineLayoutDesc()
+                    .AddPushConstant("Control", Range  { 0, sizeof(DebugControl)             },                                            VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Frame",      SetBinding { 0, SCENE_FRAME_BINDING            }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Camera",     SetBinding { 0, SCENE_CAMERA_BINDING           }, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
                     .AddBinding("Surfel",     SetBinding { 1, SURFEL_BINDING                 }, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         VK_SHADER_STAGE_COMPUTE_BIT)
@@ -253,6 +254,7 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
                         .AddBinding("SurfelRayGuide",  SetBinding { 1, SURFEL_RAYGUIDE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBindingArray("Images",     SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000, VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                         .AddBindingArray("Samplers",   SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000, VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
+                        .AddBinding("SampleRays",      SetBinding { 4, DEBUG_SURFEL_RAYDIR_BINDING},   VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     )
                 );
         }
@@ -298,6 +300,7 @@ void AddSurfelPass(RenderGraph&       graph,
     pass->SetStorage(surfel->surfelRayGuide, RenderGraph::STORAGE_READ_WRITE);
     pass->SetStorage(debug->surfelDebug,     RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(debug->surfelVariance,  RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(debug->sampleRays,      RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(gbuffer->globalDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
@@ -308,6 +311,10 @@ void AddSurfelPass(RenderGraph&       graph,
     #endif
 
     pass->Execute([=](const RenderInfo& info) {
+        debug->surfelDebug->GetImage()->SetName("SurfelDebug");
+        debug->surfelVariance->GetImage()->SetName("SurfelVariance");
+        surfel->surfelDepth->GetImage()->SetName("SurfelDepth");
+        surfel->surfelRayGuide->GetImage()->SetName("SurfelRayGuide");
 
         // Step: positional update (for every surfel)
         // We don't plan to support this. Skip for now.
@@ -460,6 +467,7 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetStorageImage("SurfelRayGuide", surfel->surfelRayGuide->GetImage());
             descriptor->SetSampledImages("Images", scene->images);
             descriptor->SetSamplers("Samplers", scene->samplers);
+            descriptor->SetStorageBuffer("SampleRays", debug->sampleRays->GetBuffer());
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
             uint32_t lightCount = scene->lights.size();
@@ -511,6 +519,7 @@ void AddSurfelPass(RenderGraph&       graph,
             descriptor->SetTexture("Position", gbuffer->position->GetImage(), sampler);
             #endif
             info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
+            info.commandBuffer->PushConstants(pipeline->Layout(), "Control", &scene->debugControl);
 
             // issue compute call
             #ifdef ENABLE_HALFRES_LIGHT_APPLY

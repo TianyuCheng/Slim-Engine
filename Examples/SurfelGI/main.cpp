@@ -10,6 +10,7 @@ using namespace slim;
 #include "direct.h"
 #include "gbuffer.h"
 #include "compose.h"
+#include "post.h"
 #include "overlay.h"
 
 int main() {
@@ -62,13 +63,14 @@ int main() {
         LightInfo light = {};
         light.type = LIGHT_TYPE_POINT;
         light.color = vec3(1.0, 1.0, 1.0);
-        light.intensity = 1.0;
-        light.range = 5.0;
-        light.position = vec3(-2.0, 1.0, 1.0);
-        scene.lights.push_back(light);
+        light.intensity = 100;          // in candela (lm/steradian)
+        light.range = 100.0;
+        light.position = vec3(-1.0, 1.0, 1.0);
+        scene.lights.push_back(light);  // in lx (lm/m^2)
     }
-    if (1) {
-        scene.sky.color = vec3(0.0);
+    if (0) {
+        scene.sky.color = vec3(1.0);
+        scene.sky.intensity = 1000;
     }
 
     // build ui dockspace
@@ -91,6 +93,12 @@ int main() {
         barExtent.width = 320;
         barExtent.height = 2;
 
+        VkExtent2D indirectDiffuseExtent = frame->GetExtent();
+        // #ifdef ENABLE_HALFRES_LIGHT_APPLY
+        // indirectDiffuseExtent.width >>= 1;
+        // indirectDiffuseExtent.height >>= 1;
+        // #endif
+
         // update time
         time->Update();
 
@@ -108,19 +116,19 @@ int main() {
 
             // gbuffer resources
             render::GBuffer gbuffer     = {};
-            gbuffer.albedo              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.emissive            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.metallicRoughness   = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8_UNORM,     VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.normal              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.depth               = graph.CreateResource(frame->GetExtent(), VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.object              = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.specular            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
-            gbuffer.globalDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.albedo              = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.emissive            = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.metallicRoughness   = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8_UNORM,     VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.normal              = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8B8A8_SNORM, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.depth               = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_D32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.object              = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R32_UINT,       VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.specular            = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.globalDiffuse       = graph.CreateResource(indirectDiffuseExtent, VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             #ifdef ENABLE_DIRECT_ILLUMINATION
-            gbuffer.directDiffuse       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            gbuffer.directDiffuse       = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
             #endif
             #ifdef ENABLE_GBUFFER_WORLD_POSITION
-            gbuffer.position            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);   // debug
+            gbuffer.position            = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R32G32B32A32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);   // debug
             #endif
 
             // surfel resources
@@ -133,16 +141,19 @@ int main() {
             surfel.surfelStat           = graph.CreateResource(scene.surfelStatBuffer);
             surfel.surfelDepth          = graph.CreateResource(scene.surfelDepthImage);
             surfel.surfelRayGuide       = graph.CreateResource(scene.surfelRayGuideImage);
-            surfel.surfelCoverage       = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
+            surfel.surfelCoverage       = graph.CreateResource(indirectDiffuseExtent, VK_FORMAT_R32_SFLOAT, VK_SAMPLE_COUNT_1_BIT);
 
             // visualize resources
             render::Debug debug         = {};
-            debug.depth                 = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
-            debug.object                = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            debug.surfelGrid            = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            debug.surfelDebug           = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            debug.surfelBudget          = graph.CreateResource(barExtent,          VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
-            debug.surfelVariance        = graph.CreateResource(frame->GetExtent(), VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.depth                 = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R32_SFLOAT,     VK_SAMPLE_COUNT_1_BIT);
+            debug.object                = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelGrid            = graph.CreateResource(frame->GetExtent(),    VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelDebug           = graph.CreateResource(indirectDiffuseExtent, VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelVariance        = graph.CreateResource(indirectDiffuseExtent, VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            debug.surfelBudget          = graph.CreateResource(barExtent,             VK_FORMAT_R8G8B8A8_UNORM, VK_SAMPLE_COUNT_1_BIT);
+            #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+            debug.sampleRays            = graph.CreateResource(scene.surfelRayDirBuffer);
+            #endif
 
             AddUpdatePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             AddGBufferPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
@@ -153,7 +164,9 @@ int main() {
             AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // show light control
-            AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+            if (scene.debugControl.showLight) {
+                AddLightVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+            }
 
             #ifdef ENABLE_GBUFFER_VISUALIZATION
             AddLinearDepthPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
@@ -167,6 +180,16 @@ int main() {
             #ifdef ENABLE_SURFEL_BUDGET_VISUALIZATION
             AddSurfelAllocVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             #endif
+
+            #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+            if (scene.debugControl.showSampleRays) {
+                AddRayDirVisPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
+            }
+            #endif
+
+            // #ifdef ENABLE_DIFFUSE_SMOOTH
+            // AddDiffuseSmooth(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
+            // #endif
 
             // ui pass
             AddOverlayPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, ui, backBuffer);

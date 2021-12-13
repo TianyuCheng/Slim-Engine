@@ -88,7 +88,7 @@ struct LightInfo {
 
 struct SkyInfo {
     vec3 color;
-    uint paddig0;
+    float intensity;
 };
 
 // Materials
@@ -142,13 +142,8 @@ struct HitInfo {
 // Surfels
 const uint  SURFEL_CAPACITY         = 250000;
 const uint  SURFEL_CAPACITY_SQRT    = 500;
-#ifdef ENABLE_HALFRES_LIGHT_APPLY
-const uint  SURFEL_TILE_X           = 8;
-const uint  SURFEL_TILE_Y           = 8;
-#else
 const uint  SURFEL_TILE_X           = 16;
 const uint  SURFEL_TILE_Y           = 16;
-#endif
 const uint  SURFEL_CELL_CAPACITY    = 0xffff;
 const float SURFEL_GRID_SIZE        = 1.0;
 const uint3 SURFEL_GRID_DIMS        = uint3(96, 96, 96);
@@ -212,10 +207,17 @@ struct SurfelGridCell {
     uint offset;
 };
 
+#define SURFEL_DEBUG_POINT          1
+#define SURFEL_DEBUG_RANDOM         2
+#define SURFEL_DEBUG_RADIAL_DEPTH   3
+#define SURFEL_DEBUG_NORMAL         4
+#define SURFEL_DEBUG_INCONSISTENCY  5
+
 struct DebugControl {
     uint showOverlay;
     uint showLight;
-    uint showSurfel;
+    uint showSurfelInfo;
+    uint showSampleRays;
     uint showDirectDiffuse;
     uint showGlobalDiffuse;
 };
@@ -268,6 +270,9 @@ struct DebugControl {
 #define DEBUG_SURFEL_BUDGET_BINDING 3
 #define DEBUG_SURFEL_BINDING        4
 #define DEBUG_SURFEL_VAR_BINDING    5
+#define DEBUG_SURFEL_RAYDIR_BINDING 6
+
+#define saturate(X) clamp(X, 0.0, 1.0)
 
 #ifndef __cplusplus
 
@@ -374,6 +379,10 @@ uint2 unflatten_2d(uint index, uint2 dim) {
     return uint2(index % dim.x, index / dim.x);
 }
 
+float luminance(const vec3 color) {
+    return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+}
+
 float signNotZero(float v) {
     return v >= 0.0 ? 1.0 : -1.0;
 }
@@ -427,6 +436,21 @@ vec2 compute_surfel_depth_pixel(uint surfelIndex, vec3 direction, vec3 normal) {
     return pixel + uv * SURFEL_DEPTH_TEXELS;
 }
 
+// compute pixel coordinate on surfel rayguide octmap
+vec2 compute_surfel_rayguide_pixel(uint surfelIndex, vec3 direction, vec3 normal) {
+    uint2 pixel = unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS;
+
+    // NOTE: direction is in world space,
+    // we need to transform it to z-axis oriented hemisphere
+    vec4 q = compute_rotation_to_z_axis(normal);
+    vec3 hemi = rotate_point(q, direction);
+    hemi.z = abs(hemi.z);
+    vec2 uv = encode_hemioct(hemi) * 0.5 + 0.5;
+
+    uv = max(min(uv, vec2(0.99)), vec2(0.00));
+    return pixel + uv * SURFEL_RAYGUIDE_TEXELS;
+}
+
 // compute surfel depth on hemisphere
 float compute_surfel_depth_weight(vec2 weight, float dist) {
     float mean = weight.x;
@@ -438,6 +462,25 @@ float compute_surfel_depth_weight(vec2 weight, float dist) {
         return max(0.0, pow(variance / (variance + diff * diff), 6.0));
     }
     return 1.0;
+}
+
+
+// adaptive normal offset
+vec3 offset_ray_origin(const vec3 P, const vec3 N) {
+    const float origin = 1.0f / 32.0f;
+    const float intScale = 256.0f;
+    const float floatScale = 1.0 / 65536.0f;
+
+    const ivec3 iOffset = ivec3(intScale * N);
+    const vec3 iP = vec3(
+        intBitsToFloat(floatBitsToInt(P.x) + ((P.x < 0.0) ? -iOffset.x : iOffset.x)),
+        intBitsToFloat(floatBitsToInt(P.y) + ((P.y < 0.0) ? -iOffset.y : iOffset.y)),
+        intBitsToFloat(floatBitsToInt(P.z) + ((P.z < 0.0) ? -iOffset.z : iOffset.z)));
+
+    return vec3(
+        abs(P.x) < origin ? P.x + floatScale * N.x : iP.x,
+        abs(P.y) < origin ? P.y + floatScale * N.y : iP.y,
+        abs(P.z) < origin ? P.z + floatScale * N.z : iP.z);
 }
 
 #endif

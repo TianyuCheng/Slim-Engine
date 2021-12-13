@@ -48,4 +48,13 @@ void AddLightVisPass(RenderGraph&           graph,
                      Scene*                 scene,
                      RenderGraph::Resource* colorAttachment);
 
+void AddRayDirVisPass(RenderGraph&           graph,
+                      AutoReleasePool&       pool,
+                      render::GBuffer*       gbuffer,
+                      render::SceneData*     sceneData,
+                      render::Surfel*        surfel,
+                      render::Debug*         debug,
+                      Scene*                 scene,
+                      RenderGraph::Resource* colorAttachment);
+
 #endif // SLIM_EXAMPLE_DEBUG_H

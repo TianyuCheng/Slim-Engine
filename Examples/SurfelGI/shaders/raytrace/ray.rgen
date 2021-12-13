@@ -73,6 +73,10 @@ image2D surfelDepth;
 layout(set = 1, binding = SURFEL_RAYGUIDE_BINDING, r8) uniform
 image2D surfelRayGuide;
 
+// surfel ray dir buffer (visualization)
+layout(set = 4, binding = DEBUG_SURFEL_RAYDIR_BINDING) buffer
+SampleRayDirs { vec3 p[32]; } sampleRayDirs;
+
 // ray payload
 layout(location = 0) rayPayloadEXT HitInfo hitData;
 layout(location = 1) rayPayloadEXT bool    shadowed;
@@ -133,7 +137,8 @@ float load_rayguide_level1(int2 pixel, int2 pix) {
          + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(1, 1)).x;
 }
 
-vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, out int2 loc, out float pdf) {
+vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, in SurfelData data, out float pdf) {
+#if 0
     float accum = 0.0;
     float target = rand(rng);
     int level1index = 0;
@@ -142,7 +147,7 @@ vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, out int2 loc, out flo
     int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
 
     // We are using 6x6 texels as discrete ray guiding function.
-    // Level 1: walk 3x3 texels with linear sampler
+    // Level 1: walk 3x3 texels
     for (level1index = 0; level1index < 9; level1index++) {
         int2 location = locations_l1[level1index];
         float value = load_rayguide_level1(pixel, location);
@@ -168,49 +173,71 @@ vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, out int2 loc, out flo
     uv.x += rand(rng) / 6.0;
     uv.y += rand(rng) / 6.0;
 
-    loc = level2pix;
     pdf = imageLoad(surfelRayGuide, level2pix).x;
-    return decode_hemioct(uv);
+    return decode_hemioct(uv * 2.0 - 1.0);
+#else
+    float accum = 0.0;
+    float sumOfRadiance = data.rayGuideScale * SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS;
+    float target = rand(rng) * sumOfRadiance;
+
+    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
+    for (int y = 0; y < 6; y++) {
+        for (int x = 0; x < 6; x++) {
+            int2 location = int2(x, y);
+            float value = imageLoad(surfelRayGuide, pixel + location).x;
+            if ((accum + value) >= target) {
+                pdf = value / sumOfRadiance;
+                vec2 uv = vec2(location) / vec2(SURFEL_RAYGUIDE_TEXELS);
+                uv.x += rand(rng) / 6.0;
+                uv.y += rand(rng) / 6.0;
+                return decode_hemioct(uv * 2.0 - 1.0);
+            }
+            accum += value;
+        }
+    }
+    pdf = 1.0;
+    return vec3(0.0, 0.0, 0.0);
+#endif
 }
 
 void normalize_rayguide(uint surfelIndex, inout SurfelData data) {
     int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
 
-    float sum = 0.0;
+    float sumV = 0.0;
+    float maxV = 0.0;
     for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
         for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
-            sum += imageLoad(surfelRayGuide, pixel + int2(x, y)).x * data.rayGuideScale;
+            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x;
+            sumV += value;
+            maxV = max(maxV, value);
         }
     }
 
     for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
         for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
-            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x / sum;
+            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x / maxV;
             imageStore(surfelRayGuide, pixel + int2(x, y), vec4(value, 0.0, 0.0, 1.0));
         }
     }
 
-    data.rayGuideScale = sum;
+    data.rayGuideScale = sumV / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
 }
 
 vec3 compute_directional_lighting(in LightInfo light,
                                   in HitInfo surface,
                                   out float NoL,
                                   out float dist,
-                                  out float radiance,
                                   out vec3 lightDirection) {
     dist = HIGHP_FLT_MAX;
     lightDirection = -normalize(light.direction);
     NoL = dot(surface.normal, lightDirection);
-    radiance = light.intensity * max(0.0, NoL);
-    return light.color * radiance;
+    return light.color * light.intensity * max(0.0, NoL);
 }
 
 vec3 compute_point_lighting(in LightInfo light,
                             in HitInfo surface,
                             out float NoL,
                             out float dist,
-                            out float radiance,
                             out vec3 lightDirection) {
     lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
@@ -222,10 +249,10 @@ vec3 compute_point_lighting(in LightInfo light,
         // compute attenuation if needed
         NoL = dot(surface.normal, lightDirection);
         if (NoL > 0.0) {
-            float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
-            float att2 = att1 * att1;
-            radiance = light.intensity * att2;
-            return light.color * radiance;
+            float n = 2;
+            float att1 = clamp(1.0 - (pow(dist, n) / pow(light.range, n)), 0.0, 1.0);
+            float att2 = 1.0 / d2;
+            return light.color * light.intensity * att1 * att2;
         }
     }
     return vec3(0.0);
@@ -235,7 +262,6 @@ vec3 compute_spot_lighting(in LightInfo light,
                            in HitInfo surface,
                            out float NoL,
                            out float dist,
-                           out float radiance,
                            out vec3 lightDirection) {
     lightDirection = light.position - surface.position;
     float d2 = dot(lightDirection, lightDirection);
@@ -253,8 +279,7 @@ vec3 compute_spot_lighting(in LightInfo light,
                 float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
                 float att2 = att1 * att1;
                 float attenuation = clamp(1.0 - (1.0 - spotFactor) * 1.0 / (1.0 - spotCutOff), 0.0, 1.0);
-                radiance = light.intensity * att2;
-                return light.color * radiance;
+                return light.color * light.intensity * att2;
             }
         }
     }
@@ -410,7 +435,7 @@ void update_surfel_depth(uint2 pixel, float dist) {
 
 void update_surfel_rayguide(uint2 pixel, float radiance) {
     float prev = imageLoad(surfelDepth, int2(pixel)).x;
-    float blend = 0.5;
+    float blend = 0.2;
     float next = mix(prev, radiance, blend);
     imageStore(surfelRayGuide, int2(pixel), vec4(next, 0.0, 0.0, 1.0));
 }
@@ -439,39 +464,50 @@ void main() {
     vec4 result = vec4(0.0);
 
     // decide ray budget for this surfel
-    #if 0
     int rayCount = int(ceil(mix(1, 16, data.inconsistency)));
-    #else
-    int rayCount = 1;
-    #endif
 
     // rng
     RNGState rng = init_rng(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy, frameID);
+
+    #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+    uint sampleRayDirsOffset = currentSurfelID * 16 * 2;
+    for (int i = rayCount; i < 16; i++) {
+        sampleRayDirs.p[sampleRayDirsOffset + 2 * i + 0] = surfelP;
+        sampleRayDirs.p[sampleRayDirsOffset + 2 * i + 1] = surfelP;
+    }
+    #endif
 
     // trace ray into scene
     for (int i = 0; i < rayCount; i++) {
         float rnd1 = rand(rng);
         float rnd2 = rand(rng);
 
-        float pdf = 1.0 / PI;
-        float radiance = 0.0;
-
         // ray direction
         // use cosine-weighted hemisphere sampling
         vec2 uv = vec2(rnd1, rnd2);
 
-        #ifdef ENABLE_SURFEL_RAY_GUIDING
-        int2 rayGuidePixel;
-        vec3 rayDirection = sample_rayguide(currentSurfelID, rng, rayGuidePixel, pdf);
-        #else
-        // rayDirZ is a randomly generated ray in hemisphere in +z axis
+        // sampling generates ray in hemisphere in +z axis
         // rayDirection is a world-space ray (rotated from rayDirZ)
-        vec3 rayDirZ = cosine_sample_hemisphere(uv.x, uv.y);
-        vec3 rayDirection = rotate_point(invert_rotation(compute_rotation_to_z_axis(surfelN)), rayDirZ);
+        vec3 rayDirection;
+
+        float pdf = 1.0;
+
+        #ifdef ENABLE_SURFEL_RAY_GUIDING
+        rayDirection = sample_rayguide(currentSurfelID, rng, data, pdf);
+        rayDirection = rotate_point(invert_rotation(compute_rotation_to_z_axis(surfelN)), rayDirection);
+        pdf = 1.0; // TODO: use correct pdf
+        #else
+        rayDirection = cosine_sample_hemisphere(uv.x, uv.y);
+        rayDirection = rotate_point(invert_rotation(compute_rotation_to_z_axis(surfelN)), rayDirection);
+        #endif
+
+        #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
+        sampleRayDirs.p[sampleRayDirsOffset + 2 * i + 0] = surfelP;
+        sampleRayDirs.p[sampleRayDirsOffset + 2 * i + 1] = surfelP + rayDirection * 0.05;
         #endif
 
         // ray origin
-        vec3 rayOrigin = surfelP;
+        vec3 rayOrigin = offset_ray_origin(surfelP, surfelN);
 
         // ray length
         float tMin = 0.01;
@@ -487,19 +523,21 @@ void main() {
         if (!hit) {
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // update surfel moments with surfel radius
+            // Q: Why do we need to multiply by 2?
+            // A: Because we want to allow irradiance sharing
             update_surfel_depth(radialDepthPixel, surfel.radius * 2.0);
             #endif
 
             // get sky color
-            vec3 env = sky.data.color;
+            vec3 env = sky.data.color * sky.data.intensity;
             result += vec4(env, 1.0);
-            radiance = 1.0;
         }
         else {
             #ifdef ENABLE_SURFEL_RADIAL_DEPTH
             // update surfel moments with surfel radius
-            float hitDepth = hitData.distance * 0.9;
-            hitDepth = clamp(hitDepth, 0.0, surfel.radius * 2.0);
+            // Q: Why do we need to multiply by 2?
+            // A: Because we want to allow irradiance sharing
+            float hitDepth = clamp(hitData.distance, 0.0, surfel.radius * 2.0);
             update_surfel_depth(radialDepthPixel, hitDepth);
             #endif
 
@@ -511,7 +549,7 @@ void main() {
             surface.emissive = hitData.emissive;
             surface.distance = hitData.distance;
 
-            // irradiance information
+            // radiance information
             vec3 hitResult = vec3(0.0);
 
             // light sampling
@@ -527,39 +565,30 @@ void main() {
                 switch (light.type) {
                     // compute direct point lighting
                     case LIGHT_TYPE_POINT:
-                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist, radiance, lightDirection);
+                        lightDiffuse = compute_point_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                     // compute direct spot lighting
                     case LIGHT_TYPE_SPOTLIGHT:
-                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist, radiance, lightDirection);
+                        lightDiffuse = compute_spot_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                     // compute direct directional lighting
                     case LIGHT_TYPE_DIRECTIONAL:
-                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist, radiance, lightDirection);
+                        lightDiffuse = compute_directional_lighting(light, surface, NoL, dist, lightDirection);
                         break;
                 }
 
                 // add light contribution
-                if (NoL > 0.0 && dist > 0.0) {
+                if (NoL >= 0.0 && dist >= 0.0) {
                     // ray information at hit location
                     rayDirection = lightDirection;
-                    rayOrigin = surface.position;
+                    rayOrigin = offset_ray_origin(surface.position, surface.normal);
 
                     // check occlusion
                     if (!trace_shadow(rayOrigin, rayDirection, tMin, dist)) {
-                        hitResult += lightDiffuse * pdf;
-                        radiance = 0.0;
+                        hitResult += lightDiffuse / (PI * pdf) * 8.0;
                     }
-                } else {
-                    radiance = 0.0;
                 }
             }
-
-            // update ray guiding function
-            #ifdef ENABLE_SURFEL_RAY_GUIDING
-            update_surfel_rayguide(rayGuidePixel, radiance);
-            normalize_rayguide(currentSurfelID, data);
-            #endif
 
             // infinite bounces
             #ifdef ENABLE_INFINITE_BOUNCES
@@ -569,6 +598,14 @@ void main() {
                 surfelGI.a = clamp(surfelGI.a, 0.0, 1.0);
                 hitResult += surfelGI.rgb;
             }
+            #endif
+
+            // update ray guiding function
+            #ifdef ENABLE_SURFEL_RAY_GUIDING
+            uint2 rayGuidePixel = uint2(compute_surfel_rayguide_pixel(currentSurfelID, rayDirection, surfelN));
+            float y = luminance(hitResult) * data.rayGuideScale;
+            update_surfel_rayguide(rayGuidePixel, y);
+            normalize_rayguide(currentSurfelID, data);
             #endif
 
             // adding to final result

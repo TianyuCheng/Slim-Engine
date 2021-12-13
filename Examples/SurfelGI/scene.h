@@ -6,6 +6,12 @@ using namespace slim;
 
 #include "shaders/common.h"
 
+struct BilateralInfo {
+    glm::vec2 singleStepOffset;
+    float distanceNormalizationFactor;
+    float padding0;
+};
+
 class Scene {
 private:
     SmartPtr<Device>         device;
@@ -28,6 +34,7 @@ public:
     SmartPtr<Buffer>         instanceBuffer;
     SmartPtr<Buffer>         frameInfoBuffer;
     SmartPtr<Buffer>         lightXformBuffer;
+    SmartPtr<Buffer>         bilateralBuffer;
 
     // light geometry
     SmartPtr<scene::Mesh>    coneMesh;
@@ -65,6 +72,7 @@ private:
     void InitLights();
     void InitSurfels();
     void InitGeometry();
+    void InitBilateral();
 };
 
 #endif // SLIM_EXAMPLE_SCENE_H

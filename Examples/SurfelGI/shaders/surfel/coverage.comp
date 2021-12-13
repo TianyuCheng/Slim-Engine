@@ -2,12 +2,6 @@
 #extension GL_ARB_separate_shader_objects                : enable
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
-// #define ENABLE_SURFEL_DEBUG_POINT
-// #define ENABLE_SURFEL_DEBUG_RANDOM
-// #define ENABLE_SURFEL_DEBUG_DEPTH
-// #define ENABLE_SURFEL_DEBUG_NORMAL
-#define ENABLE_SURFEL_DEBUG_INCONSISTENCY
-
 #include "pack.h"
 #include "unpack.h"
 #include "camera.h"
@@ -18,6 +12,8 @@
 layout(local_size_x = SURFEL_TILE_X,
        local_size_y = SURFEL_TILE_Y,
        local_size_z = 1) in;
+
+layout(push_constant) uniform Control { DebugControl data; } control;
 
 // frame information
 layout(set = 0, binding = SCENE_FRAME_BINDING) uniform
@@ -192,24 +188,32 @@ void main() {
                 coverage += contribution * occlusion;
                 color += vec4(surfel.color * occlusion, 1.0) * contribution;
 
-                #ifdef ENABLE_SURFEL_DEBUG_RANDOM
-                debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
-                #endif
-
-                #ifdef ENABLE_SURFEL_DEBUG_POINT
+                #ifdef ENABLE_SURFEL_DEBUG
                 if (dist < 0.02) {
-                    debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
+                    if (control.data.showSurfelInfo == SURFEL_DEBUG_POINT) {
+                        debug += vec4(random_colors[cellIndex % random_color_count], 1.0);
+                    }
                 }
                 #endif
 
-                #ifdef ENABLE_SURFEL_DEBUG_NORMAL
-                debug += vec4(surfelN * 0.5 + 0.5, 1.0);
+                #ifdef ENABLE_SURFEL_DEBUG
+                if (control.data.showSurfelInfo == SURFEL_DEBUG_RANDOM) {
+                    debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
+                }
                 #endif
 
-                #ifdef ENABLE_SURFEL_DEBUG_DEPTH
+                #ifdef ENABLE_SURFEL_DEBUG
+                if (control.data.showSurfelInfo == SURFEL_DEBUG_NORMAL) {
+                    debug += vec4(surfelN * 0.5 + 0.5, 1.0);
+                }
+                #endif
+
+                #ifdef ENABLE_SURFEL_DEBUG
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
-                float w = compute_surfel_depth_weight(radialDepth, dist);
-                debug += vec4(w, w, w, 1.0);
+                if (control.data.showSurfelInfo == SURFEL_DEBUG_RADIAL_DEPTH) {
+                    float w = compute_surfel_depth_weight(radialDepth, dist);
+                    debug += vec4(w, w, w, 1.0);
+                }
                 #endif
                 #endif
 
@@ -219,8 +223,10 @@ void main() {
                 vbbr += sdata.vbbr * contribution;
                 inconsistency += sdata.inconsistency * contribution;
 
-                #ifdef ENABLE_SURFEL_DEBUG_INCONSISTENCY
-                debug += vec4(vec3(inconsistency), 1.0);
+                #ifdef ENABLE_SURFEL_DEBUG
+                if (control.data.showSurfelInfo == SURFEL_DEBUG_INCONSISTENCY) {
+                    debug += vec4(inconsistency, 0.0, 1.0 - inconsistency, 1.0);
+                }
                 #endif
             }
         }
@@ -246,13 +252,6 @@ void main() {
         shortMean /= variance.a;
         variance /= variance.a;
     }
-
-    // debug tiles
-    #if 0
-    if (((pixel.x & 0xf) == 0xf) || ((pixel.y & 0xf) == 0xf)) {
-        color = vec4(0.0);
-    }
-    #endif
 
     // output
     #ifdef ENABLE_HALFRES_LIGHT_APPLY
@@ -303,7 +302,7 @@ void main() {
             float zFarRcp = camera.data.zFarRcp;
             float linear = linearize_depth(depth, zNear, zFar) * zFarRcp;
 
-            float threshold = pow(1.0 - linear, 3.0);
+            float threshold = pow(1.0 - linear, 4.0);
             float chance = rand(rng);
 
             // stochastically spawn surfel
@@ -346,6 +345,11 @@ void main() {
     if ((pixel.x == 0) && (pixel.y == 0)) {
         float w = 0.5;
 
+        #define SURFEL_X_PLANE
+        /* #define SURFEL_Y_PLANE */
+        /* #define SURFEL_Z_PLANE */
+
+        #ifdef SURFEL_X_PLANE
         for (int i = -50; i < 50; i++) {
             for (int j = -50; j < 50; j++) {
                 // request an available surfel
@@ -376,7 +380,9 @@ void main() {
                 surfelData.data[surfelID] = data;
             }
         }
+        #endif
 
+        #ifdef SURFEL_Y_PLANE
         for (int i = -50; i < 50; i++) {
             for (int j = -50; j < 50; j++) {
                 // request an available surfel
@@ -407,7 +413,9 @@ void main() {
                 surfelData.data[surfelID] = data;
             }
         }
+        #endif
 
+        #ifdef SURFEL_Z_PLANE
         for (int i = -50; i < 50; i++) {
             for (int j = -50; j < 50; j++) {
                 // request an available surfel
@@ -438,68 +446,7 @@ void main() {
                 surfelData.data[surfelID] = data;
             }
         }
-
-        for (int i = -50; i < 50; i++) {
-            for (int j = -50; j < 50; j++) {
-                // request an available surfel
-                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
-                uint surfelID = surfelLive.data[availableSurfelID];
-
-                float rnd1 = 0.15; // rand(rng) * w;
-                float rnd2 = 0.15; // rand(rng) * w;
-
-                vec3 N = vec3(1.0, 0.0, 0.0);
-                vec3 P = vec3(0.03, i * w + rnd1, j * w + rnd2);
-
-                // allocate new surfel
-                SurfelData data;
-                data.position = P;
-                data.normal = pack_snorm3(N);
-                data.life = 0;
-                data.recycle = 0;
-                data.vbbr = vbbr;
-                data.inconsistency = inconsistency;
-                data.mean = color.rgb;
-                data.shortMean = shortMean.rgb;
-                data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
-                data.instanceID = primID;
-                data.surfelID = surfelID;
-
-                surfelData.data[surfelID] = data;
-            }
-        }
-
-        for (int i = -50; i < 50; i++) {
-            for (int j = -50; j < 50; j++) {
-                // request an available surfel
-                uint availableSurfelID = atomicAdd(surfelStat.data.count, 1);
-                uint surfelID = surfelLive.data[availableSurfelID];
-
-                float rnd1 = 0.15; // rand(rng) * w;
-                float rnd2 = 0.15; // rand(rng) * w;
-
-                vec3 N = vec3(-1.0, 0.0, 0.0);
-                vec3 P = vec3(-0.03, i * w + rnd1, j * w + rnd2);
-
-                // allocate new surfel
-                SurfelData data;
-                data.position = P;
-                data.normal = pack_snorm3(N);
-                data.life = 0;
-                data.recycle = 0;
-                data.vbbr = vbbr;
-                data.inconsistency = 1;
-                data.mean = vec3(0.0);
-                data.shortMean = shortMean.rgb;
-                data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
-                data.instanceID = primID;
-                data.surfelID = surfelID;
-
-                surfelData.data[surfelID] = data;
-            }
-        }
+        #endif
     }
 #endif
 }

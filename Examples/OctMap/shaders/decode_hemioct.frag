@@ -7,6 +7,7 @@
 
 layout(push_constant) uniform Info {
     uint type;
+    uint showNormal;
 } info;
 
 layout(set = 0, binding = 0) uniform samplerCube skyboxMap;
@@ -86,8 +87,9 @@ void main() {
             uv2 = encode_hemioct_v2(uv3);
             break;
     }
-    outColor = texture(skyboxMap, uv3);
-    /* outColor = vec4(inUV * 2.0 - 1.0, 0.0, 1.0); */
-    /* outColor = vec4(uv2, 0.0, 1.0); */
-    /* outColor = vec4(uv3, 1.0); */
+    if (info.showNormal != 0) {
+        outColor = vec4(uv3, 1.0);
+    } else {
+        outColor = texture(skyboxMap, uv3);
+    }
 }

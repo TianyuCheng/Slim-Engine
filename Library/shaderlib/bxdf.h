@@ -56,8 +56,8 @@ SLIM_ATTR float F_Schlick(float VoH, float f0) {
     return f + f0 * (1.0f - f);
 }
 
-SLIM_ATTR vec3 F_Schlick(float VoH, vec3 f0, float f90) {
-    return f0 + (vec3(f90) - f0) * pow(1.0f - VoH, 5.0f);
+SLIM_ATTR vec3 F_Schlick(float VoH, vec3 f0, vec3 f90) {
+    return f0 + (f90 - f0) * pow(1.0f - VoH, 5.0f);
 }
 
 SLIM_ATTR float F_Schlick(float VoH, float f0, float f90) {
