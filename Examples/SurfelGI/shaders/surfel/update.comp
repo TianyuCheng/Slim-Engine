@@ -69,6 +69,7 @@ void main() {
 
     // update surfel data
     surfels.data[currentSurfelID] = surfel;
+    vec3 surfelN = unpack_snorm3(surfel.normal);
 
     // update grid cell count
     vec3 minBound = surfel.position - surfel.radius;
@@ -79,10 +80,12 @@ void main() {
         for (int j = cell0.y; j <= cell1.y; j++) {
             for (int k = cell0.z; k <= cell1.z; k++) {
                 int3 gridIndex = int3(i, j, k);
-                uint cellIndex = compute_surfel_cell(gridIndex);
-                SurfelGridCell cell = surfelGrids.data[cellIndex];
-                if (cell.count < SURFEL_CELL_CAPACITY) {
-                    atomicAdd(surfelGrids.data[cellIndex].count, 1);
+                if (surfel_intersects_with_grid(surfel.position, surfelN, gridIndex)) {
+                    uint cellIndex = compute_surfel_cell(gridIndex);
+                    SurfelGridCell cell = surfelGrids.data[cellIndex];
+                    if (cell.count < SURFEL_CELL_CAPACITY) {
+                        atomicAdd(surfelGrids.data[cellIndex].count, 1);
+                    }
                 }
             }
         }

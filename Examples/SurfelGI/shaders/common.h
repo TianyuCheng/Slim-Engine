@@ -154,8 +154,8 @@ const uint  SURFEL_GRID_COUNT       = SURFEL_GRID_DIMS.x
                                     * SURFEL_GRID_DIMS.z;
 const float SURFEL_LOW_COVERAGE     = 1.0;
 const float SURFEL_HIGH_COVERAGE    = 1.5;
-const float SURFEL_MAX_RADIUS       = 0.5;
-const float SURFEL_MIN_RADIUS       = 0.2;
+const float SURFEL_MAX_RADIUS       = 1.0;
+const float SURFEL_MIN_RADIUS       = 0.5;
 const uint SURFEL_UPDATE_GROUP_SIZE = 32;
 const uint MAX_RAYS_PER_SURFEL      = 32;
 
@@ -449,6 +449,27 @@ vec2 compute_surfel_rayguide_pixel(uint surfelIndex, vec3 direction, vec3 normal
 
     uv = max(min(uv, vec2(0.99)), vec2(0.00));
     return pixel + uv * SURFEL_RAYGUIDE_TEXELS;
+}
+
+bool surfel_intersects_with_grid(in vec3 surfelP, in vec3 surfelN, in int3 grid) {
+    // vec3 pos0 = vec3(grid) * SURFEL_GRID_SIZE;
+    // vec3 pos1 = pos0 + vec3(0.0,              SURFEL_GRID_SIZE, 0.0);
+    // vec3 pos2 = pos0 + vec3(SURFEL_GRID_SIZE, 0.0,              0.0);
+    // vec3 pos3 = pos0 + vec3(SURFEL_GRID_SIZE, SURFEL_GRID_SIZE, 0.0);
+    // vec3 pos4 = pos0 + vec3(0.0,              0.0,              SURFEL_GRID_SIZE);
+    // vec3 pos5 = pos0 + vec3(0.0,              SURFEL_GRID_SIZE, SURFEL_GRID_SIZE);
+    // vec3 pos6 = pos0 + vec3(SURFEL_GRID_SIZE, 0.0,              SURFEL_GRID_SIZE);
+    // vec3 pos7 = pos0 + vec3(SURFEL_GRID_SIZE, SURFEL_GRID_SIZE, SURFEL_GRID_SIZE);
+    // float p0 = dot(surfelP - pos0, surfelN);
+    // float p1 = dot(surfelP - pos1, surfelN);
+    // float p2 = dot(surfelP - pos2, surfelN);
+    // float p3 = dot(surfelP - pos3, surfelN);
+    // float p4 = dot(surfelP - pos4, surfelN);
+    // float p5 = dot(surfelP - pos5, surfelN);
+    // float p6 = dot(surfelP - pos6, surfelN);
+    // float p7 = dot(surfelP - pos7, surfelN);
+    // return !(p0 > 0.0 && p1 > 0.0 && p2 > 0.0 && p3 > 0.0 && p4 > 0.0 && p5 > 0.0 && p6 > 0.0 && p7 > 0.0);
+    return true;
 }
 
 // compute surfel depth on hemisphere

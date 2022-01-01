@@ -18,10 +18,6 @@ Scene::Scene(Device* device)
     debugControl.showDirectDiffuse = 1;
     debugControl.showGlobalDiffuse = 1;
     debugControl.showSampleRays = 0;
-
-    // #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
-    // debugControl.showSampleRays = 1;
-    // #endif
 }
 
 void Scene::InitScene() {

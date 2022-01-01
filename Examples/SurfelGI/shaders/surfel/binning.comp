@@ -3,6 +3,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_int64 : enable
 
 #include "camera.h"
+#include "unpack.h"
 #include "../common.h"
 
 layout(local_size_x = SURFEL_UPDATE_GROUP_SIZE,
@@ -46,6 +47,7 @@ void main() {
     }
 
     Surfel surfel = surfels.data[currentSurfelID];
+    vec3 surfelN = unpack_snorm3(surfel.normal);
 
     // fill grid cell content
     vec3 minBound = surfel.position - surfel.radius;
@@ -57,10 +59,12 @@ void main() {
             for (int k = cell0.z; k <= cell1.z; k++) {
                 int3 gridIndex = int3(i, j, k);
                 uint cellIndex = compute_surfel_cell(gridIndex);
-                SurfelGridCell cell = surfelGrids.data[cellIndex];
-                if (cell.count < SURFEL_CELL_CAPACITY) {
-                    uint index = atomicAdd(surfelGrids.data[cellIndex].count, 1);
-                    surfelCells.data[cell.offset + index] = currentSurfelID;
+                if (surfel_intersects_with_grid(surfel.position, surfelN, gridIndex)) {
+                    SurfelGridCell cell = surfelGrids.data[cellIndex];
+                    if (cell.count < SURFEL_CELL_CAPACITY) {
+                        uint index = atomicAdd(surfelGrids.data[cellIndex].count, 1);
+                        surfelCells.data[cell.offset + index] = currentSurfelID;
+                    }
                 }
             }
         }

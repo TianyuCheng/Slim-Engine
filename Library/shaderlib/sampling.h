@@ -10,11 +10,11 @@
 SLIM_ATTR vec3 uniform_sample_hemisphere(float u, float v, out float pdf) {
     float phi = 2.0 * PI * v;
     float r = sqrt(1.0 - u * u);
-    pdf = Inv4PI;
+    pdf = Inv2PI; // uniformly sample within hemisphere (4 * PI / 2)
     return vec3(r * cos(phi), r * sin(phi), u);
 }
 SLIM_ATTR vec3 uniform_sample_hemisphere(float u, float v) {
-    float pdf = 0.0;
+    float pdf;
     return uniform_sample_hemisphere(u, v, pdf);
 }
 
@@ -23,11 +23,13 @@ SLIM_ATTR vec3 uniform_sample_hemisphere(float u, float v) {
 SLIM_ATTR vec3 cosine_sample_hemisphere(float u, float v, out float pdf) {
     float theta = v * 2.0 * PI;
     float r = sqrt(u);
-    pdf = InvPI * cos(theta);
-    return vec3(r * cos(theta), r * sin(theta), 1.0 - u);
+    float z = sqrt(1 - u);
+    pdf = InvPI * (1.0 - u); // cosine weighted sample within hemisphere
+    return vec3(r * cos(theta), r * sin(theta), z);
 }
+
 SLIM_ATTR vec3 cosine_sample_hemisphere(float u, float v) {
-    float pdf = 0.0;
+    float pdf;
     return cosine_sample_hemisphere(u, v, pdf);
 }
 

@@ -70,8 +70,17 @@ Pipeline* PrepareDirectLightingPass(AutoReleasePool& pool) {
                         #endif
                         .AddBinding("Diffuse",           SetBinding { 1, GBUFFER_DIRECT_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBinding("Specular",          SetBinding { 1, GBUFFER_SPECULAR_BINDING},             VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("GDiffuse",          SetBinding { 1, GBUFFER_GLOBAL_DIFFUSE_BINDING},       VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                         .AddBindingArray("Images",       SetBinding { 2, SCENE_IMAGES_BINDING   }, 1000,        VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
                         .AddBindingArray("Samplers",     SetBinding { 3, SCENE_SAMPLERS_BINDING }, 1000,        VK_DESCRIPTOR_TYPE_SAMPLER,                    VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindFlags)
+                        // experiment
+                        .AddBinding("Surfel",            SetBinding { 4, SURFEL_BINDING         },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelData",        SetBinding { 4, SURFEL_DATA_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelLive",        SetBinding { 4, SURFEL_LIVE_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelStat",        SetBinding { 4, SURFEL_STAT_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelGrid",        SetBinding { 4, SURFEL_GRID_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelCell",        SetBinding { 4, SURFEL_CELL_BINDING    },              VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             VK_SHADER_STAGE_RAYGEN_BIT_KHR)
+                        .AddBinding("SurfelDepth",       SetBinding { 4, SURFEL_DEPTH_BINDING   },              VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              VK_SHADER_STAGE_RAYGEN_BIT_KHR)
                     )
                 );
         }
@@ -97,6 +106,7 @@ void AddDirectLightingPass(RenderGraph&           graph,
     pass->SetStorage(sceneData->frame,       RenderGraph::STORAGE_READ_ONLY);
     pass->SetStorage(gbuffer->directDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetStorage(gbuffer->specular,      RenderGraph::STORAGE_WRITE_ONLY);
+    pass->SetStorage(gbuffer->globalDiffuse, RenderGraph::STORAGE_WRITE_ONLY);
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->metallicRoughness);
     pass->SetTexture(gbuffer->normal);
@@ -127,8 +137,17 @@ void AddDirectLightingPass(RenderGraph&           graph,
         #endif
         descriptor->SetStorageImage("Diffuse", gbuffer->directDiffuse->GetImage());
         descriptor->SetStorageImage("Specular", gbuffer->specular->GetImage());
+        descriptor->SetStorageImage("GDiffuse", gbuffer->globalDiffuse->GetImage());
         descriptor->SetSampledImages("Images", scene->images);
         descriptor->SetSamplers("Samplers", scene->samplers);
+        // experiment
+        descriptor->SetStorageBuffer("Surfel", surfel->surfels->GetBuffer());
+        descriptor->SetStorageBuffer("SurfelData", surfel->surfelData->GetBuffer());
+        descriptor->SetStorageBuffer("SurfelLive", surfel->surfelLive->GetBuffer());
+        descriptor->SetStorageBuffer("SurfelStat", surfel->surfelStat->GetBuffer());
+        descriptor->SetStorageBuffer("SurfelGrid", surfel->surfelGrid->GetBuffer());
+        descriptor->SetStorageBuffer("SurfelCell", surfel->surfelCell->GetBuffer());
+        descriptor->SetStorageImage("SurfelDepth", surfel->surfelDepth->GetImage());
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
         uint32_t lightCount = scene->lights.size();

@@ -76,7 +76,7 @@ void AddUpdatePass(RenderGraph&       graph,
 
         // pre-compute exposure in CPU
         // float ev100 = EV100(16, 0.008, 100);
-        float ev100 = 10;
+        float ev100 = 8.0;
         float exposure = Exposure(ev100);
 
         // light transforms

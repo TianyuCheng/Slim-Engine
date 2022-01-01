@@ -156,7 +156,9 @@ void main() {
     float inconsistency = 0.0;
 
     // iterate through all surfels in this grid cell
-    for (uint i = cell.offset; i < cell.offset + cell.count; i++) {
+    uint cell0 = cell.offset;
+    uint cell1 = cell.offset + cell.count;
+    for (uint i = cell0; i < cell1; i++) {
         uint cellIndex = surfelCells.data[i];
         Surfel surfel = surfels.data[cellIndex];
         SurfelData sdata = surfelData.data[surfelLive.data[cellIndex]];
@@ -170,23 +172,43 @@ void main() {
             vec3 surfelN = unpack_snorm3(surfel.normal);
             float dotN = dot(surfelN, N);
             if (dotN > 0.0) {
+#if 0
                 float dist = sqrt(d2);
                 float contribution = 1.0;
                 contribution *= clamp(dotN, 0.0, 1.0);
                 contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
 
-                float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
                 // radial depth function
                 vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
                 vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
-                occlusion *= compute_surfel_depth_weight(radialDepth, dist);
+                contribution *= compute_surfel_depth_weight(radialDepth, dist);
                 #endif
 
-                // surfel moment helps prevent incorrect color bleeding.
                 contribution = smoothstep(0.0, 1.0, contribution);
-                coverage += contribution * occlusion;
-                color += vec4(surfel.color * occlusion, 1.0) * contribution;
+                coverage += contribution;
+                color += vec4(surfel.color, 1.0) * contribution;
+#else
+                const float SURFEL_NORMAL_DIRECTION_SQUISH = 2.0;
+                const float RADIUS_OVERSCALE = 1.25;
+
+                vec3 posOffset = -L;
+                float directionalWeight = dotN;
+                float dist = sqrt(d2);
+                float mahalanobisDist = dist * (1.0 + (1.0 + abs(dot(posOffset, surfelN))) * SURFEL_NORMAL_DIRECTION_SQUISH);
+
+                float occlusionWeight = 1.0;
+                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
+                // radial depth function
+                vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
+                vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
+                occlusionWeight *= compute_surfel_depth_weight(radialDepth, dist);
+                #endif
+
+                float contribution = smoothstep(surfel.radius * RADIUS_OVERSCALE, 0.0, mahalanobisDist) * directionalWeight;
+                coverage += contribution * occlusionWeight;
+                color += vec4(surfel.color * occlusionWeight, 1.0) * contribution;
+#endif
 
                 #ifdef ENABLE_SURFEL_DEBUG
                 if (dist < 0.02) {
@@ -266,9 +288,11 @@ void main() {
     #endif
 
     STORE(debugImage,    pixel, debug);
-    STORE(diffuseImage,  pixel, color);
     STORE(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
     STORE(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
+    #if ENABLE_GI_POST_APPLY
+    STORE(diffuseImage,  pixel, color);
+    #endif
     #undef STORE
 
     // spawn new surfels based on coverage
@@ -284,10 +308,10 @@ void main() {
     uint2 localID = gl_LocalInvocationID.xy;
     uint covU32 = uint(coverage * 255.0);
     uint randbits = floatBitsToUint(rand(rng));
-    uint coverageID = (covU32    & 0xff  ) << 24 // top bits matters the most
-                    | (randbits  & 0xffff) << 8  // shuffles pixels around
-                    | (localID.x & 0xf   ) << 4
-                    | (localID.y & 0xf   ) << 0;
+    uint coverageID = (covU32    & 0xff000000  )       // top bits matters the most
+                    | (randbits  & 0x0000ffff  ) << 8  // shuffles pixels around
+                    | (localID.x & 0x0000000f  ) << 4
+                    | (localID.y & 0x0000000f  ) << 0;
     if (cell.count < SURFEL_CELL_CAPACITY) {
         atomicMin(groupMinSurfelID, coverageID);
         atomicMin(groupMinSurfelCoverage, covU32);

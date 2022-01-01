@@ -98,12 +98,14 @@ function(add_slim_project)
         file(MAKE_DIRECTORY ${DIRECTORY})
         set(INPUT  "${CMAKE_CURRENT_SOURCE_DIR}/${DIRECTORY}/${FILENAME}")
         set(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/${FILENAME}.spv")
+        set(DEPFILE "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/${FILENAME}.spv.d")
         set(INCLUDE "${PROJECT_SOURCE_DIR}/Library/shaderlib")
         add_custom_command(
             OUTPUT  ${OUTPUT}
             COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${DIRECTORY}/"
-            COMMAND ${SHADERCOMPILER} --target-env=${SLIM_PROJECT_SPV} -I ${INCLUDE} ${INPUT} -g -O -o ${OUTPUT}
+            COMMAND ${SHADERCOMPILER} -MD --target-env=${SLIM_PROJECT_SPV} -I ${INCLUDE} ${INPUT} -g -O -o ${OUTPUT}
             DEPENDS ${INPUT}
+            # DEPFILE ${DEPFILE} # This is not supported by Visual Studio 2019
             COMMENT "Building shader: ${OUTPUT}"
         )
         list(APPEND SPIRV_BINARY_FILES ${OUTPUT})

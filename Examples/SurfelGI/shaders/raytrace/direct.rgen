@@ -53,9 +53,13 @@ layout(set = 1, binding = GBUFFER_POSITION_BINDING) uniform
 sampler2D positionImage;
 #endif
 
-// gbuffer diffuse
+// gbuffer direct diffuse
 layout(set = 1, binding = GBUFFER_DIRECT_DIFFUSE_BINDING, rgba32f) uniform
 image2D diffuseImage;
+
+// gbuffer global diffuse
+layout(set = 1, binding = GBUFFER_GLOBAL_DIFFUSE_BINDING, rgba32f) uniform
+image2D indirectDiffuseImage;
 
 // gbuffer specular
 layout(set = 1, binding = GBUFFER_SPECULAR_BINDING, rgba32f) uniform
@@ -65,86 +69,36 @@ image2D specularImage;
 layout(location = 0) rayPayloadEXT HitInfo hitData;
 layout(location = 1) rayPayloadEXT bool    shadowed;
 
-bool trace_shadow(vec3 rayOrigin, vec3 rayDirection, float tMin, float tMax) {
-    const uint flags = gl_RayFlagsTerminateOnFirstHitEXT
-                     | gl_RayFlagsSkipClosestHitShaderEXT
-                     | gl_RayFlagsOpaqueEXT;
-    shadowed = true;
-    traceRayEXT(sceneAS,          // acceleration structure
-            flags,                // rayFlags
-            0xff,                 // cullMask
-            0,                    // sbtRecordOffset
-            0,                    // sbtRecordStride
-            1,                    // missIndex
-            rayOrigin,            // ray origin
-            tMin,                 // ray min range
-            rayDirection,         // ray direction
-            tMax,                 // ray max range
-            1);                   // payload (location = 1)
-    return shadowed;
-}
+// surfel information
+layout(set = 4, binding = SURFEL_BINDING) buffer
+SurfelBuffer { Surfel data[]; } surfels;
 
-vec3 compute_directional_lighting(in LightInfo light,
-                                  in HitInfo surface,
-                                  out float NoL,
-                                  out float dist) {
-    dist = HIGHP_FLT_MAX;
-    vec3 lightDirection = -normalize(light.direction);
-    NoL = dot(surface.normal, lightDirection);
-    return light.color * light.intensity * max(0.0, NoL);
-}
+// surfel alive
+layout(set = 4, binding = SURFEL_LIVE_BINDING) buffer
+SurfelLiveBuffer { uint data[]; } surfelLive;
 
-vec3 compute_point_lighting(in LightInfo light,
-                            in HitInfo surface,
-                            out float NoL,
-                            out float dist) {
-    vec3 lightDirection = light.position - surface.position;
+// surfel alive
+layout(set = 4, binding = SURFEL_DATA_BINDING) buffer
+SurfelDataBuffer { SurfelData data[]; } surfelData;
 
-    float d2 = dot(lightDirection, lightDirection);
-    float r2 = light.range * light.range;
-    dist = sqrt(d2);
-    NoL = dot(surface.normal, lightDirection/dist);
-    // check maximum range
-    if (d2 < r2) {
-        dist = sqrt(d2);
-        lightDirection /= dist;
-        // compute attenuation if needed
-        if (NoL > 0.0) {
-            float n = 2;
-            float att1 = clamp(1.0 - (pow(dist, n) / pow(light.range, n)), 0.0, 1.0);
-            float att2 = 1.0 / d2;
-            return light.color * light.intensity * att1 * att2;
-        }
-    }
-    return vec3(0.0);
-}
+// surfel grids
+layout(set = 4, binding = SURFEL_GRID_BINDING) buffer
+SurfelGridBuffer { SurfelGridCell data[]; } surfelGrids;
 
-vec3 compute_spot_lighting(in LightInfo light,
-                           in HitInfo surface,
-                           out float NoL,
-                           out float dist) {
-    vec3 lightDirection = light.position - surface.position;
-    float d2 = dot(lightDirection, lightDirection);
-    float r2 = light.range * light.range;
-    // check maximum range
-    if (d2 < r2) {
-        dist = sqrt(d2);
-        lightDirection /= dist;
-        // compute attenuation if needed
-        NoL = dot(surface.normal, lightDirection);
-        if (NoL > 0.0) {
-            float spotFactor = dot(lightDirection, light.direction);
-            float spotCutOff = cos(light.angle);
-            if (spotFactor > spotCutOff) {
-                float att1 = clamp(1.0 - (d2 / r2), 0.0, 1.0);
-                float att2 = att1 * att1;
-                float attenuation = clamp(1.0 - (1.0 - spotFactor) * 1.0 / (1.0 - spotCutOff), 0.0, 1.0);
-                return light.color * light.intensity * att2;
-            }
-        }
-    }
-    return vec3(0.0);
-}
+// surfel cells
+layout(set = 4, binding = SURFEL_CELL_BINDING) buffer
+SurfelCellBuffer { uint data[]; } surfelCells;
+
+// surfel stat
+layout(set = 4, binding = SURFEL_STAT_BINDING) buffer
+SurfelStatBuffer { SurfelStat data; } surfelStat;
+
+// surfel depth atlas texture
+layout(set = 4, binding = SURFEL_DEPTH_BINDING, rg32f) uniform
+image2D surfelDepth;
+
+#include "../tracing.h"
+#include "../lighting.h"
 
 void main() {
     int2 pixel = int2(gl_LaunchIDEXT.xy);
@@ -169,7 +123,7 @@ void main() {
     vec2 metallicRoughness = texelFetch(metallicRoughnessImage, pixel, 0).xy;
 
     // ray length
-    float tMin = 0.01;
+    float tMin = 1e-5;
     float tMax = 100000.0;
 
     // compute direct lighting
@@ -179,23 +133,23 @@ void main() {
         // lighting info
         float NoL = -1.0;
         float dist = -1.0;
-        vec3 luminance = vec3(0.0);
+        vec3 irradiance = vec3(0.0);
         vec3 lightDirection = vec3(0.0);
 
         switch (light.type) {
             // compute direct point lighting
             case LIGHT_TYPE_POINT:
-                luminance = compute_point_lighting(light, surface, NoL, dist);
+                irradiance = compute_point_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(light.position - surface.position);
                 break;
             // compute direct spot lighting
             case LIGHT_TYPE_SPOTLIGHT:
-                luminance = compute_spot_lighting(light, surface, NoL, dist);
+                irradiance = compute_spot_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(-light.direction);
                 break;
             // compute direct directional lighting
             case LIGHT_TYPE_DIRECTIONAL:
-                luminance = compute_directional_lighting(light, surface, NoL, dist);
+                irradiance = compute_directional_lighting(light, surface, NoL, dist);
                 lightDirection = normalize(light.position - surface.position);
                 break;
         }
@@ -203,7 +157,7 @@ void main() {
         // add light contribution
         if (NoL > 0.0 && dist > 0.0 && dist < light.range) {
             // ray information at hit location
-            vec3 rayOrigin = offset_ray_origin(surface.position, surface.normal);
+            vec3 rayOrigin = surface.position;
             vec3 rayDirection = lightDirection;
 
             // check occlusion
@@ -226,11 +180,11 @@ void main() {
                 float NoH = clamp(dot(n, h), 0.0, 1.0);
                 float LoH = clamp(dot(l, h), 0.0, 1.0);
 
-                vec3 factor = luminance * NoL;
+                vec3 factor = irradiance * NoL;
 
                 // compute diffuse
-                vec3 Fd  = albedo.rgb * Fd_Lambert();
-                diffuse += factor * Fd * 8.0;
+                vec3 Fd  = f90 * Fd_Lambert() * PI;
+                diffuse += factor * Fd;
 
                 // compute specular
                 float D   = D_GGX(NoH, roughness);
@@ -245,4 +199,10 @@ void main() {
     // store results
     imageStore(diffuseImage, pixel, vec4(diffuse, 1.0));
     imageStore(specularImage, pixel, vec4(specular, 1.0));
+
+    // compute indirect diffuse
+    #if ENABLE_GI_PRE_APPLY
+    vec3 indirectDiffuse = compute_surfel_lighting(camera.data, surface.position, surface.normal) * albedo.rgb;
+    imageStore(indirectDiffuseImage, pixel, vec4(indirectDiffuse, 1.0));
+    #endif
 }

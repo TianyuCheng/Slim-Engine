@@ -50,26 +50,35 @@ vec4 ditherInterleavedGradientNoise(vec4 rgba, const highp float temporalNoise01
 
 void main() {
     vec4 albedo  = texture(albedoImage, inUV);
-    outColor = vec4(0.0);
+
+    outColor.rgb = vec3(0.0);
 
     // global diffuse contribution
     if (control.data.showGlobalDiffuse != 0) {
+        #if ENABLE_GI_POST_APPLY
         vec4 globalDiffuse = texture(globalDiffuseImage, inUV);
-        globalDiffuse = clamp(globalDiffuse, vec4(0.0), vec4(1.0));
-        outColor += globalDiffuse * albedo;
+        outColor.rgb += globalDiffuse.rgb * albedo.rgb * globalDiffuse.a * albedo.a;
+        #endif
+
+        #if ENABLE_GI_PRE_APPLY
+        vec4 directDiffuse = texture(globalDiffuseImage, inUV);
+        outColor.rgb += directDiffuse.rgb * directDiffuse.a;
+        #endif
     }
 
     #ifdef ENABLE_DIRECT_ILLUMINATION
     if (control.data.showDirectDiffuse != 0) {
         // direct diffuse contribution
         vec4 directDiffuse = texture(directDiffuseImage, inUV);
-        outColor += directDiffuse;
+        outColor.rgb += directDiffuse.rgb * directDiffuse.a;
 
         // direct specular contribution
         vec4 directSpecular = texture(specularImage, inUV);
-        outColor += directSpecular;
+        outColor.rgb += directSpecular.rgb * directSpecular.a;
     }
     #endif
+
+    outColor.a = 1.0;
 
     #ifdef ENABLE_OUTPUT_GAMMA_CORRECT
     const float gamma = 1.0/2.2;
@@ -90,5 +99,10 @@ void main() {
     if (control.data.showSurfelInfo != 0) {
         vec4 debug = texture(debugImage, inUV);
         outColor += debug;
+    }
+
+    if (control.data.showSurfelInfo == SURFEL_DEBUG_INCONSISTENCY) {
+        vec4 debug = texture(debugImage, inUV);
+        outColor = debug;
     }
 }

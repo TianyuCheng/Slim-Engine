@@ -94,10 +94,6 @@ int main() {
         barExtent.height = 2;
 
         VkExtent2D indirectDiffuseExtent = frame->GetExtent();
-        // #ifdef ENABLE_HALFRES_LIGHT_APPLY
-        // indirectDiffuseExtent.width >>= 1;
-        // indirectDiffuseExtent.height >>= 1;
-        // #endif
 
         // update time
         time->Update();
