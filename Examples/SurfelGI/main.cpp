@@ -157,7 +157,6 @@ int main() {
             #ifdef ENABLE_DIRECT_ILLUMINATION
             AddDirectLightingPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             #endif
-            AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // show light control
             if (scene.debugControl.showLight) {
@@ -186,6 +185,8 @@ int main() {
             // #ifdef ENABLE_DIFFUSE_SMOOTH
             // AddDiffuseSmooth(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene);
             // #endif
+
+            AddComposePass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, backBuffer);
 
             // ui pass
             AddOverlayPass(graph, pool, &gbuffer, &sceneData, &surfel, &debug, &scene, ui, backBuffer);

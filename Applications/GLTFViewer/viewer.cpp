@@ -175,10 +175,10 @@ void GLTFViewer::InitSampler() {
 
 void GLTFViewer::InitPBR() {
     // vertex shader
-    vShaderPbr = SlimPtr<spirv::VertexShader>(device, "main", "shaders/gltf.vert.spv");
+    vShaderPbr = SlimPtr<spirv::VertexShader>(device, "shaders/gltf.vert.spv");
 
     // fragment shader
-    fShaderPbr = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/gltf.frag.spv");
+    fShaderPbr = SlimPtr<spirv::FragmentShader>(device, "shaders/gltf.frag.spv");
 
     auto pipelinePbrDesc =
         GraphicsPipelineDesc()

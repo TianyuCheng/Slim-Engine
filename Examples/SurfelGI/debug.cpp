@@ -18,7 +18,7 @@ Pipeline* PrepareLinearDepthPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "linear.depth.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/debug/depthvis.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/debug/depthvis.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -46,7 +46,7 @@ Pipeline* PrepareObjectVisPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "object.visualization.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/debug/objectvis.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/debug/objectvis.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -74,7 +74,7 @@ Pipeline* PrepareGridVisPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "grid.visualization.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/debug/gridvis.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/debug/gridvis.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -103,7 +103,7 @@ Pipeline* PrepareSurfelAllocVisPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.allocation.visualization.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/debug/allocvis.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/debug/allocvis.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -129,14 +129,14 @@ GraphicsPipelineDesc PrepareLightVisPass(AutoReleasePool& pool) {
     auto vShader = pool.FetchOrCreate(
         "geometry.vertex.shader",
         [](Device* device) {
-            return new spirv::VertexShader(device, "main", "shaders/debug/geometry.vert.spv");
+            return new spirv::VertexShader(device, "shaders/debug/geometry.vert.spv");
         });
 
     // fragment shader
     auto fShader = pool.FetchOrCreate(
         "light.fragment.shader",
         [](Device* device) {
-            return new spirv::FragmentShader(device, "main", "shaders/debug/light.frag.spv");
+            return new spirv::FragmentShader(device, "shaders/debug/light.frag.spv");
         });
 
     // pipeline
@@ -167,14 +167,14 @@ GraphicsPipelineDesc PrepareRayDirVisPass(AutoReleasePool& pool) {
     auto vShader = pool.FetchOrCreate(
         "raydir.vertex.shader",
         [](Device* device) {
-            return new spirv::VertexShader(device, "main", "shaders/debug/raydir.vert.spv");
+            return new spirv::VertexShader(device, "shaders/debug/raydir.vert.spv");
         });
 
     // fragment shader
     auto fShader = pool.FetchOrCreate(
         "raydir.fragment.shader",
         [](Device* device) {
-            return new spirv::FragmentShader(device, "main", "shaders/debug/raydir.frag.spv");
+            return new spirv::FragmentShader(device, "shaders/debug/raydir.frag.spv");
         });
 
     // pipeline

@@ -216,6 +216,7 @@ struct SurfelGridCell {
 struct DebugControl {
     uint showOverlay;
     uint showLight;
+    uint showGrid;
     uint showSurfelInfo;
     uint showSampleRays;
     uint showDirectDiffuse;
@@ -369,6 +370,30 @@ uint compute_surfel_cell(int3 gridIndex) {
          + cellIndex.z;
 }
 
+bool compute_surfel_grid_intersection(in vec3 camPos, in int3 grid, in vec3 surfelP, in vec3 surfelN, in float surfelR) {
+    // compute world origin based on camera
+    vec3 origin = floor(camPos / SURFEL_GRID_SIZE);
+
+    // compute grid cell center
+    vec3 cellCenter = origin + vec3(grid) * SURFEL_GRID_SIZE + vec3(SURFEL_GRID_SIZE) / 2.0;
+    float gridCellRadius = SURFEL_GRID_SIZE * 0.5;
+
+    // compute surfel's local pos in cell's coordinate frame
+    vec3 cellLocalSurfelPos = surfelP - cellCenter;
+    vec3 cellLocalClosestPointOnGridCell = clamp(cellLocalSurfelPos, vec3(-gridCellRadius), vec3(+gridCellRadius));
+    vec3 posOffset = cellLocalSurfelPos - cellLocalClosestPointOnGridCell;
+
+#if 1
+    // Approximate box-ellipsoid culling.
+    // Sometimes misses corners, but greatly improves culling efficiency.
+    const float SURFEL_NORMAL_DIRECTION_SQUISH = 2.0;
+    float mahalanobisDist = length(posOffset) * (1.0 + abs(dot(posOffset, surfelN)) * SURFEL_NORMAL_DIRECTION_SQUISH);
+    return mahalanobisDist < surfelR;
+#else
+    return dot(posOffset, posOffset) < (surfelR * surfelR);
+#endif
+}
+
 // compute 1d index given dimension and 2d index
 uint flatten_2d(uint2 coord, uint2 dim) {
     return coord.x + coord.y * dim.x;
@@ -449,27 +474,6 @@ vec2 compute_surfel_rayguide_pixel(uint surfelIndex, vec3 direction, vec3 normal
 
     uv = max(min(uv, vec2(0.99)), vec2(0.00));
     return pixel + uv * SURFEL_RAYGUIDE_TEXELS;
-}
-
-bool surfel_intersects_with_grid(in vec3 surfelP, in vec3 surfelN, in int3 grid) {
-    // vec3 pos0 = vec3(grid) * SURFEL_GRID_SIZE;
-    // vec3 pos1 = pos0 + vec3(0.0,              SURFEL_GRID_SIZE, 0.0);
-    // vec3 pos2 = pos0 + vec3(SURFEL_GRID_SIZE, 0.0,              0.0);
-    // vec3 pos3 = pos0 + vec3(SURFEL_GRID_SIZE, SURFEL_GRID_SIZE, 0.0);
-    // vec3 pos4 = pos0 + vec3(0.0,              0.0,              SURFEL_GRID_SIZE);
-    // vec3 pos5 = pos0 + vec3(0.0,              SURFEL_GRID_SIZE, SURFEL_GRID_SIZE);
-    // vec3 pos6 = pos0 + vec3(SURFEL_GRID_SIZE, 0.0,              SURFEL_GRID_SIZE);
-    // vec3 pos7 = pos0 + vec3(SURFEL_GRID_SIZE, SURFEL_GRID_SIZE, SURFEL_GRID_SIZE);
-    // float p0 = dot(surfelP - pos0, surfelN);
-    // float p1 = dot(surfelP - pos1, surfelN);
-    // float p2 = dot(surfelP - pos2, surfelN);
-    // float p3 = dot(surfelP - pos3, surfelN);
-    // float p4 = dot(surfelP - pos4, surfelN);
-    // float p5 = dot(surfelP - pos5, surfelN);
-    // float p6 = dot(surfelP - pos6, surfelN);
-    // float p7 = dot(surfelP - pos7, surfelN);
-    // return !(p0 > 0.0 && p1 > 0.0 && p2 > 0.0 && p3 > 0.0 && p4 > 0.0 && p5 > 0.0 && p6 > 0.0 && p7 > 0.0);
-    return true;
 }
 
 // compute surfel depth on hemisphere

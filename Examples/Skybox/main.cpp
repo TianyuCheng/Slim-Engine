@@ -32,12 +32,12 @@ int main() {
     );
 
     // create vertex and fragment shaders
-    auto vShaderSkybox = SlimPtr<spirv::VertexShader>(device, "main", "shaders/skybox.vert.spv");
-    auto fShaderSkybox = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/skybox.frag.spv");
+    auto vShaderSkybox = SlimPtr<spirv::VertexShader>(device, "shaders/skybox.spv");
+    auto fShaderSkybox = SlimPtr<spirv::FragmentShader>(device, "shaders/skybox.spv");
 
-    auto vShaderCommon = SlimPtr<spirv::VertexShader>(device, "main", "shaders/common.vert.spv");
-    auto fShaderReflect = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/reflect.frag.spv");
-    auto fShaderRefract = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/refract.frag.spv");
+    auto vShaderCommon = SlimPtr<spirv::VertexShader>(device, "shaders/common.spv");
+    auto fShaderReflect = SlimPtr<spirv::FragmentShader>(device, "shaders/reflect.spv");
+    auto fShaderRefract = SlimPtr<spirv::FragmentShader>(device, "shaders/refract.spv");
 
     RefractProperties refract;
     refract.iota = 1.04;

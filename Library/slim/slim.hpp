@@ -19,6 +19,7 @@
 #include "core/shader.h"
 #include "core/window.h"
 #include "core/input.h"
+#include "core/math.hpp"
 
 // utility
 #include "utility/stb.h"

@@ -59,7 +59,7 @@ void main() {
             for (int k = cell0.z; k <= cell1.z; k++) {
                 int3 gridIndex = int3(i, j, k);
                 uint cellIndex = compute_surfel_cell(gridIndex);
-                if (surfel_intersects_with_grid(surfel.position, surfelN, gridIndex)) {
+                if (compute_surfel_grid_intersection(camera.data.position, gridIndex, surfel.position, surfelN, surfel.radius)) {
                     SurfelGridCell cell = surfelGrids.data[cellIndex];
                     if (cell.count < SURFEL_CELL_CAPACITY) {
                         uint index = atomicAdd(surfelGrids.data[cellIndex].count, 1);

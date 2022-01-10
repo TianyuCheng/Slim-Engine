@@ -175,13 +175,6 @@ void AddOverlayPass(RenderGraph&           graph,
                     }
                     #endif
 
-                    #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
-                    if (ImGui::BeginTabItem("Grid")) {
-                        ImGui::Image(grid, size);
-                        ImGui::EndTabItem();
-                    }
-                    #endif
-
                     #ifdef ENABLE_SURFEL_COVERAGE_VISUALIZATION
                     if (ImGui::BeginTabItem("Coverage")) {
                         ImGui::Image(coverage, size);
@@ -246,6 +239,7 @@ void AddOverlayPass(RenderGraph&           graph,
                     if (ImGui::BeginTabItem("Debug##Options")) {
                         ImGui::RadioButton("None",          (int*) &scene->debugControl.showSurfelInfo, 0);
                         ImGui::RadioButton("Point",         (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_POINT);
+                        ImGui::RadioButton("Random",        (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_RANDOM);
                         ImGui::RadioButton("Radial Depth",  (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_RADIAL_DEPTH);
                         ImGui::RadioButton("Inconsistency", (int*) &scene->debugControl.showSurfelInfo, SURFEL_DEBUG_INCONSISTENCY);
                         ImGui::EndTabItem();
@@ -258,6 +252,9 @@ void AddOverlayPass(RenderGraph&           graph,
                         }
                         #ifdef ENABLE_SURFEL_RAYDIR_VISUALIZATION
                         ImGui::Checkbox("Ray Sample Dirs", (bool*) &scene->debugControl.showSampleRays);
+                        #endif
+                        #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+                        ImGui::Checkbox("Show Grids", (bool*) &scene->debugControl.showGrid);
                         #endif
                         ImGui::Checkbox("Light Control", (bool*) &scene->debugControl.showLight);
                         ImGui::Checkbox("Direct Diffuse", (bool*) &scene->debugControl.showDirectDiffuse);

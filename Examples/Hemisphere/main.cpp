@@ -66,9 +66,9 @@ int main() {
     camera->LookAt(glm::vec3(-2.0, 0.0, 0.0), glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
 
     // create shaders
-    auto cShader = SlimPtr<spirv::ComputeShader>(device, "main", "shaders/generate.comp.spv");
-    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/direction.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/direction.frag.spv");
+    auto cShader = SlimPtr<spirv::ComputeShader>(device, "shaders/generate.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "shaders/main.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "shaders/main.spv");
 
     auto cPipeline = SlimPtr<Pipeline>(
         device,

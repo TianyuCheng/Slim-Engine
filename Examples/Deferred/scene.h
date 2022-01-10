@@ -11,8 +11,8 @@ public:
 
     void PrepareTechnique() {
         // create vertex and fragment shaders
-        vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/gbuffer.vert.spv");
-        fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/gbuffer.frag.spv");
+        vShader = SlimPtr<spirv::VertexShader>(device, "shaders/gbuffer.vert.spv");
+        fShader = SlimPtr<spirv::FragmentShader>(device, "shaders/gbuffer.frag.spv");
 
         // create technique
         technique = SlimPtr<Technique>();

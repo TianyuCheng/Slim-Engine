@@ -6,8 +6,8 @@ TEST(SlimCore, Rasterization) {
         .EnableGraphics();
     auto context= SlimPtr<Context>(contextDesc);
     auto device = SlimPtr<Device>(context);
-    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "shaders/simple.vert.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "shaders/simple.frag.spv");
 
     // auto extent = VkExtent2D { 32, 32 };
     auto extent = VkExtent2D { 2, 2 };

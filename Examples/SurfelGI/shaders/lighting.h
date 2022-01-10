@@ -112,8 +112,8 @@ vec3 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
     uint cellIndex = compute_surfel_cell(gridIndex);
     SurfelGridCell cell = surfelGrids.data[cellIndex];
 
-    // iterate through all surfels in this grid cell
-    /* uint next = cell.offset + min(cell.count, 128); */
+    // iterate through all surfels in this grid cell (how to prevent too many surfels in a grid?)
+    // uint next = cell.offset + min(cell.count, 128);
     uint next = cell.offset + cell.count;
     for (uint i = cell.offset; i < next; i++) {
         uint cellIndex = surfelCells.data[i];
@@ -128,23 +128,6 @@ vec3 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
             vec3 surfelN = unpack_snorm3(surfel.normal);
             float dotN = dot(surfelN, N);
             if (dotN > 0.0) {
-#if 0
-                float dist = sqrt(d2);
-                float contribution = 1.0;
-                contribution *= clamp(dotN, 0.0, 1.0);
-                contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
-
-                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
-                // radial depth function
-                vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
-                vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
-                contribution *= compute_surfel_depth_weight(radialDepth, dist);
-                #endif
-
-                // surfel moment helps prevent incorrect color bleeding.
-                contribution = smoothstep(0.0, 1.0, contribution);
-                surfelGI += vec4(surfel.color, 1.0) * contribution;
-#else
                 float dist = sqrt(d2);
                 float occlusion = 1.0;
                 #ifdef ENABLE_SURFEL_RADIAL_DEPTH
@@ -162,7 +145,6 @@ vec3 compute_surfel_lighting(in CameraInfo camera, in vec3 P, in vec3 N) {
                     surfel.radius * RADIUS_OVERSCALE,
                     0.0, mahalanobis_dist) * dotN * occlusion;
                 surfelGI += vec4(surfel.color, 1.0) * contribution;
-#endif
             }
         }
     }

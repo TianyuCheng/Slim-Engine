@@ -80,7 +80,7 @@ void main() {
         for (int j = cell0.y; j <= cell1.y; j++) {
             for (int k = cell0.z; k <= cell1.z; k++) {
                 int3 gridIndex = int3(i, j, k);
-                if (surfel_intersects_with_grid(surfel.position, surfelN, gridIndex)) {
+                if (compute_surfel_grid_intersection(camera.data.position, gridIndex, surfel.position, surfelN, surfel.radius)) {
                     uint cellIndex = compute_surfel_cell(gridIndex);
                     SurfelGridCell cell = surfelGrids.data[cellIndex];
                     if (cell.count < SURFEL_CELL_CAPACITY) {

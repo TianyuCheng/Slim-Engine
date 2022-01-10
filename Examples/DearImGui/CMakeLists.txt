@@ -1,6 +1,6 @@
-add_slim_project(
-    TARGET  dearimgui
-    SOURCES main.cpp
-    SHADERS
-    SPV     vulkan1.0
-)
+# compile shaders
+# NOTE: nothing to compile
+
+# compile target
+add_executable(dearimgui main.cpp)
+target_link_libraries(dearimgui PRIVATE slim)

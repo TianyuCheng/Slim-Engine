@@ -1,4 +1,3 @@
-#include <cassert>
 #include <glm/gtx/string_cast.hpp>
 #include "utility/flycam.h"
 

@@ -18,7 +18,7 @@ namespace slim {
 
     class Shader : public NotCopyable, public NotMovable, public ReferenceCountable, public TriviallyConvertible<VkShaderModule> {
     public:
-        explicit Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage, const std::string &entry, const std::string &path);
+        explicit Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage, const std::string &path, const std::string &entry = "main");
         virtual ~Shader();
         VkPipelineShaderStageCreateInfo GetInfo() const;
 
@@ -32,7 +32,8 @@ namespace slim {
     #define SHADER_VARIANT(NAME, TYPE, STAGE)                                                                                     \
     class NAME final : public Shader {                                                                                            \
     public:                                                                                                                       \
-        NAME(Device *device, const std::string &entry, const std::string &path) : Shader(device, TYPE, STAGE, entry, path) { } \
+        NAME(Device *device, const std::string &path, const std::string &entry = "main") \
+            : Shader(device, TYPE, STAGE, path, entry) { } \
         virtual ~NAME() { }                                                                                                       \
     };
 

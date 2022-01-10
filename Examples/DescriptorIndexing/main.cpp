@@ -47,8 +47,8 @@ int main() {
     auto iBuffer = SlimPtr<IndexBuffer>(device, 256);
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/simple.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/simple.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "shaders/main.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "shaders/main.spv");
 
     SmartPtr<Sampler> sampler = SlimPtr<Sampler>(device, SamplerDesc());
     SmartPtr<GPUImage> texture1;

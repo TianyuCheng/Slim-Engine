@@ -106,9 +106,6 @@ void main() {
     if (pixel.x < resolution.x && pixel.y < resolution.y) {
         ivec2 coord = ivec2(pixel);
 
-        // albedo
-        vec4 color =texelFetch(albedoImage, coord, 0);
-
         // compute world position
         vec2 ndc = vec2(pixel) / vec2(frame.data.resolution);
         float depth = texelFetch(depthImage, coord, 0).x;
@@ -123,7 +120,7 @@ void main() {
             int3 base = int3(floor(camera.data.position / SURFEL_GRID_SIZE));
             cellIndex += base.x + base.y + base.z;
         }
-        color *= cellIndex % 2 == 0
+        vec4 color = cellIndex % 2 == 0
                ? vec4(0.3, 0.3, 0.3, 1.0)
                : vec4(0.8, 0.8, 0.8, 1.0);
 

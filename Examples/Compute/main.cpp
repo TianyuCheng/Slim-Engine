@@ -19,7 +19,7 @@ int main() {
     auto device = SlimPtr<Device>(context);
 
     // prepare compute pipeline
-    auto shader = SlimPtr<spirv::ComputeShader>(device, "main", "shaders/simple.comp.spv");
+    auto shader = SlimPtr<spirv::ComputeShader>(device, "shaders/main.spv");
     auto pipeline = SlimPtr<Pipeline>(
             device,
             ComputePipelineDesc()

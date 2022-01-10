@@ -6,14 +6,14 @@ GraphicsPipelineDesc PrepareGBufferPass(AutoReleasePool& pool) {
     auto vShader = pool.FetchOrCreate(
         "gbuffer.vertex.shader",
         [](Device* device) {
-            return new spirv::VertexShader(device, "main", "shaders/gbuffer/gbuffer.vert.spv");
+            return new spirv::VertexShader(device, "shaders/gbuffer/gbuffer.vert.spv");
         });
 
     // fragment shader
     auto fShader = pool.FetchOrCreate(
         "gbuffer.fragment.shader",
         [](Device* device) {
-            return new spirv::FragmentShader(device, "main", "shaders/gbuffer/gbuffer.frag.spv");
+            return new spirv::FragmentShader(device, "shaders/gbuffer/gbuffer.frag.spv");
         });
 
     // pipeline

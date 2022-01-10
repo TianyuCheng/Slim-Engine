@@ -34,3 +34,6 @@
 [submodule "Dependencies/googletest"]
 	path = Dependencies/googletest
 	url = https://github.com/google/googletest.git
+[submodule "Dependencies/SPIRV-Reflect"]
+	path = Dependencies/SPIRV-Reflect
+	url = git@github.com:KhronosGroup/SPIRV-Reflect.git

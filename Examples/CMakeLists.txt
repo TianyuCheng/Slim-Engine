@@ -1,3 +1,5 @@
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 add_subdirectory(BufferCopy)
 add_subdirectory(Compute)
 add_subdirectory(DearImGui)

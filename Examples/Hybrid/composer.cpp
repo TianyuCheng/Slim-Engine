@@ -16,10 +16,10 @@ void AddComposerPass(RenderGraph& renderGraph,
     }
 
     // vertex shader
-    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "main", "shaders/compose.vert.spv"));
+    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "shaders/compose.vert.spv"));
 
     // fragment shader
-    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "main", "shaders/compose.frag.spv"));
+    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "shaders/compose.frag.spv"));
 
     // pipeline
     static auto pipelineDesc = GraphicsPipelineDesc()

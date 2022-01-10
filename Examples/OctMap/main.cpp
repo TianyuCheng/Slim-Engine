@@ -42,8 +42,8 @@ int main() {
     auto ui = SlimPtr<DearImGui>(device, window);
 
     // create shaders
-    auto decodeVShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/decode_hemioct.vert.spv");
-    auto decodeFShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/decode_hemioct.frag.spv");
+    auto decodeVShader = SlimPtr<spirv::VertexShader>(device, "shaders/decode_hemioct.spv");
+    auto decodeFShader = SlimPtr<spirv::FragmentShader>(device, "shaders/decode_hemioct.spv");
 
     // SmartPtr<GPUImage> image = nullptr;
     SmartPtr<GPUImage> cubemap = nullptr;

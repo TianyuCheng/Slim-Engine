@@ -3,10 +3,10 @@
 
 #ifdef __cplusplus
 #define GLM_FORCE_RADIANS
-#include <cmath>
 #include <cstdlib>
 #include <algorithm>
 #include <glm/glm.hpp>
+#include "core/math.hpp"
 
 using namespace std;
 using namespace glm;

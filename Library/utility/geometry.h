@@ -2,7 +2,7 @@
 #define SLIM_UTILITY_GEOMETRY_H
 
 #include <vector>
-#include <glm/glm.hpp>
+#include "core/math.hpp"
 #include "utility/interface.h"
 #include "utility/boundingbox.h"
 

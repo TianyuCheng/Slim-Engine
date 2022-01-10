@@ -1,6 +1,8 @@
-add_slim_project(
-    TARGET  compute
-    SOURCES main.cpp
-    SHADERS shaders/simple.comp
-    SPV     vulkan1.0
-)
+# compile shaders
+add_glsl(OUTPUT  shaders/main.spv
+         COMPUTE shaders/simple.comp
+         VERSION vulkan1.0)
+
+# compile target
+add_executable(compute main.cpp shaders/main.spv)
+target_link_libraries(compute PRIVATE slim)

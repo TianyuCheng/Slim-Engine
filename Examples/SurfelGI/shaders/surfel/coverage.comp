@@ -90,7 +90,6 @@ layout(set = 3, binding = DEBUG_SURFEL_VAR_BINDING, rgba8) uniform
 image2D varianceImage;
 
 shared uint groupMinSurfelID;
-shared uint groupMinSurfelCoverage;
 
 vec2 linear_sample_radial_depth(vec2 pixel) {
     int2 base = int2(pixel / vec2(SURFEL_DEPTH_TEXELS)) * int2(SURFEL_DEPTH_TEXELS);
@@ -115,7 +114,6 @@ vec2 linear_sample_radial_depth(vec2 pixel) {
  */
 void main() {
     groupMinSurfelID = 0xffffffff;
-    groupMinSurfelCoverage = 0xffffffff;
     memoryBarrierShared();
 
     int2 pixel = int2(gl_GlobalInvocationID.xy);
@@ -147,13 +145,14 @@ void main() {
     uint cellIndex = compute_surfel_cell(gridIndex);
     SurfelGridCell cell = surfelGrids.data[cellIndex];
 
-    float coverage = 0.0;
+    float scoring = 0.0;
     vec4 color = vec4(0.0);
     vec4 debug = vec4(0.0);
     vec4 variance = vec4(0.0);
     vec4 shortMean = vec4(0.0);
     float vbbr = 0.0;
     float inconsistency = 0.0;
+    uint usefulSurfelCount = 0;
 
     // iterate through all surfels in this grid cell
     uint cell0 = cell.offset;
@@ -172,23 +171,6 @@ void main() {
             vec3 surfelN = unpack_snorm3(surfel.normal);
             float dotN = dot(surfelN, N);
             if (dotN > 0.0) {
-#if 0
-                float dist = sqrt(d2);
-                float contribution = 1.0;
-                contribution *= clamp(dotN, 0.0, 1.0);
-                contribution *= clamp(1.0 - dist / surfel.radius, 0.0, 1.0);
-
-                #ifdef ENABLE_SURFEL_RADIAL_DEPTH
-                // radial depth function
-                vec2 radialDepthPixel = compute_surfel_depth_pixel(cellIndex, -L/dist, surfelN);
-                vec2 radialDepth = linear_sample_radial_depth(radialDepthPixel);
-                contribution *= compute_surfel_depth_weight(radialDepth, dist);
-                #endif
-
-                contribution = smoothstep(0.0, 1.0, contribution);
-                coverage += contribution;
-                color += vec4(surfel.color, 1.0) * contribution;
-#else
                 const float SURFEL_NORMAL_DIRECTION_SQUISH = 2.0;
                 const float RADIUS_OVERSCALE = 1.25;
 
@@ -205,10 +187,12 @@ void main() {
                 occlusionWeight *= compute_surfel_depth_weight(radialDepth, dist);
                 #endif
 
-                float contribution = smoothstep(surfel.radius * RADIUS_OVERSCALE, 0.0, mahalanobisDist) * directionalWeight;
-                coverage += contribution * occlusionWeight;
-                color += vec4(surfel.color * occlusionWeight, 1.0) * contribution;
-#endif
+                // compute weights
+                float weight = smoothstep(surfel.radius * RADIUS_OVERSCALE, 0.0, mahalanobisDist) * directionalWeight;
+                float scoringWeight = smoothstep(surfel.radius, 0.0, mahalanobisDist) * directionalWeight * occlusionWeight;
+
+                color += vec4(surfel.color * occlusionWeight, 1.0) * weight;
+                usefulSurfelCount += scoringWeight > 1e-5 ? 1 : 0;
 
                 #ifdef ENABLE_SURFEL_DEBUG
                 if (dist < 0.02) {
@@ -220,7 +204,7 @@ void main() {
 
                 #ifdef ENABLE_SURFEL_DEBUG
                 if (control.data.showSurfelInfo == SURFEL_DEBUG_RANDOM) {
-                    debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * contribution;
+                    debug += vec4(random_colors[cellIndex % random_color_count], 1.0) * weight;
                 }
                 #endif
 
@@ -240,10 +224,10 @@ void main() {
                 #endif
 
                 // for spawning a new surfel
-                variance += vec4(sdata.variance, 1.0) * contribution;
-                shortMean += vec4(sdata.shortMean, 1.0) * contribution;
-                vbbr += sdata.vbbr * contribution;
-                inconsistency += sdata.inconsistency * contribution;
+                variance += vec4(sdata.variance, 1.0) * weight;
+                shortMean += vec4(sdata.shortMean, 1.0) * weight;
+                vbbr += sdata.vbbr * weight;
+                inconsistency += sdata.inconsistency * weight;
 
                 #ifdef ENABLE_SURFEL_DEBUG
                 if (control.data.showSurfelInfo == SURFEL_DEBUG_INCONSISTENCY) {
@@ -254,6 +238,10 @@ void main() {
         }
         // end of pixel coverage check
     }
+
+    float totalWeight = color.a;
+    float pixelScore = totalWeight;
+    if (depth == 1.0) pixelScore = 1000.0; // large value
 
     // normalize color
     if (color.a > 0.0) {
@@ -288,7 +276,7 @@ void main() {
     #endif
 
     STORE(debugImage,    pixel, debug);
-    STORE(coverageImage, pixel, vec4(coverage, coverage, coverage, 1.0));
+    STORE(coverageImage, pixel, vec4(pixelScore, pixelScore, pixelScore, 1.0));
     STORE(varianceImage, pixel, vec4(variance.r, 0.0, 1.0 - variance.r, 1.0));
     #if ENABLE_GI_POST_APPLY
     STORE(diffuseImage,  pixel, color);
@@ -306,20 +294,19 @@ void main() {
 
     // find minimum surfel coverage
     uint2 localID = gl_LocalInvocationID.xy;
-    uint covU32 = uint(coverage * 255.0);
+    uint covU32 = uint(pixelScore * 255.0);
     uint randbits = floatBitsToUint(rand(rng));
-    uint coverageID = (covU32    & 0xff000000  )       // top bits matters the most
-                    | (randbits  & 0x0000ffff  ) << 8  // shuffles pixels around
+    uint coverageID = (covU32    & 0xffff0000  )       // top bits matters the most
+                    | (randbits  & 0x000000ff  ) << 8  // shuffles pixels around
                     | (localID.x & 0x0000000f  ) << 4
                     | (localID.y & 0x0000000f  ) << 0;
     if (cell.count < SURFEL_CELL_CAPACITY) {
         atomicMin(groupMinSurfelID, coverageID);
-        atomicMin(groupMinSurfelCoverage, covU32);
 
         memoryBarrierShared();
 
         // spawn surfel
-        if (depth < 1.0 && coverageID == groupMinSurfelID && coverage < SURFEL_LOW_COVERAGE) {
+        if (usefulSurfelCount < 2 && coverageID == groupMinSurfelID && pixelScore < SURFEL_LOW_COVERAGE) {
             // need to spawn a new surfel
             float zNear = camera.data.zNear;
             float zFar = camera.data.zFar;

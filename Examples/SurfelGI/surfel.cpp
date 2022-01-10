@@ -19,7 +19,7 @@ Pipeline* PrepareSurfelPreparePass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.prepare.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/prepare.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/prepare.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -44,7 +44,7 @@ Pipeline* PrepareSurfelResetPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.reset.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/reset.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/reset.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -69,7 +69,7 @@ Pipeline* PrepareSurfelOffsetPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.offset.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/offset.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/offset.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -95,7 +95,7 @@ Pipeline* PrepareSurfelUpdatePass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.update.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/update.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/update.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -125,7 +125,7 @@ Pipeline* PrepareSurfelBinningPass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.binning.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/binning.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/binning.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -155,7 +155,7 @@ Pipeline* PrepareSurfelCoveragePass(AutoReleasePool& pool) {
     static auto shader = pool.FetchOrCreate(
         "surfel.coverage.shader",
         [](Device* device) {
-            return new spirv::ComputeShader(device, "main", "shaders/surfel/coverage.comp.spv");
+            return new spirv::ComputeShader(device, "shaders/surfel/coverage.comp.spv");
         });
 
     static auto pipeline = pool.FetchOrCreate(
@@ -200,25 +200,25 @@ Pipeline* PrepareRayTracePass(AutoReleasePool& pool) {
     static auto rayGenShader = pool.FetchOrCreate(
         "ray.gen",
         [](Device* device) {
-            return new spirv::RayGenShader(device, "main", "shaders/raytrace/ray.rgen.spv");
+            return new spirv::RayGenShader(device, "shaders/raytrace/ray.rgen.spv");
         });
     // scene closest hit shader
     static auto sceneClosestHitShader = pool.FetchOrCreate(
         "scene.closest.hit",
         [](Device* device) {
-            return new spirv::ClosestHitShader(device, "main", "shaders/raytrace/scene.rchit.spv");
+            return new spirv::ClosestHitShader(device, "shaders/raytrace/scene.rchit.spv");
         });
     // scene miss shader
     static auto sceneMissShader = pool.FetchOrCreate(
         "scene.miss",
         [](Device* device) {
-            return new spirv::MissShader(device, "main", "shaders/raytrace/scene.rmiss.spv");
+            return new spirv::MissShader(device, "shaders/raytrace/scene.rmiss.spv");
         });
     // surfel ray intersection shader
     static auto shadowMissShader = pool.FetchOrCreate(
         "shadow.miss",
         [](Device* device) {
-            return new spirv::MissShader(device, "main", "shaders/raytrace/shadow.rmiss.spv");
+            return new spirv::MissShader(device, "shaders/raytrace/shadow.rmiss.spv");
         });
     VkDescriptorBindingFlags bindFlags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT
                                        | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT;

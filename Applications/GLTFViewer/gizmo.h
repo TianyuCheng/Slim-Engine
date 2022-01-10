@@ -42,8 +42,8 @@ struct Gizmo : ReferenceCountable {
     }
 
     void InitMaterial(CommandBuffer* commandBuffer) {
-        vShader = new spirv::VertexShader(commandBuffer->GetDevice(), "main", "shaders/gizmo.vert.spv");
-        fShader = new spirv::FragmentShader(commandBuffer->GetDevice(), "main", "shaders/gizmo.frag.spv");
+        vShader = new spirv::VertexShader(commandBuffer->GetDevice(), "shaders/gizmo.vert.spv");
+        fShader = new spirv::FragmentShader(commandBuffer->GetDevice(), "shaders/gizmo.frag.spv");
 
         technique = SlimPtr<Technique>();
         technique->AddPass(

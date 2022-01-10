@@ -1,10 +1,10 @@
 #ifndef SLIM_UTILITY_TIME_H
 #define SLIM_UTILITY_TIME_H
 
-#include <cmath>
 #include <string>
 #include <chrono>
 #include "core/input.h"
+#include "core/math.hpp"
 #include "utility/interface.h"
 
 namespace slim {

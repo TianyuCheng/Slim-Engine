@@ -29,8 +29,8 @@ int main() {
     );
 
     // create vertex and fragment shaders
-    auto vShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/matcap.vert.spv");
-    auto fShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/matcap.frag.spv");
+    auto vShader = SlimPtr<spirv::VertexShader>(device, "shaders/matcap.spv");
+    auto fShader = SlimPtr<spirv::FragmentShader>(device, "shaders/matcap.spv");
 
     // create technique
     auto technique = SlimPtr<Technique>();

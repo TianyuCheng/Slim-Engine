@@ -19,14 +19,14 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
     static auto vShader = pool.FetchOrCreate(
         "fullscreen.vertex.shader",
         [&](Device* device) {
-            return new spirv::VertexShader(device, "main", "shaders/post/fullscreen.vert.spv");
+            return new spirv::VertexShader(device, "shaders/post/fullscreen.vert.spv");
         });
 
     // fragment shader
     static auto fShader = pool.FetchOrCreate(
         "composer.fragment.shader",
         [&](Device* device) {
-            return new spirv::FragmentShader(device, "main", "shaders/post/compose.frag.spv");
+            return new spirv::FragmentShader(device, "shaders/post/compose.frag.spv");
         });
 
     VkPipelineColorBlendAttachmentState blendState = {};
@@ -58,6 +58,9 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
             #endif
             .AddBinding("GlobalDiffuse", SetBinding { 0, GBUFFER_GLOBAL_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Debug",    SetBinding { 1, DEBUG_SURFEL_BINDING       }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+            .AddBinding("Grid",     SetBinding { 1, DEBUG_GRID_BINDING         }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+            #endif
         );
 
     return pipelineDesc;
@@ -87,6 +90,9 @@ void AddComposePass(RenderGraph&           graph,
     #endif
     pass->SetTexture(gbuffer->globalDiffuse);
     pass->SetTexture(debug->surfelDebug);
+    #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+    pass->SetTexture(debug->surfelGrid);
+    #endif
 
     pass->Execute([=](const RenderInfo& info) {
         auto pipeline = info.renderFrame->RequestPipeline(
@@ -109,6 +115,9 @@ void AddComposePass(RenderGraph&           graph,
         descriptor->SetTexture("Specular", gbuffer->specular->GetImage(), sampler);
         #endif
         descriptor->SetTexture("Debug", debug->surfelDebug->GetImage(), sampler);
+        #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+        descriptor->SetTexture("Grid", debug->surfelGrid->GetImage(), sampler);
+        #endif
         info.commandBuffer->BindDescriptor(descriptor, pipeline->Type());
 
         // push constant

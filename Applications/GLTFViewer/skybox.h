@@ -50,8 +50,8 @@ struct Skybox : ReferenceCountable {
     }
 
     void InitMaterial(CommandBuffer* commandBuffer) {
-        auto vShader = SlimPtr<spirv::VertexShader>(commandBuffer->GetDevice(), "main", "shaders/skybox.vert.spv");
-        auto fShader = SlimPtr<spirv::FragmentShader>(commandBuffer->GetDevice(), "main", "shaders/skybox.frag.spv");
+        auto vShader = SlimPtr<spirv::VertexShader>(commandBuffer->GetDevice(), "shaders/skybox.vert.spv");
+        auto fShader = SlimPtr<spirv::FragmentShader>(commandBuffer->GetDevice(), "shaders/skybox.frag.spv");
 
         auto technique = SlimPtr<Technique>();
         technique->AddPass(RenderQueue::Opaque,

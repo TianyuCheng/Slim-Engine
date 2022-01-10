@@ -1,10 +1,11 @@
 #ifndef SLIM_UTILITY_FLYCAM_H
 #define SLIM_UTILITY_FLYCAM_H
 
-#include <cmath>
+#include <cassert>
 #include <string>
 
 #include "core/input.h"
+#include "core/math.hpp"
 #include "utility/time.h"
 #include "utility/camera.h"
 

@@ -185,11 +185,11 @@ int main() {
     });
 
     // shaders
-    auto rayGenShader = SlimPtr<spirv::RayGenShader>(device, "main", "shaders/raytrace.rgen.spv");
-    auto rayMissShader = SlimPtr<spirv::MissShader>(device, "main", "shaders/raytrace.rmiss.spv");
-    auto closestShader = SlimPtr<spirv::ClosestHitShader>(device, "main", "shaders/raytrace.rchit.spv");
-    auto postVertexShader = SlimPtr<spirv::VertexShader>(device, "main", "shaders/post.vert.spv");
-    auto postFragmentShader = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/post.frag.spv");
+    auto rayGenShader = SlimPtr<spirv::RayGenShader>(device, "shaders/raytrace.rgen.spv");
+    auto rayMissShader = SlimPtr<spirv::MissShader>(device, "shaders/raytrace.rmiss.spv");
+    auto closestShader = SlimPtr<spirv::ClosestHitShader>(device, "shaders/raytrace.rchit.spv");
+    auto postVertexShader = SlimPtr<spirv::VertexShader>(device, "shaders/post.vert.spv");
+    auto postFragmentShader = SlimPtr<spirv::FragmentShader>(device, "shaders/post.frag.spv");
 
     // rt pipeline
     auto rtPipeline = SlimPtr<Pipeline>(

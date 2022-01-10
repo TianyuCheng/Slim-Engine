@@ -18,14 +18,14 @@ GraphicsPipelineDesc PrepareBilateralPass(AutoReleasePool& pool) {
     auto vShader = pool.FetchOrCreate(
         "bilateral.vertex.shader",
         [](Device* device) {
-            return new spirv::VertexShader(device, "main", "shaders/post/bilateral.vert.spv");
+            return new spirv::VertexShader(device, "shaders/post/bilateral.vert.spv");
         });
 
     // fragment shader
     auto fShader = pool.FetchOrCreate(
         "bilateral.fragment.shader",
         [](Device* device) {
-            return new spirv::FragmentShader(device, "main", "shaders/post/bilateral.frag.spv");
+            return new spirv::FragmentShader(device, "shaders/post/bilateral.frag.spv");
         });
 
     // pipeline

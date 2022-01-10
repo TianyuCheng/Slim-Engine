@@ -29,7 +29,7 @@ std::vector<uint8_t> LoadSpirvShader(const std::string &path) {
 }
 
 Shader::Shader(Device *device, ShaderType type, VkShaderStageFlagBits stage,
-               const std::string &entry, const std::string &file)
+               const std::string &file, const std::string &entry)
     : device(device), entry(entry) {
 
     // load data

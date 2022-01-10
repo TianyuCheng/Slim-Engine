@@ -28,8 +28,8 @@ public:
     }
 
     void PrepareMaskPipeline() {
-        vShaderMask = SlimPtr<spirv::VertexShader>(device, "main", "shaders/fairymask.vert.spv");
-        fShaderMask = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/fairymask.frag.spv");
+        vShaderMask = SlimPtr<spirv::VertexShader>(device, "shaders/fairymask.vert.spv");
+        fShaderMask = SlimPtr<spirv::FragmentShader>(device, "shaders/fairymask.frag.spv");
 
         // blend
         VkPipelineColorBlendAttachmentState blend = {};
@@ -71,8 +71,8 @@ public:
     }
 
     void PrepareLightPipeline() {
-        vShaderLight = SlimPtr<spirv::VertexShader>(device, "main", "shaders/fairylight.vert.spv");
-        fShaderLight = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/fairylight.frag.spv");
+        vShaderLight = SlimPtr<spirv::VertexShader>(device, "shaders/fairylight.vert.spv");
+        fShaderLight = SlimPtr<spirv::FragmentShader>(device, "shaders/fairylight.frag.spv");
 
         // blend
         VkPipelineColorBlendAttachmentState blend = {};
@@ -126,8 +126,8 @@ public:
     }
 
     void PrepareFairyPipeline() {
-        vShaderFairy = SlimPtr<spirv::VertexShader>(device, "main", "shaders/fairy.vert.spv");
-        fShaderFairy = SlimPtr<spirv::FragmentShader>(device, "main", "shaders/fairy.frag.spv");
+        vShaderFairy = SlimPtr<spirv::VertexShader>(device, "shaders/fairy.vert.spv");
+        fShaderFairy = SlimPtr<spirv::FragmentShader>(device, "shaders/fairy.frag.spv");
 
         // stencil
         VkStencilOpState stencil = {};

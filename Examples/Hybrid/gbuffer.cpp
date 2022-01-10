@@ -9,10 +9,10 @@ void AddGBufferPass(RenderGraph& renderGraph,
     Device* device = renderGraph.GetRenderFrame()->GetDevice();
 
     // vertex shader
-    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "main", "shaders/gbuffer.vert.spv"));
+    static Shader* vShader = bundle.AutoRelease(new spirv::VertexShader(device, "shaders/gbuffer.vert.spv"));
 
     // fragment shader
-    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "main", "shaders/gbuffer.frag.spv"));
+    static Shader* fShader = bundle.AutoRelease(new spirv::FragmentShader(device, "shaders/gbuffer.frag.spv"));
 
     // pipeline
     VkDescriptorBindingFlags bindFlags = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT

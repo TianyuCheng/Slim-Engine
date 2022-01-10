@@ -16,6 +16,9 @@ layout(set = 0, binding = GBUFFER_DIRECT_DIFFUSE_BINDING)  uniform sampler2D dir
 layout(set = 0, binding = GBUFFER_SPECULAR_BINDING)        uniform sampler2D specularImage;
 #endif
 layout(set = 1, binding = DEBUG_SURFEL_BINDING)     uniform sampler2D debugImage;
+#ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+layout(set = 1, binding = DEBUG_GRID_BINDING)       uniform sampler2D gridImage;
+#endif
 
 layout(location = 0) in vec2 inUV;
 layout(location = 0) out vec4 outColor;
@@ -95,7 +98,15 @@ void main() {
     outColor.rgb = ACESFilm(outColor.rgb);
     #endif
 
-    // show debug points
+    #ifdef ENABLE_SURFEL_GRID_VISUALIZATION
+    // show grid information
+    if (control.data.showGrid != 0) {
+        vec4 debug = texture(gridImage, inUV);
+        outColor *= debug;
+    }
+    #endif
+
+    // show surfel debug info
     if (control.data.showSurfelInfo != 0) {
         vec4 debug = texture(debugImage, inUV);
         outColor += debug;

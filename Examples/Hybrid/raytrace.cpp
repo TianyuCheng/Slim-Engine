@@ -9,13 +9,13 @@ void AddRayTracePass(RenderGraph& renderGraph,
     Device* device = renderGraph.GetRenderFrame()->GetDevice();
 
     // ray gen shader
-    static Shader* shadowRayGenShader = bundle.AutoRelease(new spirv::RayGenShader(device, "main", "shaders/shadow.rgen.spv"));
+    static Shader* shadowRayGenShader = bundle.AutoRelease(new spirv::RayGenShader(device, "shaders/shadow.rgen.spv"));
 
     // shadow ray miss shader
-    static Shader* shadowRayMissShader = bundle.AutoRelease(new spirv::MissShader(device, "main", "shaders/shadow.rmiss.spv"));
+    static Shader* shadowRayMissShader = bundle.AutoRelease(new spirv::MissShader(device, "shaders/shadow.rmiss.spv"));
 
     // shadow ray closest hit shader
-    static Shader* shadowRayClosestHitShader = bundle.AutoRelease(new spirv::ClosestHitShader(device, "main", "shaders/shadow.rchit.spv"));
+    static Shader* shadowRayClosestHitShader = bundle.AutoRelease(new spirv::ClosestHitShader(device, "shaders/shadow.rchit.spv"));
 
     // ray tracing pipeline
     static Pipeline* pipeline = bundle.AutoRelease(

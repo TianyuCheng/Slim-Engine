@@ -1,11 +1,9 @@
-add_slim_project(
-    TARGET
-        render2texture
-    SOURCES
-        main.cpp
-    SHADERS
-        shaders/simple.vert
-        shaders/simple.frag
-    SPV
-        vulkan1.0
-)
+# compile shaders
+add_glsl(OUTPUT   shaders/main.spv
+         VERTEX   shaders/simple.vert
+         FRAGMENT shaders/simple.frag
+         VERSION  vulkan1.0)
+
+# compile target
+add_executable(render2texture main.cpp shaders/main.spv)
+target_link_libraries(render2texture PRIVATE slim)
