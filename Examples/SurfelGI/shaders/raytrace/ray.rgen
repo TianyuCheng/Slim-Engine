@@ -12,17 +12,6 @@
 #include "../common.h"
 #include "../halton.h"
 
-const int2 locations_l1[9] = int2[9](
-    int2(0, 0), int2(1, 0), int2(2, 0),
-    int2(0, 1), int2(1, 1), int2(2, 1),
-    int2(0, 2), int2(1, 2), int2(2, 2)
-);
-
-const int2 locations_l2[4] = int2[4](
-    int2(0, 0), int2(1, 0),
-    int2(0, 1), int2(1, 1)
-);
-
 layout(push_constant) uniform Info {
     uint lightCount;
 } info;
@@ -85,97 +74,89 @@ layout(location = 1) rayPayloadEXT bool    shadowed;
 #include "../tracing.h"
 #include "../lighting.h"
 
-float load_rayguide_level1(int2 pixel, int2 pix) {
-    return imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(0, 0)).x
-         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(1, 0)).x
-         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(0, 1)).x
-         + imageLoad(surfelRayGuide, pixel + pix * int2(2, 2) + int2(1, 1)).x;
-}
-
 vec3 sample_rayguide(uint surfelIndex, inout RNGState rng, in SurfelData data, out float pdf) {
-#if 0
+    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
+
+    // A hemisphere has 2 PI sterdians solid angle.
+    // Since we are discretizing the hemisphere into 6x6 grids, each grid has (2 * PI) / 36 sterdians.
+    // This multiplier is used to turn the pdf to appropriate value.
+    float mult = float(SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS) / float(2.0 * PI);
+
     float accum = 0.0;
     float target = rand(rng);
-    int level1index = 0;
-    int level2index = 0;
 
-    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
-
-    // We are using 6x6 texels as discrete ray guiding function.
-    // Level 1: walk 3x3 texels
-    for (level1index = 0; level1index < 9; level1index++) {
-        int2 location = locations_l1[level1index];
-        float value = load_rayguide_level1(pixel, location);
-        if ((accum + value) >= target) {
-            break;
-        }
-        accum += value;
-    }
-
-    // Level 2: walk 6x6 texels with hierarchy
-    int2 level2base = locations_l1[level1index] * 2;
-    for (level2index = 0; level2index < 4; level2index++) {
-        int2 location = level2base + locations_l2[level2index];
-        float value = imageLoad(surfelRayGuide, location).x;
-        if ((accum + value) >= target) {
-            break;
-        }
-        accum += value;
-    }
-
-    int2 level2pix = level2base + locations_l2[level2index];
-    vec2 uv = vec2(level2pix) / vec2(SURFEL_RAYGUIDE_TEXELS);
-    uv.x += rand(rng) / 6.0;
-    uv.y += rand(rng) / 6.0;
-
-    pdf = imageLoad(surfelRayGuide, level2pix).x;
-    return decode_hemioct(uv * 2.0 - 1.0);
-#else
-    float accum = 0.0;
-    float sumOfRadiance = data.rayGuideScale * SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS;
-    float target = rand(rng) * sumOfRadiance;
-
-    int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
-    for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
-        for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
+    #if 0
+    // Easy approach: Walk 6x6 grids.
+    for (uint y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
+        for (uint x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
             int2 location = int2(x, y);
             float value = imageLoad(surfelRayGuide, pixel + location).x;
-            if ((accum + value) >= target) {
-                pdf = value / sumOfRadiance;
-                vec2 uv = vec2(location) / vec2(SURFEL_RAYGUIDE_TEXELS);
-                uv.x += rand(rng) / 6.0;
-                uv.y += rand(rng) / 6.0;
+            float test = accum + value;
+            if (test >= target) {
+                pdf = value * mult;
+                vec2 uv = vec2(location.x + rand(rng), location.y + rand(rng)) / vec2(SURFEL_RAYGUIDE_TEXELS, SURFEL_RAYGUIDE_TEXELS);
                 return decode_hemioct(uv * 2.0 - 1.0);
             }
-            accum += value;
+            accum = test;
         }
     }
-    pdf = Inv2PI; // fallback to uniform hemisphere sampling
-    return vec3(0.0, 0.0, 0.0);
-#endif
+    #endif
+
+    // Hierarchical approach:
+    // Walk 3x3 grids
+    for (uint y = 0; y < SURFEL_RAYGUIDE_TEXELS; y+=2) {
+        for (uint x = 0; x < SURFEL_RAYGUIDE_TEXELS; x+=2) {
+            float c00 = imageLoad(surfelRayGuide, pixel + int2(x + 0, y + 0)).x;
+            float c01 = imageLoad(surfelRayGuide, pixel + int2(x + 0, y + 1)).x;
+            float c10 = imageLoad(surfelRayGuide, pixel + int2(x + 1, y + 0)).x;
+            float c11 = imageLoad(surfelRayGuide, pixel + int2(x + 1, y + 1)).x;
+            float value = c00 + c01 + c10 + c11;
+            float test = accum + value;
+            if (test >= target) {
+                // Walk 2x2 grids
+                for (uint y1 = y; y1 < y + 2; y1++) {
+                    for (uint x1 = x; x1 < x + 2; x1++) {
+                        uint2 location = uint2(x1, y1);
+                        value = imageLoad(surfelRayGuide, pixel + int2(x1, y1)).x;
+                        test = accum + value;
+                        if (test >= target) {
+                            pdf = value * mult;
+                            vec2 uv = vec2(location.x + rand(rng), location.y + rand(rng)) / vec2(SURFEL_RAYGUIDE_TEXELS, SURFEL_RAYGUIDE_TEXELS);
+                            return decode_hemioct(uv * 2.0 - 1.0);
+                        }
+                        accum = test;
+                    }
+                }
+            }
+            accum = test;
+        } // end of x loop
+    } // end of y loop
+
+    pdf = Inv2PI;
+    return vec3(0.0, 0.0, 1.0);
 }
 
 void normalize_rayguide(uint surfelIndex, inout SurfelData data) {
     int2 pixel = int2(unflatten_2d(surfelIndex, uint2(SURFEL_CAPACITY_SQRT)) * SURFEL_RAYGUIDE_TEXELS);
 
-    float sumV = 0.0;
-    float maxV = 0.0;
+    float sum = 0.0;
+    float rayGuideScale = 1.0 / data.rayGuideScale;
     for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
         for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
-            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x;
-            sumV += value;
-            maxV = max(maxV, value);
+            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x * rayGuideScale;
+            sum += value;
         }
     }
 
+    float newScale = 1.0 / sum;
     for (int y = 0; y < SURFEL_RAYGUIDE_TEXELS; y++) {
         for (int x = 0; x < SURFEL_RAYGUIDE_TEXELS; x++) {
-            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x / maxV;
+            float value = imageLoad(surfelRayGuide, pixel + int2(x, y)).x * rayGuideScale * newScale;
             imageStore(surfelRayGuide, pixel + int2(x, y), vec4(value, 0.0, 0.0, 1.0));
         }
     }
 
-    data.rayGuideScale = sumV / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
+    data.rayGuideScale = newScale;
 }
 
 vec4 compute_irradiance_sharing(in CameraInfo camera, in vec3 P, in vec3 N, in vec3 variance) {

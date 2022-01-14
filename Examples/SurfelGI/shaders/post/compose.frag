@@ -9,7 +9,6 @@ layout(push_constant) uniform Control { DebugControl data; } control;
 // samplers
 layout(set = 0, binding = GBUFFER_ALBEDO_BINDING)   uniform sampler2D albedoImage;
 layout(set = 0, binding = GBUFFER_NORMAL_BINDING)   uniform sampler2D normalImage;
-layout(set = 0, binding = GBUFFER_DEPTH_BINDING)    uniform sampler2D depthImage;
 layout(set = 0, binding = GBUFFER_GLOBAL_DIFFUSE_BINDING)  uniform sampler2D globalDiffuseImage;
 #ifdef ENABLE_DIRECT_ILLUMINATION
 layout(set = 0, binding = GBUFFER_DIRECT_DIFFUSE_BINDING)  uniform sampler2D directDiffuseImage;

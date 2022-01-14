@@ -312,7 +312,7 @@ void Scene::ResetSurfels() {
         commandBuffer->ClearColor(surfelDepthImage, depthClear);
 
         VkClearColorValue rayGuideClear = {};
-        rayGuideClear.float32[0] = 1.0;
+        rayGuideClear.float32[0] = 1.0 / float(SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
         rayGuideClear.float32[1] = 0.0;
         rayGuideClear.float32[2] = 0.0;
         rayGuideClear.float32[3] = 0.0;

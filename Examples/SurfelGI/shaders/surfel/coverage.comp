@@ -337,7 +337,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
+                data.rayGuideScale = 1.0 / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -384,7 +384,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
+                data.rayGuideScale = 1.0 / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -417,7 +417,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
+                data.rayGuideScale = 1.0 / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 
@@ -450,7 +450,7 @@ void main() {
                 data.mean = color.rgb;
                 data.shortMean = shortMean.rgb;
                 data.variance = variance.xyz;
-                data.rayGuideScale = 1.0;
+                data.rayGuideScale = 1.0 / (SURFEL_RAYGUIDE_TEXELS * SURFEL_RAYGUIDE_TEXELS);
                 data.instanceID = primID;
                 data.surfelID = surfelID;
 

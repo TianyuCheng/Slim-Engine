@@ -51,7 +51,6 @@ GraphicsPipelineDesc PrepareComposePass(AutoReleasePool& pool) {
             .AddPushConstant("Control", Range  { 0, sizeof(DebugControl)       }, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Albedo",   SetBinding { 0, GBUFFER_ALBEDO_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Normal",   SetBinding { 0, GBUFFER_NORMAL_BINDING     }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
-            .AddBinding("Depth",    SetBinding { 0, GBUFFER_DEPTH_BINDING      }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             #ifdef ENABLE_DIRECT_ILLUMINATION
             .AddBinding("DirectDiffuse", SetBinding { 0, GBUFFER_DIRECT_DIFFUSE_BINDING    }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
             .AddBinding("Specular",      SetBinding { 0, GBUFFER_SPECULAR_BINDING          }, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
@@ -83,7 +82,6 @@ void AddComposePass(RenderGraph&           graph,
     pass->SetColor(colorAttachment, ClearValue(0.0f, 0.0f, 0.0f, 1.0f));
     pass->SetTexture(gbuffer->albedo);
     pass->SetTexture(gbuffer->normal);
-    pass->SetTexture(gbuffer->depth);
     #ifdef ENABLE_DIRECT_ILLUMINATION
     pass->SetTexture(gbuffer->directDiffuse);
     pass->SetTexture(gbuffer->specular);
@@ -108,7 +106,6 @@ void AddComposePass(RenderGraph&           graph,
         auto descriptor = SlimPtr<Descriptor>(info.renderFrame->GetDescriptorPool(), pipeline->Layout());
         descriptor->SetTexture("Albedo", gbuffer->albedo->GetImage(), sampler);
         descriptor->SetTexture("Normal", gbuffer->normal->GetImage(), sampler);
-        descriptor->SetTexture("Depth",  gbuffer->depth->GetImage(), sampler);
         descriptor->SetTexture("GlobalDiffuse", gbuffer->globalDiffuse->GetImage(), sampler);
         #ifdef ENABLE_DIRECT_ILLUMINATION
         descriptor->SetTexture("DirectDiffuse", gbuffer->directDiffuse->GetImage(), sampler);
