@@ -14,6 +14,7 @@ add_subdirectory(Geometries)
 add_subdirectory(Skybox)
 add_subdirectory(OctMap)
 add_subdirectory(MatCap)
+add_subdirectory(Noise)
 add_subdirectory(Deferred)
 add_subdirectory(Hemisphere)
 

@@ -16,6 +16,9 @@ function(add_glsl)
     include (CMakeParseArguments)
     cmake_parse_arguments(${prefix} "${flags}" "${singleValues}" "${multiValues}" ${ARGN})
 
+    # Prepare directory
+    make_directory(${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${ADD_GLSL_OUTPUT}.dir)
+
     # Create common variables
     set(ADD_GLSL_COMPILE_FLAGS -g -O -Os)
     set(ADD_GLSL_OBJECT_DIR "${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${ADD_GLSL_OUTPUT}.dir")
@@ -50,13 +53,14 @@ function(add_glsl)
             COMMAND ${CMAKE_COMMAND} -E make_directory ${ADD_GLSL_OBJECT_DIR}
             COMMAND ${CMAKE_GLSL_COMPILER} -MD --target-env=${ADD_GLSL_VERSION}
                                                 -fshader-stage=${STAGE}
+                                                -I${CMAKE_CURRENT_SOURCE_DIR}/${DIRECTORY}
                                                 ${ADD_GLSL_INCLUDE_DIRS}
                                                 ${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE}
                                                 ${ADD_GLSL_COMPILE_FLAGS} -o ${ADD_GLSL_SUBTARGET}
-            DEPENDS ${ADD_GLSL_SOURCE} ${ADD_GLSL_INCLUDE_DEPS}
+            MAIN_DEPENDENCY ${SOURCE}
+            DEPENDS ${ADD_GLSL_INCLUDE_DEPS}
             WORKING_DIRECTORY ${ADD_GLSL_OBJECT_DIR}
-            BYPRODUCTS ${ADD_GLSL_OBJECT_DIR}/${ADD_GLSL_SUBTARGET}.d)
-        mark_as_advanced(${ADD_GLSL_SUBTARGET})
+            BYPRODUCTS ${ADD_GLSL_SUBTARGET}.d)
     endmacro()
 
     # Add compute shaders.
@@ -114,6 +118,5 @@ function(add_glsl)
         OUTPUT  ${ADD_GLSL_OUTPUT}
         COMMAND ${CMAKE_GLSL_LINKER} --target-env ${ADD_GLSL_VERSION} ${ADD_GLSL_OBJECTS} -o ${ADD_GLSL_OUTPUT}
         DEPENDS ${ADD_GLSL_OBJECTS})
-    mark_as_advanced(${ADD_GLSL_OUTPUT})
 
 endfunction()

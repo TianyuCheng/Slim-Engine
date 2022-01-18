@@ -11,10 +11,13 @@ function(add_hlsl)
     # Parse arguments.
     set(prefix ADD_HLSL)
     set(flags "")
-    set(singleValues TARGET VERSION SOURCE COMPUTE VERTEX FRAGMENT GEOMETRY TESSCTRL TESSEVAL RAYGEN RAYCHIT RAYAHIT RAYMISS)
+    set(singleValues OUTPUT VERSION SOURCE COMPUTE VERTEX FRAGMENT GEOMETRY TESSCTRL TESSEVAL RAYGEN RAYCHIT RAYAHIT RAYMISS)
     set(multiValues INCLUDE)
     include (CMakeParseArguments)
     cmake_parse_arguments(${prefix} "${flags}" "${singleValues}" "${multiValues}" ${ARGN})
+
+    # Prepare directory
+    make_directory(${CMAKE_CURRENT_BINARY_DIR}/CMakeFiles/${ADD_HLSL_OUTPUT}.dir)
 
     # Create common variables
     set(ADD_HLSL_COMPILE_FLAGS -g -O -Os)
@@ -53,10 +56,10 @@ function(add_hlsl)
                                                 ${ADD_HLSL_INCLUDE_DIRS}
                                                 ${SOURCE}
                                                 ${ADD_HLSL_COMPILE_FLAGS} -o ${ADD_HLSL_SUBTARGET}
-            DEPENDS ${ADD_HLSL_SOURCE} ${ADD_HLSL_INCLUDE_DEPS}
+            MAIN_DEPENDENCY ${SOURCE}
+            DEPENDS ${ADD_HLSL_INCLUDE_DEPS}
             WORKING_DIRECTORY ${ADD_HLSL_OBJECT_DIR}
-            BYPRODUCTS ${ADD_HLSL_OBJECT_DIR}/${ADD_HLSL_SUBTARGET}.d)
-        mark_as_advanced(${ADD_HLSL_SUBTARGET})
+            BYPRODUCTS ${ADD_HLSL_SUBTARGET}.d)
     endmacro()
 
     # Add compute shaders.
@@ -114,6 +117,5 @@ function(add_hlsl)
         OUTPUT  ${ADD_HLSL_OUTPUT}
         COMMAND ${CMAKE_HLSL_LINKER} --target-env ${ADD_HLSL_VERSION} ${ADD_HLSL_OBJECTS} -o ${ADD_HLSL_OUTPUT}
         DEPENDS ${ADD_HLSL_OBJECTS})
-    mark_as_advanced(${ADD_HLSL_OUTPUT})
 
 endfunction()
