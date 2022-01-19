@@ -50,7 +50,7 @@ function(add_glsl)
         list(APPEND ADD_GLSL_OBJECTS ${ADD_GLSL_SUBTARGET})
         add_custom_command(
             OUTPUT  ${ADD_GLSL_SUBTARGET}
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${ADD_GLSL_OBJECT_DIR}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${ADD_GLSL_OBJECT_DIR}/${DIRECTORY}
             COMMAND ${CMAKE_GLSL_COMPILER} -MD --target-env=${ADD_GLSL_VERSION}
                                                 -fshader-stage=${STAGE}
                                                 -I${CMAKE_CURRENT_SOURCE_DIR}/${DIRECTORY}
@@ -114,8 +114,12 @@ function(add_glsl)
     endforeach()
 
     # Build shader library target
+    set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${ADD_GLSL_OUTPUT}")
+    get_filename_component(OUTPUT_FILE ${OUTPUT_FILE} ABSOLUTE)
+    get_filename_component(OUTPUT_DIRECTORY ${OUTPUT_FILE} DIRECTORY)
     add_custom_command(
         OUTPUT  ${ADD_GLSL_OUTPUT}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIRECTORY}
         COMMAND ${CMAKE_GLSL_LINKER} --target-env ${ADD_GLSL_VERSION} ${ADD_GLSL_OBJECTS} -o ${ADD_GLSL_OUTPUT}
         DEPENDS ${ADD_GLSL_OBJECTS})
 

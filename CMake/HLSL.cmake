@@ -113,8 +113,12 @@ function(add_hlsl)
     endforeach()
 
     # Build shader library target
+    set(OUTPUT_FILE "${CMAKE_CURRENT_BINARY_DIR}/${ADD_HLSL_OUTPUT}")
+    get_filename_component(OUTPUT_FILE ${OUTPUT_FILE} ABSOLUTE)
+    get_filename_component(OUTPUT_DIRECTORY ${OUTPUT_FILE} DIRECTORY)
     add_custom_command(
         OUTPUT  ${ADD_HLSL_OUTPUT}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OUTPUT_DIRECTORY}
         COMMAND ${CMAKE_HLSL_LINKER} --target-env ${ADD_HLSL_VERSION} ${ADD_HLSL_OBJECTS} -o ${ADD_HLSL_OUTPUT}
         DEPENDS ${ADD_HLSL_OBJECTS})
 
