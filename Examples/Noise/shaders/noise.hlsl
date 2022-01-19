@@ -2,6 +2,7 @@
 #include "value.hlsli"
 #include "perlin.hlsli"
 #include "simplex.hlsli"
+#include "voronoi.hlsli"
 
 struct v2f
 {
@@ -20,12 +21,14 @@ struct Screen
 struct Control
 {
     uint noiseType;
+    uint dimension;
+    float cellSize;
 };
 
 [[vk::binding(0, 0)]]
 ConstantBuffer<Screen> screen;
 
-[[vk::binding(0, 1)]]
+[[vk::binding(1, 0)]]
 ConstantBuffer<Control> control;
 
 // vertex data for drawing a quad
@@ -65,30 +68,73 @@ v2f vert(uint vertexID : SV_VertexID)
 float4 frag(v2f input) : SV_TARGET
 {
     float3 uv = float3(input.uv, screen.time * 0.1);
+    float3 value;
 
-    #if 0 // use white noise directly
-    float3 value = noises::white::rand1d(uv);
-    #endif
+    // use white noise directly
+    if (control.noiseType == 0) {
+        if (control.dimension == 1) {
+            value = noises::white::rand1d(uv);
+        }
+        else if (control.dimension == 2) {
+            value = float3(noises::white::rand2d(uv), 0.0);
+        }
+        else if (control.dimension == 3) {
+            value = noises::white::rand3d(uv);
+        }
+    }
 
-    #if 0 // use value noise with a cell size
-    float cellSize = 0.05;
-    float3 value = noises::value::rand1d(uv / cellSize);
-    #endif
+    // use value noise with a cell size
+    if (control.noiseType == 1) {
+        if (control.dimension == 1) {
+            value = noises::value::rand1d(uv / control.cellSize);
+        }
+        else if (control.dimension == 2) {
+            value = float3(noises::value::rand2d(uv / control.cellSize), 0.0);
+        }
+        else if (control.dimension == 3) {
+            value = noises::value::rand3d(uv / control.cellSize);
+        }
+    }
 
-    #if 0 // use perlin noise with a cell size
-    float cellSize = 0.05;
-    float3 value = noises::perlin::rand1d(uv / cellSize);
-    #endif
+    // use perlin noise with a cell size
+    if (control.noiseType == 2) {
+        if (control.dimension == 1) {
+            value = noises::perlin::rand1d(uv / control.cellSize);
+        }
+        else if (control.dimension == 2) {
+            value = float3(noises::perlin::rand2d(uv / control.cellSize), 0.0);
+        }
+        else if (control.dimension == 3) {
+            value = noises::perlin::rand3d(uv / control.cellSize);
+        }
+    }
 
-    #if 0 // use simplex noise with a cell size
-    float cellSize = 0.05;
-    float3 value = noises::simplex::rand1d(uv / cellSize);
-    #endif
+    // use simplex noise with a cell size
+    if (control.noiseType == 3) {
+        if (control.dimension == 1) {
+            value = noises::simplex::rand1d(uv / control.cellSize);
+        }
+        else if (control.dimension == 2) {
+            value = float3(noises::simplex::rand2d(uv / control.cellSize), 0.0);
+        }
+        else if (control.dimension == 3) {
+            value = noises::simplex::rand3d(uv / control.cellSize);
+        }
+    }
 
-    #if 1 // run fractal brownian motion
-    float cellSize = 0.05;
-    float3 value = fbm(uv / cellSize);
-    #endif
+    // use voronoi noise with a cell size
+    if (control.noiseType == 4) {
+        float edgeDist;
+        float3 cellPos;
+        value = noises::voronoi::rand1d(uv / control.cellSize, cellPos, edgeDist);
+        value = noises::white::rand3d(cellPos);
+        value *= (1.0 - step(edgeDist, 0.1));
+    }
+
+    // run fractal brownian motion
+    if (control.noiseType == 5) {
+        value = fbm(uv / control.cellSize);
+    }
 
     value = value * 0.5 + 0.5;
     float4 color = float4(value, 1.0);

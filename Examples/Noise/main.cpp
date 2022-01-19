@@ -3,6 +3,15 @@
 using namespace glm;
 using namespace slim;
 
+enum class NoiseType : uint32_t {
+    White = 0,
+    Value = 1,
+    Perlin = 2,
+    Simplex = 3,
+    Voronoi = 4,
+    Layered = 5,
+};
+
 struct Screen {
     uvec2 resolution;
     float time;
@@ -10,6 +19,8 @@ struct Screen {
 
 struct Control {
     uint noiseType;
+    uint dimension;
+    float cellSize;
 } control;
 
 int main() {
@@ -49,6 +60,9 @@ int main() {
     // create data
     auto screen = Screen {};
     auto control = Control {};
+    control.noiseType = static_cast<uint32_t>(NoiseType::Layered);
+    control.cellSize = 0.05;
+    control.dimension = 1;
 
     // render
     while (window->IsRunning()) {
@@ -60,6 +74,15 @@ int main() {
         // prepare ui rendering component
         ui->Begin();
         {
+            ImGui::RadioButton("White Noise",   (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::White));
+            ImGui::RadioButton("Value Noise",   (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::Value));
+            ImGui::RadioButton("Perlin Noise",  (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::Perlin));
+            ImGui::RadioButton("Simplex Noise", (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::Simplex));
+            ImGui::RadioButton("Voronoi Noise", (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::Voronoi));
+            ImGui::RadioButton("Layered Noise", (int*)&control.noiseType, static_cast<uint32_t>(NoiseType::Layered));
+
+            ImGui::DragFloat("Cell Size", (float*)&control.cellSize, 0.05f, 0.0f, 1.0f);
+            ImGui::DragInt("Dimension", (int*)&control.dimension, 1, 1, 3);
         }
         ui->End();
 
